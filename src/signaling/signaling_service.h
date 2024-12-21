@@ -40,6 +40,8 @@ class SignalingService {
     void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); };
 
   protected:
+    std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> &GetPeerMap() { return peer_map_; }
+
     virtual void RefreshPeerMap() {
         auto pm_it = peer_map_.begin();
         while (pm_it != peer_map_.end()) {

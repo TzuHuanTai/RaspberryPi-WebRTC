@@ -150,7 +150,7 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
     auto client_id = GetClientId(topic);
 
-    if (!client_id_to_peer_id_.contains(client_id)) {
+    if (topic.starts_with(sdp_base_topic_)) {
         auto peer = CreatePeer();
         peer->OnLocalSdp(
             [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
@@ -163,11 +163,9 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
         client_id_to_peer_id_[client_id] = peer->GetId();
         peer_id_to_client_id_[peer->GetId()] = client_id;
-    }
 
-    if (topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
         OnRemoteSdp(client_id_to_peer_id_[client_id], payload);
-    } else if (topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
+    } else if (topic.starts_with(ice_base_topic_)) {
         OnRemoteIce(client_id_to_peer_id_[client_id], payload);
     }
 }
@@ -193,18 +191,22 @@ std::string MqttService::GetClientId(std::string &topic) {
 }
 
 void MqttService::RefreshPeerMap() {
-    auto pm_it = client_id_to_peer_id_.begin();
-    while (pm_it != client_id_to_peer_id_.end()) {
-        auto peer_id = pm_it->second;
+    auto &map = GetPeerMap();
+    auto pm_it = map.begin();
+    while (pm_it != map.end()) {
+        auto peer_id = pm_it->first;
         auto peer = GetPeer(peer_id);
 
         DEBUG_PRINT("Found peer_id key: %s, connected value: %d", peer_id.c_str(),
                     peer->IsConnected());
 
         if (!peer->IsConnected()) {
+            auto client_id = peer_id_to_client_id_[peer_id];
             peer_id_to_client_id_.erase(peer_id);
-            RemovePeerFromMap(peer_id);
-            pm_it = client_id_to_peer_id_.erase(pm_it);
+            pm_it = map.erase(pm_it);
+            if (client_id_to_peer_id_[client_id] == peer_id) {
+                client_id_to_peer_id_.erase(client_id);
+            }
             DEBUG_PRINT("(%s) was erased.", peer_id.c_str());
         } else {
             ++pm_it;
