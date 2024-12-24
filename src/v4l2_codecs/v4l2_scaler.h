@@ -5,8 +5,6 @@
 
 class V4l2Scaler : public V4l2Codec {
   public:
-    V4l2Scaler() = default;
-    ~V4l2Scaler() = default;
     bool Configure(int src_width, int src_height, int dst_width, int dst_height, bool is_drm_src,
                    bool is_drm_dst);
 };
