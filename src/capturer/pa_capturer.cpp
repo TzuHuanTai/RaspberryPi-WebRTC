@@ -56,8 +56,8 @@ void PaCapturer::CaptureSamples() {
 }
 
 void PaCapturer::StartCapture() {
-    worker_.reset(new Worker("PaCapture", [this]() {
+    worker_ = std::make_unique<Worker>("PaCapture", [this]() {
         CaptureSamples();
-    }));
+    });
     worker_->Run();
 }

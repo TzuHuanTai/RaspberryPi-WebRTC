@@ -9,13 +9,13 @@ class SignalingService {
   public:
     SignalingService(std::shared_ptr<Conductor> conductor, bool has_candidates_in_sdp = false)
         : conductor_(conductor),
-          has_candidates_in_sdp_(has_candidates_in_sdp){};
+          has_candidates_in_sdp_(has_candidates_in_sdp) {}
 
     void Start() {
-        worker_.reset(new Worker("cleaner", [this]() {
+        worker_ = std::make_unique<Worker>("cleaner", [this]() {
             std::this_thread::sleep_for(std::chrono::seconds(60));
             RefreshPeerMap();
-        }));
+        });
         worker_->Run();
         Connect();
     }
@@ -27,7 +27,7 @@ class SignalingService {
         auto peer = conductor_->CreatePeerConnection(std::move(config));
         peer_map_[peer->GetId()] = peer;
         return peer;
-    };
+    }
 
     rtc::scoped_refptr<RtcPeer> GetPeer(const std::string &peer_id) {
         auto it = peer_map_.find(peer_id);
@@ -35,9 +35,9 @@ class SignalingService {
             return it->second;
         }
         return nullptr;
-    };
+    }
 
-    void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); };
+    void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); }
 
   protected:
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> &GetPeerMap() { return peer_map_; }
@@ -54,7 +54,7 @@ class SignalingService {
                 ++pm_it;
             }
         }
-    };
+    }
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 

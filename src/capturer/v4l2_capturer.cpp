@@ -203,8 +203,8 @@ void V4l2Capturer::StartCapture() {
         decoder_->Start();
     }
 
-    worker_.reset(new Worker("V4l2Capture", [this]() {
+    worker_ = std::make_unique<Worker>("V4l2Capture", [this]() {
         CaptureImage();
-    }));
+    });
     worker_->Run();
 }

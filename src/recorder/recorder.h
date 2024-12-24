@@ -1,5 +1,6 @@
 #ifndef RECORDER_H_
 #define RECORDER_H_
+
 #include <condition_variable>
 #include <mutex>
 
@@ -23,13 +24,13 @@ template <typename T> class Recorder {
     void Initialize() {
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
-        worker.reset(new Worker("Recorder", [this]() {
+        worker = std::make_unique<Worker>("Recorder", [this]() {
             std::unique_lock<std::mutex> lock(mtx_);
             cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] {
                 return abort_.load();
             });
             ConsumeBuffer();
-        }));
+        });
     }
 
     virtual void PostStop(){};

@@ -98,8 +98,8 @@ void Pa2Capturer::CaptureSamples() {
 }
 
 void Pa2Capturer::StartCapture() {
-    worker_.reset(new Worker("PaCapture2", [&]() {
+    worker_ = std::make_unique<Worker>("PaCapture2", [&]() {
         pa_mainloop_iterate(m, 1, nullptr);
-    }));
+    });
     worker_->Run();
 }

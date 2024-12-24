@@ -100,12 +100,12 @@ RecorderManager::RecorderManager(std::string record_path)
       elapsed_time_(0.0) {}
 
 void RecorderManager::StartRotationThread() {
-    rotation_worker_.reset(new Worker("Record Rotation", [this]() {
+    rotation_worker_ = std::make_unique<Worker>("Record Rotation", [this]() {
         while (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
             Utils::RotateFiles(record_path);
         }
         sleep(60);
-    }));
+    });
     rotation_worker_->Run();
 }
 

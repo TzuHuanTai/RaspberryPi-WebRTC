@@ -41,9 +41,9 @@ bool V4l2Codec::PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height, u
 }
 
 void V4l2Codec::Start() {
-    worker_.reset(new Worker(file_name_, [this]() {
+    worker_ = std::make_unique<Worker>(file_name_, [this]() {
         CaptureBuffer();
-    }));
+    });
     abort_.store(false);
     worker_->Run();
 }
