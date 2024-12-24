@@ -2,9 +2,7 @@
 #define SUBJECT_H_
 
 #include <functional>
-#include <future>
 #include <memory>
-#include <stdint.h>
 #include <vector>
 
 template <typename T> class Observable {

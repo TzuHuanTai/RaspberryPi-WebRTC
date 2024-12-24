@@ -1,8 +1,6 @@
 #ifndef V4L2_UTILS_
 #define V4L2_UTILS_
 
-#include "v4l2_utils.h"
-
 #include <linux/videodev2.h>
 #include <stdint.h>
 #include <string>

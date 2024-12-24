@@ -2,13 +2,14 @@
 #define RTC_PEER_H_
 
 #include <atomic>
-#include <iostream>
+#include <thread>
 
 #include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
 #include <api/video/video_sink_interface.h>
 
 #include "args.h"
+#include "common/logging.h"
 #include "data_channel_subject.h"
 
 struct PeerConfig {
@@ -33,14 +34,14 @@ class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
 
   protected:
     void OnSuccess() override {
-        std::cout << "=> Set sdp success!" << std::endl;
+        INFO_PRINT("=> Set sdp success!");
         auto f = std::move(on_success_);
         if (f) {
             f();
         }
     }
     void OnFailure(webrtc::RTCError error) override {
-        std::cout << "=> Set sdp failed! " << error.message() << std::endl;
+        INFO_PRINT("=> Set sdp failed: %s", error.message());
         auto f = std::move(on_failure_);
         if (f) {
             f(error);
@@ -134,4 +135,4 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };
 
-#endif
+#endif // RTC_PEER_H_

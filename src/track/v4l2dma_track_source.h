@@ -1,10 +1,7 @@
 #ifndef V4L2DMA_TRACK_SOURCE_H_
 #define V4L2DMA_TRACK_SOURCE_H_
 
-#include <media/base/adapted_video_track_source.h>
-
 #include "track/scale_track_source.h"
-#include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/v4l2_scaler.h"
 
 class V4l2DmaTrackSource : public ScaleTrackSource {

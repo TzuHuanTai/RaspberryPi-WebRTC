@@ -1,10 +1,7 @@
 #include "track/scale_track_source.h"
 
-#include <cmath>
-
 // WebRTC
 #include <api/video/i420_buffer.h>
-#include <api/video/video_frame_buffer.h>
 #include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"

@@ -1,5 +1,5 @@
-#ifndef RAW_H264_RECODER_H_
-#define RAW_H264_RECODER_H_
+#ifndef RAW_H264_RECORDER_H_
+#define RAW_H264_RECORDER_H_
 
 #include "recorder/video_recorder.h"
 
@@ -21,4 +21,4 @@ class RawH264Recorder : public VideoRecorder {
     bool has_first_keyframe_;
 };
 
-#endif
+#endif // RAW_H264_RECORDER_H_

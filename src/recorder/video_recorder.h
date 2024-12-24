@@ -1,5 +1,5 @@
-#ifndef VIDEO_RECODER_H_
-#define VIDEO_RECODER_H_
+#ifndef VIDEO_RECORDER_H_
+#define VIDEO_RECORDER_H_
 
 #include <condition_variable>
 #include <mutex>
@@ -12,7 +12,6 @@ extern "C" {
 
 #include "args.h"
 #include "common/v4l2_frame_buffer.h"
-#include "common/v4l2_utils.h"
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
@@ -94,4 +93,4 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
-#endif // VIDEO_RECODER_H_
+#endif // VIDEO_RECORDER_H_

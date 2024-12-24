@@ -257,7 +257,6 @@ void Conductor::InitializePeerConnectionFactory() {
 
     webrtc::PeerConnectionFactoryDependencies dependencies;
     dependencies.network_thread = network_thread_.get();
-    ;
     dependencies.worker_thread = worker_thread_.get();
     dependencies.signaling_thread = signaling_thread_.get();
     dependencies.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();

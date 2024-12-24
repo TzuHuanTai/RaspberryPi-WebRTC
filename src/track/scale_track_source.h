@@ -5,7 +5,6 @@
 #include <rtc_base/timestamp_aligner.h>
 
 #include "capturer/video_capturer.h"
-#include "common/v4l2_utils.h"
 
 class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
   public:

@@ -1,5 +1,5 @@
-#ifndef H264_RECODER_H_
-#define H264_RECODER_H_
+#ifndef H264_RECORDER_H_
+#define H264_RECORDER_H_
 
 #include <atomic>
 
@@ -27,4 +27,4 @@ class H264Recorder : public VideoRecorder {
     void ResetCodecs();
 };
 
-#endif
+#endif  // H264_RECORDER_H_

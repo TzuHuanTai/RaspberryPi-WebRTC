@@ -1,6 +1,11 @@
-#include "common/utils.h"
-
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <iterator>
+#include <sstream>
+#include <sys/statvfs.h>
+#include <uuid/uuid.h>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -9,6 +14,7 @@ extern "C" {
 #include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"
+#include "common/utils.h"
 
 bool Utils::CreateFolder(const std::string &folder_path) {
     if (folder_path.empty()) {
@@ -17,7 +23,6 @@ bool Utils::CreateFolder(const std::string &folder_path) {
 
     try {
         fs::create_directories(fs::path(folder_path).parent_path());
-
         fs::create_directory(folder_path);
         DEBUG_PRINT("Directory created: %s", folder_path.c_str());
         return true;
@@ -61,33 +66,34 @@ void Utils::RotateFiles(const std::string &folder_path) {
             }
 
             if (!mp4_files.empty()) {
-                std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path &a, const fs::path &b) {
-                    return fs::last_write_time(a) < fs::last_write_time(b);
-                });
+                std::sort(mp4_files.begin(), mp4_files.end(),
+                          [](const fs::path &a, const fs::path &b) {
+                              return fs::last_write_time(a) < fs::last_write_time(b);
+                          });
                 fs::remove(mp4_files.front());
-                std::cout << "Deleted oldest .mp4 file: " << mp4_files.front() << std::endl;
+                INFO_PRINT("Deleted oldest .mp4 file: %s", mp4_files.front().string().c_str());
 
-                // Also delete corresponding .jpg file
                 fs::path corresponding_image = mp4_files.front().replace_extension(".jpg");
                 if (fs::exists(corresponding_image)) {
                     fs::remove(corresponding_image);
-                    std::cout << "Deleted corresponding .jpg file: " << corresponding_image
-                              << std::endl;
+                    INFO_PRINT("Deleted corresponding .jpg file: %s",
+                               corresponding_image.string().c_str());
                 }
 
                 if (fs::is_empty(oldest_hour_folder)) {
                     fs::remove(oldest_hour_folder);
-                    std::cout << "Deleted empty hour folder: " << oldest_hour_folder << std::endl;
+                    INFO_PRINT("Deleted empty hour folder: %s",
+                               oldest_hour_folder.string().c_str());
 
                     if (fs::is_empty(oldest_date_folder)) {
                         fs::remove(oldest_date_folder);
-                        std::cout << "Deleted empty date folder: " << oldest_date_folder
-                                  << std::endl;
+                        INFO_PRINT("Deleted empty date folder: %s",
+                                   oldest_date_folder.string().c_str());
                     }
                 }
             } else {
                 fs::remove_all(oldest_hour_folder);
-                std::cout << "Deleted empty hour folder: " << oldest_hour_folder << std::endl;
+                INFO_PRINT("Deleted empty hour folder: %s", oldest_hour_folder.string().c_str());
             }
         }
     }
@@ -272,7 +278,6 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
         std::sort(files.begin(), files.end(), std::greater<>());
 
         for (auto &p : files) {
-            std::cout << p.second.string() << std::endl;
             if (fs::file_time_type::clock::to_sys(p.first) < time_limit) {
                 return p.second.string();
             }
@@ -287,7 +292,7 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
             }
             hour_path = date_path / prev_hour;
             if (!fs::exists(hour_path)) {
-                std::cout << "pre hour path " << hour_path.string() << " is not found" << std::endl;
+                ERROR_PRINT("pre hour path %s is not found", hour_path.string().c_str());
                 break;
             }
         } else {
@@ -298,7 +303,7 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
             date_path = root_path / prev_date;
             hour_path = date_path / "23";
             if (!fs::exists(date_path)) {
-                std::cout << "pre date path " << date_path.string() << " is not found" << std::endl;
+                ERROR_PRINT("pre date path %s is not found", date_path.string().c_str());
                 break;
             }
         }
@@ -343,7 +348,7 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
             }
             hour_path = date_path / prev_hour;
             if (!fs::exists(hour_path)) {
-                std::cout << "pre hour path " << hour_path.string() << " is not found" << std::endl;
+                ERROR_PRINT("pre hour path %s is not found", hour_path.string().c_str());
                 break;
             }
         } else {
@@ -353,7 +358,7 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
             date_path = root_path / prev_date;
             hour_path = date_path / "23";
             if (!fs::exists(date_path)) {
-                std::cout << "pre date path " << date_path.string() << " is not found" << std::endl;
+                ERROR_PRINT("pre date path %s is not found", date_path.string().c_str());
                 break;
             }
         }

@@ -1,7 +1,5 @@
 #include "codec/h264/h264_encoder.h"
 
-#include "vector"
-
 #include "common/logging.h"
 #include "common/utils.h"
 
@@ -23,7 +21,7 @@ H264Encoder::~H264Encoder() { ReleaseCodec(); }
 void H264Encoder::Init() {
     int rv = WelsCreateSVCEncoder(&encoder_);
     if (rv != 0) {
-        std::cerr << "Failed to create OpenH264 encoder." << std::endl;
+        ERROR_PRINT("Failed to create OpenH264 encoder.");
         return;
     }
 
@@ -51,7 +49,7 @@ void H264Encoder::Init() {
 
     rv = encoder_->InitializeExt(&encoder_param);
     if (rv != 0) {
-        std::cerr << "Failed to initialize OpenH264 encoder." << std::endl;
+        ERROR_PRINT("Failed to initialize OpenH264 encoder.");
         return;
     }
 }

@@ -8,7 +8,7 @@ std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
 
 H264Recorder::H264Recorder(Args config, std::string encoder_name)
     : VideoRecorder(config, encoder_name),
-      abort_(true){};
+      abort_(true) {}
 
 H264Recorder::~H264Recorder() {
     encoder_.reset();

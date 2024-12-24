@@ -1,4 +1,3 @@
-// #if USE_HTTP_SIGNALING
 #ifndef HTTP_SERVICE_H_
 #define HTTP_SERVICE_H_
 

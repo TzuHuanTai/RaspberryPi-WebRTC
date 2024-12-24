@@ -1,4 +1,3 @@
-// #if USE_HTTP_SIGNALING
 #include "signaling/http_service.h"
 
 #include <iostream>
@@ -295,5 +294,3 @@ IceCandidates HttpSession::ParseCandidates(const std::string &sdp) {
 
     return result;
 }
-
-// #endif

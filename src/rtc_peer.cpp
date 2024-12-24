@@ -1,12 +1,7 @@
 #include "rtc_peer.h"
 
 #include <chrono>
-#include <iostream>
 #include <regex>
-#include <thread>
-#include <vector>
-
-#include "common/logging.h"
 
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
     return rtc::make_ref_counted<RtcPeer>(std::move(config));
@@ -125,7 +120,6 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
                 peer_connection_->Close();
             }
         });
-    } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
     }
 }
 

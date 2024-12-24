@@ -1,8 +1,5 @@
 #include "data_channel_subject.h"
 
-#include <iostream>
-#include <memory>
-
 #include "common/logging.h"
 
 const int CHUNK_SIZE = 65536;

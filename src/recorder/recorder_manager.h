@@ -1,5 +1,5 @@
-#ifndef RECODER_MANAGER_H_
-#define RECODER_MANAGER_H_
+#ifndef RECORDER_MANAGER_H_
+#define RECORDER_MANAGER_H_
 
 #include <mutex>
 
@@ -63,4 +63,4 @@ class RecorderManager {
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
-#endif
+#endif // RECORDER_MANAGER_H_

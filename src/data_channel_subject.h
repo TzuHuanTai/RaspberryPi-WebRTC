@@ -96,4 +96,4 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
     void Send(const uint8_t *data, size_t size);
 };
 
-#endif
+#endif // DATA_CHANNEL_H_

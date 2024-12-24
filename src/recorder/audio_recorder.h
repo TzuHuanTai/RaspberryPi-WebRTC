@@ -1,5 +1,5 @@
-#ifndef AUDIO_RECODER_H_
-#define AUDIO_RECODER_H_
+#ifndef AUDIO_RECORDER_H_
+#define AUDIO_RECORDER_H_
 
 #include <condition_variable>
 #include <mutex>
@@ -77,4 +77,4 @@ class AudioRecorder : public Recorder<PaBuffer> {
     bool ConsumeBuffer() override;
 };
 
-#endif // AUDIO_RECODER_H_
+#endif // AUDIO_RECORDER_H_
