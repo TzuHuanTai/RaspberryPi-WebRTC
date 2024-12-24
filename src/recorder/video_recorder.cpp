@@ -34,25 +34,23 @@ void VideoRecorder::OnBuffer(V4l2Buffer &buffer) {
     }
 }
 
-void VideoRecorder::PostStop() {
-    has_first_keyframe = false;
-}
+void VideoRecorder::PostStop() { has_first_keyframe = false; }
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
 void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
-    AVPacket pkt;
-    av_init_packet(&pkt);
-    pkt.data = static_cast<uint8_t *>(buffer.start);
-    pkt.size = buffer.length;
-    pkt.stream_index = st->index;
+    AVPacket *pkt = av_packet_alloc();
+    pkt->data = static_cast<uint8_t *>(buffer.start);
+    pkt->size = buffer.length;
+    pkt->stream_index = st->index;
 
     double elapsed_time = (buffer.timestamp.tv_sec - base_time_.tv_sec) +
                           (buffer.timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
-    pkt.pts = pkt.dts = static_cast<int>(elapsed_time * st->time_base.den / st->time_base.num);
+    pkt->pts = pkt->dts = static_cast<int>(elapsed_time * st->time_base.den / st->time_base.num);
 
-    OnPacketed(&pkt);
-    av_packet_unref(&pkt);
+    OnPacketed(pkt);
+    av_packet_unref(pkt);
+    av_packet_free(&pkt);
 }
 
 bool VideoRecorder::ConsumeBuffer() {
