@@ -4,8 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/include/*",
-                "/usr/local/include/**",
+                "/usr/include",
+                "/usr/local/include",
                 "/usr/include/libcamera/**",
                 "/usr/local/include/webrtc/*",
                 "/usr/local/include/webrtc/third_party/abseil-cpp/*",

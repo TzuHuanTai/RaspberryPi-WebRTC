@@ -25,10 +25,6 @@ template <typename T> class Recorder {
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
         worker = std::make_unique<Worker>("Recorder", [this]() {
-            std::unique_lock<std::mutex> lock(mtx_);
-            cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] {
-                return abort_.load();
-            });
             ConsumeBuffer();
         });
     }
@@ -46,11 +42,6 @@ template <typename T> class Recorder {
     void OnPacketed(OnPacketedFunc fn) { on_packeted = fn; }
 
     void Stop() {
-        {
-            std::lock_guard<std::mutex> lock(mtx_);
-            abort_.store(true);
-        }
-        cond_var_.notify_all();
         worker.reset();
         PostStop();
     }
@@ -58,7 +49,6 @@ template <typename T> class Recorder {
     void Start() {
         Initialize();
         PreStart();
-        abort_.store(false);
         worker->Run();
     }
 
@@ -75,11 +65,6 @@ template <typename T> class Recorder {
             on_packeted(pkt);
         }
     }
-
-  private:
-    std::atomic<bool> abort_;
-    std::mutex mtx_;
-    std::condition_variable cond_var_;
 };
 
 #endif // RECORDER_H_

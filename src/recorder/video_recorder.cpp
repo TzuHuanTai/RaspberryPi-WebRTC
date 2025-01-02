@@ -54,10 +54,14 @@ void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
 }
 
 bool VideoRecorder::ConsumeBuffer() {
-    if (frame_buffer_queue.empty()) {
+    auto item = frame_buffer_queue.pop();
+
+    if (!item) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
         return false;
     }
-    auto frame_buffer = frame_buffer_queue.front();
+
+    auto frame_buffer = item.value();
 
     if (!has_first_keyframe && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
         has_first_keyframe = true;
@@ -67,8 +71,6 @@ bool VideoRecorder::ConsumeBuffer() {
     if (has_first_keyframe) {
         Encode(frame_buffer);
     }
-
-    frame_buffer_queue.pop();
 
     return true;
 }

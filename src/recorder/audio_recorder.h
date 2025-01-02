@@ -49,7 +49,6 @@ class ThreadSafeAudioFifo {
   private:
     AVAudioFifo *fifo_;
     std::mutex mutex_;
-    std::condition_variable cond_;
 };
 
 class AudioRecorder : public Recorder<PaBuffer> {

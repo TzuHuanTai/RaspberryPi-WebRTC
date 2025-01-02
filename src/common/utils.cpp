@@ -381,27 +381,6 @@ std::string Utils::PrefixZero(int src, int digits) {
     return n_zero + str;
 }
 
-FileInfo Utils::GenerateFilename() {
-    time_t now = time(0);
-    tm *ltm = localtime(&now);
-
-    std::string year = Utils::PrefixZero(1900 + ltm->tm_year, 4);
-    std::string month = Utils::PrefixZero(1 + ltm->tm_mon, 2);
-    std::string day = Utils::PrefixZero(ltm->tm_mday, 2);
-    std::string hour = Utils::PrefixZero(ltm->tm_hour, 2);
-    std::string min = Utils::PrefixZero(ltm->tm_min, 2);
-    std::string sec = Utils::PrefixZero(ltm->tm_sec, 2);
-
-    std::stringstream s1;
-    std::string filename;
-    s1 << year << month << day << "_" << hour << min << sec;
-    s1 >> filename;
-
-    FileInfo info = {.date = year + month + day, .hour = hour, .filename = filename};
-
-    return info;
-}
-
 Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, int quality) {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;

@@ -29,8 +29,8 @@ void RawH264Recorder::PreStart() {
 
 void RawH264Recorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
-    while (!frame_buffer_queue.empty() &&
-           (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
+    auto frame = frame_buffer_queue.front();
+    while (frame && (frame.value()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
     has_first_keyframe = false;
