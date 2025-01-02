@@ -3,6 +3,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 extern "C" {
@@ -23,21 +24,21 @@ template <typename T> class ThreadSafeQueue {
         cond_.notify_one();
     }
 
-    T pop() {
+    std::optional<T> pop() {
         std::unique_lock<std::mutex> lock(mutex_);
-        cond_.wait(lock, [this]() {
-            return !queue_.empty();
-        });
+        if (queue_.empty()) {
+            return std::nullopt;
+        }
         T t = queue_.front();
         queue_.pop();
         return t;
     }
 
-    T front() {
+    std::optional<T> front() {
         std::unique_lock<std::mutex> lock(mutex_);
-        cond_.wait(lock, [this]() {
-            return !queue_.empty();
-        });
+        if (queue_.empty()) {
+            return std::nullopt;
+        }
         T t = queue_.front();
         return t;
     }
@@ -89,8 +90,6 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
     std::unique_ptr<V4l2Decoder> image_decoder_;
 
     void InitializeEncoderCtx(AVCodecContext *&encoder) override;
-    void InitializeImageDecoder();
-    std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
 #endif // VIDEO_RECORDER_H_
