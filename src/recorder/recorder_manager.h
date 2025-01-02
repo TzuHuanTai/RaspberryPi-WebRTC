@@ -18,7 +18,7 @@ extern "C" {
 
 class RecUtil {
   public:
-    static AVFormatContext *CreateContainer(std::string record_path, std::string filename);
+    static AVFormatContext *CreateContainer(const std::string &full_path);
     static bool WriteFormatHeader(AVFormatContext *fmt_ctx);
     static void CloseContext(AVFormatContext *fmt_ctx);
 };

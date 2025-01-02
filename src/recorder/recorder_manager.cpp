@@ -15,14 +15,13 @@
 
 const double SECOND_PER_FILE = 60.0;
 const unsigned long MIN_FREE_BYTE = 400 * 1024 * 1024;
+const char* CONTAINER_FORMAT = "mp4";
+const char* PREVIEW_IMAGE_EXTENSION = ".jpg";
 
-AVFormatContext *RecUtil::CreateContainer(std::string record_path, std::string filename) {
+AVFormatContext *RecUtil::CreateContainer(const std::string &full_path) {
     AVFormatContext *fmt_ctx = nullptr;
-    std::string container = "mp4";
-    auto full_path = record_path + '/' + filename + "." + container;
 
-    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, container.c_str(), full_path.c_str()) <
-        0) {
+    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, CONTAINER_FORMAT, full_path.c_str()) < 0) {
         ERROR_PRINT("Could not alloc output context");
         return nullptr;
     }
@@ -33,7 +32,6 @@ AVFormatContext *RecUtil::CreateContainer(std::string record_path, std::string f
             return nullptr;
         }
     }
-    av_dump_format(fmt_ctx, 0, full_path.c_str(), 1);
 
     return fmt_ctx;
 }
@@ -169,10 +167,10 @@ void RecorderManager::Start() {
     }
 
     std::lock_guard<std::mutex> lock(ctx_mux);
-    auto file_info = Utils::GenerateFilename();
-    auto folder = record_path + file_info.date + "/" + file_info.hour;
+    FileInfo new_file(record_path, CONTAINER_FORMAT);
+    auto folder = new_file.GetFolderPath();
     Utils::CreateFolder(folder);
-    fmt_ctx = RecUtil::CreateContainer(folder, file_info.filename);
+    fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
 
     if (video_recorder) {
         video_recorder->AddStream(fmt_ctx);
@@ -182,6 +180,9 @@ void RecorderManager::Start() {
         audio_recorder->AddStream(fmt_ctx);
         audio_recorder->Start();
     }
+
+    av_dump_format(fmt_ctx, 0, new_file.GetFullPath().c_str(), 1);
+
     RecUtil::WriteFormatHeader(fmt_ctx);
 
     MakePreviewImage();
@@ -222,7 +223,7 @@ void RecorderManager::MakePreviewImage() {
         }
         auto i420buff = video_src_->GetI420Frame();
         Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                               ReplaceExtension(fmt_ctx->url, ".jpg"));
+                               ReplaceExtension(fmt_ctx->url, PREVIEW_IMAGE_EXTENSION));
     }).detach();
 }
 

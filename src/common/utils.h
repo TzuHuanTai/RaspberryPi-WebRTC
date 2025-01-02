@@ -20,15 +20,8 @@ struct Buffer {
     unsigned long length;
 };
 
-struct FileInfo {
-    std::string date;
-    std::string hour;
-    std::string filename;
-};
-
 class Utils {
   public:
-    static FileInfo GenerateFilename();
     static std::string PrefixZero(int src, int digits);
     static std::string ToBase64(const std::string &binary_file);
     static std::string ReadFileInBinary(const std::string &file_path);
@@ -53,6 +46,46 @@ class Utils {
     static int GetVideoDuration(const std::string &filePath);
 
     static std::string GenerateUuid();
+};
+
+class FileInfo {
+    std::string root;
+    std::string date;
+    std::string hour;
+    std::string filename;
+    std::string extension;
+
+  public:
+    FileInfo(const std::string &root, const std::string &extension = "mp4")
+        : root(root),
+          extension(extension) {
+        time_t now = time(0);
+        tm *ltm = localtime(&now);
+
+        std::string year = Utils::PrefixZero(1900 + ltm->tm_year, 4);
+        std::string month = Utils::PrefixZero(1 + ltm->tm_mon, 2);
+        std::string day = Utils::PrefixZero(ltm->tm_mday, 2);
+        std::string hour = Utils::PrefixZero(ltm->tm_hour, 2);
+        std::string min = Utils::PrefixZero(ltm->tm_min, 2);
+        std::string sec = Utils::PrefixZero(ltm->tm_sec, 2);
+
+        std::stringstream filenameStream;
+        filenameStream << year << month << day << "_" << hour << min << sec;
+        filenameStream >> filename;
+
+        date = year + month + day;
+        this->hour = hour;
+    }
+
+    std::string GetFullPath() const {
+        return std::filesystem::path(root) / std::filesystem::path(date) /
+               std::filesystem::path(hour) / (filename + "." + extension);
+    }
+
+    std::string GetFolderPath() const {
+        return std::filesystem::path(root) / std::filesystem::path(date) /
+               std::filesystem::path(hour);
+    }
 };
 
 #endif // UTILS_
