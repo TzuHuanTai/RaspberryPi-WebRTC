@@ -3,7 +3,6 @@
 
 std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
     auto ptr = std::make_unique<AudioRecorder>(config);
-    ptr->Initialize();
     ptr->InitializeFrame();
     ptr->InitializeFifoBuffer();
     return ptr;

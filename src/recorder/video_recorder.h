@@ -1,7 +1,7 @@
 #ifndef VIDEO_RECORDER_H_
 #define VIDEO_RECORDER_H_
 
-#include <condition_variable>
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <queue>
@@ -21,7 +21,6 @@ template <typename T> class ThreadSafeQueue {
     void push(T t) {
         std::unique_lock<std::mutex> lock(mutex_);
         queue_.push(t);
-        cond_.notify_one();
     }
 
     std::optional<T> pop() {
@@ -61,7 +60,6 @@ template <typename T> class ThreadSafeQueue {
   private:
     std::queue<T> queue_;
     std::mutex mutex_;
-    std::condition_variable cond_;
 };
 
 class VideoRecorder : public Recorder<V4l2Buffer> {
@@ -73,7 +71,7 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
 
   protected:
     Args config;
-    bool has_first_keyframe;
+    std::atomic<bool> abort;
     std::string encoder_name;
     ThreadSafeQueue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 

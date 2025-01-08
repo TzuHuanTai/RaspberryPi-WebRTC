@@ -10,7 +10,7 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      has_first_keyframe(false) {}
+      abort(true) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     frame_rate = {.num = (int)config.fps, .den = 1};
@@ -34,7 +34,7 @@ void VideoRecorder::OnBuffer(V4l2Buffer &buffer) {
     }
 }
 
-void VideoRecorder::PostStop() { has_first_keyframe = false; }
+void VideoRecorder::PostStop() { abort = true; }
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
@@ -46,7 +46,8 @@ void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
 
     double elapsed_time = (buffer.timestamp.tv_sec - base_time_.tv_sec) +
                           (buffer.timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
-    pkt->pts = pkt->dts = static_cast<int>(elapsed_time * st->time_base.den / st->time_base.num);
+    pkt->pts = pkt->dts =
+        static_cast<int64_t>(elapsed_time * st->time_base.den / st->time_base.num);
 
     OnPacketed(pkt);
     av_packet_unref(pkt);
@@ -63,12 +64,12 @@ bool VideoRecorder::ConsumeBuffer() {
 
     auto frame_buffer = item.value();
 
-    if (!has_first_keyframe && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
-        has_first_keyframe = true;
+    if (abort.load() && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
+        abort.store(false);
         SetBaseTimestamp(frame_buffer->timestamp());
     }
 
-    if (has_first_keyframe) {
+    if (!abort.load()) {
         Encode(frame_buffer);
     }
 

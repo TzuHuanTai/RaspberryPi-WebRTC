@@ -6,7 +6,8 @@ const int BUFFER_NUM = 4;
 const int KEY_FRAME_INTERVAL = 240;
 
 V4l2Encoder::V4l2Encoder()
-    : framerate_(30),
+    : V4l2Codec(),
+      framerate_(30),
       bitrate_bps_(10000000),
       h264_profile_(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) {}
 

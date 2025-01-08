@@ -15,13 +15,14 @@
 
 const double SECOND_PER_FILE = 60.0;
 const unsigned long MIN_FREE_BYTE = 400 * 1024 * 1024;
-const char* CONTAINER_FORMAT = "mp4";
-const char* PREVIEW_IMAGE_EXTENSION = ".jpg";
+const char *CONTAINER_FORMAT = "mp4";
+const char *PREVIEW_IMAGE_EXTENSION = ".jpg";
 
 AVFormatContext *RecUtil::CreateContainer(const std::string &full_path) {
     AVFormatContext *fmt_ctx = nullptr;
 
-    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, CONTAINER_FORMAT, full_path.c_str()) < 0) {
+    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, CONTAINER_FORMAT, full_path.c_str()) <
+        0) {
         ERROR_PRINT("Could not alloc output context");
         return nullptr;
     }
@@ -166,24 +167,32 @@ void RecorderManager::Start() {
         return;
     }
 
-    std::lock_guard<std::mutex> lock(ctx_mux);
     FileInfo new_file(record_path, CONTAINER_FORMAT);
     auto folder = new_file.GetFolderPath();
     Utils::CreateFolder(folder);
-    fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
+
+    {
+        std::lock_guard<std::mutex> lock(ctx_mux);
+        fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
+
+        if (video_recorder) {
+            video_recorder->AddStream(fmt_ctx);
+        }
+        if (audio_recorder) {
+            audio_recorder->AddStream(fmt_ctx);
+        }
+
+        RecUtil::WriteFormatHeader(fmt_ctx);
+
+        av_dump_format(fmt_ctx, 0, new_file.GetFullPath().c_str(), 1);
+    }
 
     if (video_recorder) {
-        video_recorder->AddStream(fmt_ctx);
         video_recorder->Start();
     }
     if (audio_recorder) {
-        audio_recorder->AddStream(fmt_ctx);
         audio_recorder->Start();
     }
-
-    av_dump_format(fmt_ctx, 0, new_file.GetFullPath().c_str(), 1);
-
-    RecUtil::WriteFormatHeader(fmt_ctx);
 
     MakePreviewImage();
 

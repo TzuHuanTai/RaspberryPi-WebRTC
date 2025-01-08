@@ -1,14 +1,11 @@
 #include "recorder/h264_recorder.h"
 
 std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
-    auto ptr = std::make_unique<H264Recorder>(config, "h264_v4l2m2m");
-    ptr->Initialize();
-    return ptr;
+    return std::make_unique<H264Recorder>(config, "h264_v4l2m2m");
 }
 
 H264Recorder::H264Recorder(Args config, std::string encoder_name)
-    : VideoRecorder(config, encoder_name),
-      abort_(true) {}
+    : VideoRecorder(config, encoder_name) {}
 
 H264Recorder::~H264Recorder() {
     encoder_.reset();
@@ -16,7 +13,8 @@ H264Recorder::~H264Recorder() {
 }
 
 void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
-    if (abort_.load()) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (abort) {
         return;
     }
 
@@ -41,14 +39,23 @@ void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
     }
 }
 
-void H264Recorder::PreStart() { ResetCodecs(); }
+void H264Recorder::PreStart() { InitCodecs(); }
 
-void H264Recorder::ResetCodecs() {
-    abort_.store(true);
+void H264Recorder::PostStop() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    abort = true;
+    encoder_.reset();
+    sw_encoder_.reset();
+}
+
+void H264Recorder::InitCodecs() {
+    std::lock_guard<std::mutex> lock(mutex_);
 
     if (config.hw_accel) {
         encoder_ = std::make_unique<V4l2Encoder>();
         encoder_->Configure(config.width, config.height, false);
+        encoder_->SetFps(config.fps);
+        encoder_->SetBitrate(config.width * config.height * config.fps * 0.1);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
                              V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_H264_LEVEL,
@@ -61,6 +68,4 @@ void H264Recorder::ResetCodecs() {
     } else {
         sw_encoder_ = H264Encoder::Create(config);
     }
-
-    abort_.store(false);
 }

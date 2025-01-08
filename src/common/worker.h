@@ -11,7 +11,6 @@ class Worker {
   public:
     Worker(std::string name, std::function<void()> executing_function);
     ~Worker();
-    void Release();
     void Run();
 
   private:

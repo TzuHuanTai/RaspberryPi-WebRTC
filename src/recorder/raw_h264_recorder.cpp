@@ -8,9 +8,7 @@
 const int SECOND_PER_FILE = 300;
 
 std::unique_ptr<RawH264Recorder> RawH264Recorder::Create(Args config) {
-    auto ptr = std::make_unique<RawH264Recorder>(config, "h264_v4l2m2m");
-    ptr->Initialize();
-    return ptr;
+    return std::make_unique<RawH264Recorder>(config, "h264_v4l2m2m");
 }
 
 RawH264Recorder::RawH264Recorder(Args config, std::string encoder_name)
@@ -33,7 +31,7 @@ void RawH264Recorder::PostStop() {
     while (frame && (frame.value()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
-    has_first_keyframe = false;
+    abort = true;
 }
 
 void RawH264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
