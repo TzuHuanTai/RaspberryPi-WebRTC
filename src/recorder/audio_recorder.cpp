@@ -3,7 +3,6 @@
 
 std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
     auto ptr = std::make_unique<AudioRecorder>(config);
-    ptr->InitializeFrame();
     ptr->InitializeFifoBuffer();
     return ptr;
 }
@@ -29,6 +28,8 @@ void AudioRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     av_channel_layout_copy(&encoder->ch_layout, &channel_layout);
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     avcodec_open2(encoder, codec, nullptr);
+
+    InitializeFrame();
 }
 
 void AudioRecorder::InitializeFrame() {
