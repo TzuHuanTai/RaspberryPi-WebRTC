@@ -1,8 +1,8 @@
 #include "customized_video_encoder_factory.h"
 
-#include <modules/video_coding/codecs/h264/include/h264.h>
 #include <modules/video_coding/codecs/av1/av1_svc_config.h>
 #include <modules/video_coding/codecs/av1/libaom_av1_encoder.h>
+#include <modules/video_coding/codecs/h264/include/h264.h>
 #include <modules/video_coding/codecs/vp8/include/vp8.h>
 #include <modules/video_coding/codecs/vp9/include/vp9.h>
 
@@ -17,14 +17,14 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
 
     if (args_.hw_accel) {
         // hw h264
-        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
-                                                webrtc::H264Level::kLevel4, "1"));
-        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
+        supported_codecs.push_back(CreateH264Format(
+            webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel4, "1"));
+        supported_codecs.push_back(CreateH264Format(
+            webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel4, "0"));
+        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
+                                                    webrtc::H264Level::kLevel4, "1"));
+        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
                                                     webrtc::H264Level::kLevel4, "0"));
-        supported_codecs.push_back(
-            CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel4, "1"));
-        supported_codecs.push_back(
-            CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel4, "0"));
     } else {
         // vp8
         supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));

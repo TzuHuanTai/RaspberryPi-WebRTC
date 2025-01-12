@@ -10,13 +10,13 @@ namespace http = beast::http;
 using tcp = asio::ip::tcp;
 
 class HttpSession : public std::enable_shared_from_this<HttpSession> {
-public:
+  public:
     explicit HttpSession(tcp::socket socket)
         : stream_(std::move(socket)) {}
 
     void Start() { ReadRequest(); }
 
-private:
+  private:
     beast::tcp_stream stream_;
     beast::flat_buffer buffer_;
     http::request<http::string_body> req_;
@@ -36,8 +36,8 @@ private:
 
     void HandleRequest() {
         // Prepare the response
-        res_ = std::make_shared<http::response<http::string_body>>(
-            http::status::ok, req_.version());
+        res_ =
+            std::make_shared<http::response<http::string_body>>(http::status::ok, req_.version());
         res_->set(http::field::server, "Boost.Beast/HTTP");
         res_->set(http::field::content_type, "text/plain");
         res_->body() = "Hello, world!";
@@ -69,13 +69,13 @@ private:
 };
 
 class HttpServer {
-public:
-    HttpServer(asio::io_context& ioc, const tcp::endpoint& endpoint)
+  public:
+    HttpServer(asio::io_context &ioc, const tcp::endpoint &endpoint)
         : acceptor_(ioc, endpoint) {}
 
     void Start() { AcceptConnection(); }
 
-private:
+  private:
     tcp::acceptor acceptor_;
 
     void AcceptConnection() {
@@ -102,7 +102,7 @@ int main() {
 
         server.Start();
         ioc.run();
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << "\n";
     }
 

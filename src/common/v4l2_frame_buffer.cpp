@@ -78,8 +78,8 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4l2FrameBuffer::ToI420() {
 }
 
 void V4l2FrameBuffer::CopyBufferData() {
-    memcpy(data_.get(), (uint8_t *)buffer_.start, size_); 
-    is_buffer_copied=true;
+    memcpy(data_.get(), (uint8_t *)buffer_.start, size_);
+    is_buffer_copied = true;
 }
 
 V4l2Buffer V4l2FrameBuffer::GetRawBuffer() { return buffer_; }

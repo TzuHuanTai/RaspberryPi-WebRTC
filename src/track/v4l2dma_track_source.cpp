@@ -23,9 +23,7 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<VideoCapturer> capturer)
       config_width_(capturer->width()),
       config_height_(capturer->height()) {}
 
-V4l2DmaTrackSource::~V4l2DmaTrackSource() {
-    scaler.reset();
-}
+V4l2DmaTrackSource::~V4l2DmaTrackSource() { scaler.reset(); }
 
 void V4l2DmaTrackSource::Init() {
     scaler = std::make_unique<V4l2Scaler>();

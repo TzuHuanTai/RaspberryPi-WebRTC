@@ -1,7 +1,7 @@
 // g++ -o record_example test_pulseaudio2.cpp `pkg-config --cflags --libs libpulse`
-#include <pulse/pulseaudio.h>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <pulse/pulseaudio.h>
 
 void stream_read_callback(pa_stream *s, size_t length, void *userdata) {
     const void *data;
@@ -21,7 +21,8 @@ void stream_state_callback(pa_stream *s, void *userdata) {
             std::cout << "Stream is ready." << std::endl;
             break;
         case PA_STREAM_FAILED:
-            std::cerr << "Stream failed: " << pa_strerror(pa_context_errno(pa_stream_get_context(s))) << std::endl;
+            std::cerr << "Stream failed: "
+                      << pa_strerror(pa_context_errno(pa_stream_get_context(s))) << std::endl;
             break;
         case PA_STREAM_TERMINATED:
             std::cerr << "Stream terminated." << std::endl;
@@ -32,9 +33,9 @@ void stream_state_callback(pa_stream *s, void *userdata) {
 }
 
 int main() {
-    pa_mainloop* m = pa_mainloop_new();
-    pa_mainloop_api* mainloop_api = pa_mainloop_get_api(m);
-    pa_context* ctx = pa_context_new(mainloop_api, "Test Application");
+    pa_mainloop *m = pa_mainloop_new();
+    pa_mainloop_api *mainloop_api = pa_mainloop_get_api(m);
+    pa_context *ctx = pa_context_new(mainloop_api, "Test Application");
 
     pa_context_connect(ctx, nullptr, PA_CONTEXT_NOFLAGS, nullptr);
 
@@ -54,7 +55,7 @@ int main() {
     spec.rate = 44100;
     spec.channels = 2;
 
-    pa_stream* stream = pa_stream_new(ctx, "Recording Stream", &spec, nullptr);
+    pa_stream *stream = pa_stream_new(ctx, "Recording Stream", &spec, nullptr);
     pa_stream_set_read_callback(stream, stream_read_callback, nullptr);
     pa_stream_set_state_callback(stream, stream_state_callback, nullptr);
 

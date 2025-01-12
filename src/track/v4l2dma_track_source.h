@@ -16,7 +16,7 @@ class V4l2DmaTrackSource : public ScaleTrackSource {
     int config_width_;
     int config_height_;
     std::unique_ptr<V4l2Scaler> scaler;
-  
+
     void Init();
     void OnFrameCaptured(V4l2Buffer buffer);
 };

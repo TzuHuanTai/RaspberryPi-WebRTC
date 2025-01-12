@@ -10,8 +10,8 @@ extern "C" {
 #include <libavutil/audio_fifo.h>
 }
 
-#include "common/logging.h"
 #include "capturer/pa_capturer.h"
+#include "common/logging.h"
 #include "recorder/recorder.h"
 
 class ThreadSafeAudioFifo {
@@ -23,12 +23,12 @@ class ThreadSafeAudioFifo {
         }
     }
 
-    int write(void ** data, int nb_samples) {
+    int write(void **data, int nb_samples) {
         std::lock_guard<std::mutex> lock(mutex_);
         return av_audio_fifo_write(fifo_, data, nb_samples);
     }
 
-    int read(void ** data, int nb_samples) {
+    int read(void **data, int nb_samples) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (av_audio_fifo_size(fifo_) < nb_samples) {
             return 0;

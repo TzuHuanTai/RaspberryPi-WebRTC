@@ -81,7 +81,7 @@
         "source_location": "cpp",
         "regex": "cpp"
     },
-    "clang-format.executable": "clang-format",
+    "clang-format.executable": "/usr/bin/clang-format",
     "clang-format.style": "file",
     "C_Cpp.dimInactiveRegions": false
 }

@@ -8,7 +8,6 @@
 
 #include "common/worker.h"
 
-
 class V4l2Codec {
   public:
     V4l2Codec();

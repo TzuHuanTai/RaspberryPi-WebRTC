@@ -1,9 +1,9 @@
 // g++ -o pulseaudio-capture pulseaudio-capture.cpp -lpulse-simple -lpulse
-#include <pulse/simple.h>
-#include <pulse/error.h>
-#include <iostream>
-#include <cstring>
 #include <cmath>
+#include <cstring>
+#include <iostream>
+#include <pulse/error.h>
+#include <pulse/simple.h>
 
 #define BUFSIZE 1024
 
@@ -31,7 +31,8 @@ int main(int argc, char *argv[]) {
     ss.channels = 1;
     ss.rate = 44100;
 
-    s = pa_simple_new(nullptr, "Microphone", PA_STREAM_RECORD, nullptr, "record", &ss, nullptr, nullptr, &error);
+    s = pa_simple_new(nullptr, "Microphone", PA_STREAM_RECORD, nullptr, "record", &ss, nullptr,
+                      nullptr, &error);
     if (!s) {
         std::cerr << "pa_simple_new() failed: " << pa_strerror(error) << std::endl;
         return -1;
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        for (size_t i = 0; i < sizeof(buf); i+= sizeof(float)) {
+        for (size_t i = 0; i < sizeof(buf); i += sizeof(float)) {
             float sample;
             std::memcpy(&sample, buf + i, sizeof(float));
             float amplitude = std::abs(sample);

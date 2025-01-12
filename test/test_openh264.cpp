@@ -1,6 +1,6 @@
 #include <cstring>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
 #include <third_party/openh264/src/codec/api/wels/codec_api.h>
@@ -11,7 +11,7 @@ transcode output.h264 stream to mp4.
 */
 
 int main() {
-    ISVCEncoder* encoder = nullptr;
+    ISVCEncoder *encoder = nullptr;
     int rv = WelsCreateSVCEncoder(&encoder);
     if (rv != 0) {
         std::cerr << "Failed to create OpenH264 encoder." << std::endl;
@@ -45,11 +45,11 @@ int main() {
     int uvSize = (width / 2) * (height / 2);
     int frameSize = ySize + 2 * uvSize;
     std::vector<unsigned char> yuvBuffer(frameSize);
-    unsigned char* yData = yuvBuffer.data();
-    unsigned char* uData = yData + ySize;
-    unsigned char* vData = uData + uvSize;
+    unsigned char *yData = yuvBuffer.data();
+    unsigned char *uData = yData + ySize;
+    unsigned char *vData = uData + uvSize;
 
-    yuvFile.read(reinterpret_cast<char*>(yuvBuffer.data()), frameSize);
+    yuvFile.read(reinterpret_cast<char *>(yuvBuffer.data()), frameSize);
 
     SFrameBSInfo info;
     memset(&info, 0, sizeof(SFrameBSInfo));
@@ -77,14 +77,14 @@ int main() {
         if (info.eFrameType != videoFrameTypeSkip) {
             // output bitstream
             for (int i = 0; i < info.iLayerNum; i++) {
-                SLayerBSInfo* layer = &info.sLayerInfo[i];
+                SLayerBSInfo *layer = &info.sLayerInfo[i];
                 int iLayerSize = 0;
                 int iNalIdx = layer->iNalCount - 1;
                 do {
                     iLayerSize += layer->pNalLengthInByte[iNalIdx];
                     --iNalIdx;
                 } while (iNalIdx >= 0);
-                h264File.write(reinterpret_cast<char*>(layer->pBsBuf), iLayerSize);
+                h264File.write(reinterpret_cast<char *>(layer->pBsBuf), iLayerSize);
             }
         }
     }

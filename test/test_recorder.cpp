@@ -11,11 +11,10 @@ int main(int argc, char *argv[]) {
               .format = V4L2_PIX_FMT_H264,
               .device = "/dev/video0",
               .record_path = "./"};
-    
+
     auto video_capture = V4l2Capturer::Create(args);
     auto audio_capture = PaCapturer::Create(args);
-    auto recorder_mgr = RecorderManager::Create(video_capture, audio_capture, 
-                                                args.record_path);
+    auto recorder_mgr = RecorderManager::Create(video_capture, audio_capture, args.record_path);
     sleep(45);
 
     return 0;
