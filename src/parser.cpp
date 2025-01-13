@@ -6,15 +6,27 @@
 
 namespace bpo = boost::program_options;
 
+static const std::unordered_map<std::string, int> format_map = {
+    {"mjpeg", V4L2_PIX_FMT_MJPEG},
+    {"h264", V4L2_PIX_FMT_H264},
+    {"i420", V4L2_PIX_FMT_YUV420},
+};
+
+template <typename T> void SetIfExists(bpo::variables_map &vm, const std::string &key, T &arg) {
+    if (vm.count(key)) {
+        arg = vm[key].as<T>();
+    }
+}
+
 void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     bpo::options_description opts("Options");
     opts.add_options()("help,h", "Display the help message")(
-        "fps", bpo::value<uint32_t>()->default_value(args.fps), "Set camera frame rate")(
-        "width", bpo::value<uint32_t>()->default_value(args.width), "Set camera frame width")(
-        "height", bpo::value<uint32_t>()->default_value(args.height), "Set camera frame height")(
-        "rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle),
+        "fps", bpo::value<int>()->default_value(args.fps), "Set camera frame rate")(
+        "width", bpo::value<int>()->default_value(args.width), "Set camera frame width")(
+        "height", bpo::value<int>()->default_value(args.height), "Set camera frame height")(
+        "rotation_angle", bpo::value<int>()->default_value(args.rotation_angle),
         "Set the rotation angle of the frame")(
-        "peer_timeout", bpo::value<uint32_t>()->default_value(args.peer_timeout),
+        "peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
         "The connection timeout, in seconds, after receiving a remote offer")(
         "device", bpo::value<std::string>()->default_value(args.device),
         "Read the specific camera file via V4L2, default is /dev/video0")(
@@ -33,7 +45,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                                 bpo::value<std::string>()->default_value(args.turn_password),
                                 "Turn server password")
 #if USE_MQTT_SIGNALING
-        ("mqtt_port", bpo::value<uint32_t>()->default_value(args.mqtt_port),
+        ("mqtt_port", bpo::value<int>()->default_value(args.mqtt_port),
          "Mqtt server port")("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host),
                              "Mqtt server host")(
             "mqtt_username", bpo::value<std::string>()->default_value(args.mqtt_username),
@@ -54,124 +66,72 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                 "Use `v4l2-ctl -d /dev/videoX --list-formats` can list available format");
 
     bpo::variables_map vm;
-    bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
-    bpo::notify(vm);
+    try {
+        bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
+        bpo::notify(vm);
+    } catch (const bpo::error &ex) {
+        std::cerr << "Error parsing arguments: " << ex.what() << std::endl;
+        exit(1);
+    }
 
     if (vm.count("help")) {
         std::cout << opts << std::endl;
         exit(1);
     }
 
-    if (vm.count("fps")) {
-        args.fps = vm["fps"].as<uint32_t>();
-    }
+    SetIfExists(vm, "fps", args.fps);
+    SetIfExists(vm, "width", args.width);
+    SetIfExists(vm, "height", args.height);
+    SetIfExists(vm, "rotation_angle", args.rotation_angle);
+    SetIfExists(vm, "peer_timeout", args.peer_timeout);
+    SetIfExists(vm, "device", args.device);
+    SetIfExists(vm, "v4l2_format", args.v4l2_format);
+    SetIfExists(vm, "uid", args.uid);
+    SetIfExists(vm, "stun_url", args.stun_url);
+    SetIfExists(vm, "turn_url", args.turn_url);
+    SetIfExists(vm, "turn_username", args.turn_username);
+    SetIfExists(vm, "turn_password", args.turn_password);
+    SetIfExists(vm, "mqtt_port", args.mqtt_port);
+    SetIfExists(vm, "mqtt_host", args.mqtt_host);
+    SetIfExists(vm, "mqtt_username", args.mqtt_username);
+    SetIfExists(vm, "mqtt_password", args.mqtt_password);
+    SetIfExists(vm, "http_port", args.http_port);
+    SetIfExists(vm, "record_path", args.record_path);
 
-    if (vm.count("width")) {
-        args.width = vm["width"].as<uint32_t>();
-    }
+    args.use_libcamera = vm["use_libcamera"].as<bool>();
+    args.no_audio = vm["no_audio"].as<bool>();
+    args.hw_accel = vm["hw_accel"].as<bool>();
 
-    if (vm.count("height")) {
-        args.height = vm["height"].as<uint32_t>();
-    }
-
-    if (vm.count("rotation_angle")) {
-        args.rotation_angle = vm["rotation_angle"].as<uint32_t>();
-    }
-
-    if (vm.count("peer_timeout")) {
-        args.peer_timeout = vm["peer_timeout"].as<uint32_t>();
-    }
-
-    if (vm.count("device")) {
-        args.device = vm["device"].as<std::string>();
-    }
-
-    if (vm.count("use_libcamera")) {
-        args.use_libcamera = vm["use_libcamera"].as<bool>();
-        if (args.use_libcamera) {
-            args.format = V4L2_PIX_FMT_YUV420;
-        }
-    }
-
-    if (vm.count("no_audio")) {
-        args.no_audio = vm["no_audio"].as<bool>();
-    }
-
-    if (vm.count("uid")) {
-        args.uid = vm["uid"].as<std::string>();
-    }
-
-    if (!vm["stun_url"].empty() && (vm["stun_url"].as<std::string>()).substr(0, 4) != "stun") {
+    if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
         exit(1);
-    } else if (vm.count("stun_url")) {
-        args.stun_url = vm["stun_url"].as<std::string>();
     }
 
-    if (!(!vm["turn_url"].empty() || (vm["turn_url"].as<std::string>()).substr(0, 4) == "turn")) {
+    if (!args.turn_url.empty() && args.turn_url.substr(0, 4) == "turn") {
         std::cout << "Turn url should start with \"turn:\"" << std::endl;
         exit(1);
-    } else if (vm.count("turn_url")) {
-        args.turn_url = vm["turn_url"].as<std::string>();
     }
 
-    if (vm.count("turn_username")) {
-        args.turn_username = vm["turn_username"].as<std::string>();
-    }
-
-    if (vm.count("turn_password")) {
-        args.turn_password = vm["turn_password"].as<std::string>();
-    }
-
-    if (vm.count("mqtt_port")) {
-        args.mqtt_port = vm["mqtt_port"].as<uint32_t>();
-    }
-
-    if (vm.count("mqtt_host")) {
-        args.mqtt_host = vm["mqtt_host"].as<std::string>();
-    }
-
-    if (vm.count("mqtt_username")) {
-        args.mqtt_username = vm["mqtt_username"].as<std::string>();
-    }
-
-    if (vm.count("mqtt_password")) {
-        args.mqtt_password = vm["mqtt_password"].as<std::string>();
-    }
-
-    if (vm.count("http_port")) {
-        args.http_port = vm["http_port"].as<uint16_t>();
-    }
-
-    if (vm.count("record_path") && !vm["record_path"].as<std::string>().empty()) {
-        if ((vm["record_path"].as<std::string>()).front() != '/') {
+    if (!args.record_path.empty()) {
+        if (args.record_path.front() != '/') {
             std::cout << "The file path needs to start with a \"/\" character" << std::endl;
             exit(1);
         }
-
-        if ((vm["record_path"].as<std::string>()).back() != '/') {
-            args.record_path = vm["record_path"].as<std::string>() + '/';
-        } else {
-            args.record_path = vm["record_path"].as<std::string>();
+        if (args.record_path.back() != '/') {
+            args.record_path += '/';
         }
     }
 
-    if (vm.count("hw_accel")) {
-        args.hw_accel = vm["hw_accel"].as<bool>();
-    }
-
-    if (!args.use_libcamera && vm.count("v4l2_format")) {
-        args.v4l2_format = vm["v4l2_format"].as<std::string>();
-
-        if (args.v4l2_format == "mjpeg") {
-            args.format = V4L2_PIX_FMT_MJPEG;
-            printf("Use mjpeg format source in v4l2\n");
-        } else if (args.v4l2_format == "h264") {
-            args.format = V4L2_PIX_FMT_H264;
-            printf("Use h264 format source in v4l2\n");
+    if (args.use_libcamera) {
+        args.format = V4L2_PIX_FMT_YUV420;
+    } else {
+        auto it = format_map.find(args.v4l2_format);
+        if (it != format_map.end()) {
+            args.format = it->second;
+            printf("Use %s format source in v4l2\n", args.v4l2_format.c_str());
         } else {
-            args.format = V4L2_PIX_FMT_YUV420;
-            printf("Use yuv420(i420) format source in v4l2\n");
+            std::cerr << "Unsupported format: " << args.v4l2_format << std::endl;
+            exit(1);
         }
     }
 }
