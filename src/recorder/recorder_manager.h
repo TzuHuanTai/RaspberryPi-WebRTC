@@ -27,8 +27,8 @@ class RecorderManager {
   public:
     static std::unique_ptr<RecorderManager> Create(std::shared_ptr<VideoCapturer> video_src,
                                                    std::shared_ptr<PaCapturer> audio_src,
-                                                   std::string record_path);
-    RecorderManager(std::string record_path);
+                                                   Args config);
+    RecorderManager(Args config);
     ~RecorderManager();
     void WriteIntoFile(AVPacket *pkt);
     void Start();
@@ -36,6 +36,7 @@ class RecorderManager {
 
   protected:
     std::mutex ctx_mux;
+    Args config;
     uint fps;
     int width;
     int height;

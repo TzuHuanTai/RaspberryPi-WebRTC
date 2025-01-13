@@ -9,6 +9,7 @@ struct Args {
     int fps = 30;
     int width = 640;
     int height = 480;
+    int jpeg_quality = 30;
     int rotation_angle = 0;
     int sample_rate = 44100;
     int peer_timeout = 10;

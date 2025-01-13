@@ -24,6 +24,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         "fps", bpo::value<int>()->default_value(args.fps), "Set camera frame rate")(
         "width", bpo::value<int>()->default_value(args.width), "Set camera frame width")(
         "height", bpo::value<int>()->default_value(args.height), "Set camera frame height")(
+        "jpeg_quality", bpo::value<int>()->default_value(args.jpeg_quality),
+        "Set the default quality of the snapshot and thumbnail image")(
         "rotation_angle", bpo::value<int>()->default_value(args.rotation_angle),
         "Set the rotation angle of the frame")(
         "peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
@@ -82,6 +84,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "fps", args.fps);
     SetIfExists(vm, "width", args.width);
     SetIfExists(vm, "height", args.height);
+    SetIfExists(vm, "jpeg_quality", args.jpeg_quality);
     SetIfExists(vm, "rotation_angle", args.rotation_angle);
     SetIfExists(vm, "peer_timeout", args.peer_timeout);
     SetIfExists(vm, "device", args.device);

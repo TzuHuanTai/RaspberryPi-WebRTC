@@ -436,10 +436,10 @@ void Utils::WriteJpegImage(Buffer buffer, const std::string &url) {
     }
 }
 
-void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height,
-                            const std::string &url) {
+void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, const std::string &url,
+                            int quality) {
     try {
-        auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
+        auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, quality);
         WriteJpegImage(std::move(jpg_buffer), url);
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;

@@ -55,8 +55,8 @@ void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
 
 std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCapturer> video_src,
                                                          std::shared_ptr<PaCapturer> audio_src,
-                                                         std::string record_path) {
-    auto instance = std::make_unique<RecorderManager>(record_path);
+                                                         Args config) {
+    auto instance = std::make_unique<RecorderManager>(config);
 
     if (video_src) {
         instance->CreateVideoRecorder(video_src);
@@ -92,10 +92,11 @@ void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) 
     })();
 }
 
-RecorderManager::RecorderManager(std::string record_path)
-    : fmt_ctx(nullptr),
+RecorderManager::RecorderManager(Args config)
+    : config(config),
+      fmt_ctx(nullptr),
       has_first_keyframe(false),
-      record_path(record_path),
+      record_path(config.record_path),
       elapsed_time_(0.0) {}
 
 void RecorderManager::StartRotationThread() {
@@ -232,7 +233,8 @@ void RecorderManager::MakePreviewImage() {
         }
         auto i420buff = video_src_->GetI420Frame();
         Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                               ReplaceExtension(fmt_ctx->url, PREVIEW_IMAGE_EXTENSION));
+                               ReplaceExtension(fmt_ctx->url, PREVIEW_IMAGE_EXTENSION),
+                               config.jpeg_quality);
     }).detach();
 }
 

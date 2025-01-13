@@ -41,7 +41,7 @@ class Utils {
     static Buffer ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height,
                                    int quality = 100);
     static void CreateJpegImage(const uint8_t *yuv_data, int width, int height,
-                                const std::string &url);
+                                const std::string &url, int quality);
     static void WriteJpegImage(Buffer buffer, const std::string &url);
     static int GetVideoDuration(const std::string &filePath);
 
