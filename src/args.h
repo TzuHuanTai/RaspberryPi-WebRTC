@@ -13,6 +13,7 @@ struct Args {
     int rotation_angle = 0;
     int sample_rate = 44100;
     int peer_timeout = 10;
+    int segment_duration = 60;
     bool no_audio = false;
     bool hw_accel = false;
     bool use_libcamera = false;

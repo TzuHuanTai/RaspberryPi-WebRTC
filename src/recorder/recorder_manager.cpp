@@ -120,7 +120,7 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
         }
 
         // restart to write in the new file.
-        if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+        if (elapsed_time_ >= config.segment_duration && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
             last_created_time_ = buffer.timestamp;
             Stop();
             Start();

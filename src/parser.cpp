@@ -30,6 +30,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         "Set the rotation angle of the frame")(
         "peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
         "The connection timeout, in seconds, after receiving a remote offer")(
+        "segment_duration", bpo::value<int>()->default_value(args.segment_duration),
+        "The length (in seconds) of each MP4 recording.")(
         "device", bpo::value<std::string>()->default_value(args.device),
         "Read the specific camera file via V4L2, default is /dev/video0")(
         "use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
@@ -87,6 +89,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "jpeg_quality", args.jpeg_quality);
     SetIfExists(vm, "rotation_angle", args.rotation_angle);
     SetIfExists(vm, "peer_timeout", args.peer_timeout);
+    SetIfExists(vm, "segment_duration", args.segment_duration);
     SetIfExists(vm, "device", args.device);
     SetIfExists(vm, "v4l2_format", args.v4l2_format);
     SetIfExists(vm, "uid", args.uid);
