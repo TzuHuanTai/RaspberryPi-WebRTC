@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <csignal>
 #include <filesystem>
+#include <future>
 #include <mutex>
 #include <thread>
 
@@ -67,8 +68,6 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
         instance->SubscribeAudioSource(audio_src);
     }
 
-    instance->StartRotationThread();
-
     return instance;
 }
 
@@ -98,16 +97,6 @@ RecorderManager::RecorderManager(Args config)
       has_first_keyframe(false),
       record_path(config.record_path),
       elapsed_time_(0.0) {}
-
-void RecorderManager::StartRotationThread() {
-    rotation_worker_ = std::make_unique<Worker>("Record Rotation", [this]() {
-        while (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
-            Utils::RotateFiles(record_path);
-        }
-        sleep(60);
-    });
-    rotation_worker_->Run();
-}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
     video_observer = video_src->AsRawBufferObservable();
@@ -163,9 +152,10 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 }
 
 void RecorderManager::Start() {
-    if (!Utils::CheckDriveSpace(record_path, 100)) {
-        DEBUG_PRINT("Skip recording since not enough free space!");
-        return;
+    if (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
+        auto task = std::async(std::launch::async, [this]() {
+            Utils::RotateFiles(record_path);
+        });
     }
 
     FileInfo new_file(record_path, CONTAINER_FORMAT);
@@ -175,6 +165,10 @@ void RecorderManager::Start() {
     {
         std::lock_guard<std::mutex> lock(ctx_mux);
         fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
+        if (fmt_ctx == nullptr) {
+            usleep(1000);
+            return;
+        }
 
         if (video_recorder) {
             video_recorder->AddStream(fmt_ctx);
@@ -222,7 +216,6 @@ RecorderManager::~RecorderManager() {
     audio_recorder.reset();
     video_observer.reset();
     audio_observer.reset();
-    rotation_worker_.reset();
 }
 
 void RecorderManager::MakePreviewImage() {

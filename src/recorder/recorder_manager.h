@@ -56,10 +56,8 @@ class RecorderManager {
   private:
     double elapsed_time_;
     struct timeval last_created_time_;
-    std::unique_ptr<Worker> rotation_worker_;
     std::shared_ptr<VideoCapturer> video_src_;
 
-    void StartRotationThread();
     void MakePreviewImage();
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
