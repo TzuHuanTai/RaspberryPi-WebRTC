@@ -237,6 +237,9 @@ void MqttService::Connect() {
         MqttService *service = static_cast<MqttService *>(obj);
         service->OnConnect(mosq, obj, result);
     });
+    mosquitto_disconnect_callback_set(connection_, [](struct mosquitto *mosq, void *obj, int rc) {
+        ERROR_PRINT("%s", mosquitto_strerror(rc));
+    });
     mosquitto_message_callback_set(connection_, [](struct mosquitto *mosq, void *obj,
                                                    const struct mosquitto_message *message) {
         MqttService *service = static_cast<MqttService *>(obj);
