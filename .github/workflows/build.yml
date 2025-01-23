@@ -1,0 +1,67 @@
+name: Build
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      matrix:
+        signaling: [MQTT, HTTP]
+        build_type: [Debug, Release]
+    
+    steps:
+    - name: Download prebuilt library
+      run: |
+        wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz
+        tar -xzf libwebrtc-arm64.tar.gz
+        sudo mkdir -p /usr/local/include/webrtc
+        sudo cp -r include/* /usr/local/include/webrtc
+        sudo cp -r lib/* /usr/local/lib
+        sudo mkdir -p /usr/local/include/nlohmann
+        sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
+
+    - name: Install dependencies
+      run: |
+        sudo apt update --fix-missing
+        sudo apt install -y \
+          mosquitto-dev \
+          libboost-program-options-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libpulse-dev \
+          libasound2-dev \
+          libjpeg-dev \
+          libcamera-dev \
+          libmosquitto-dev
+
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Build project
+      run: |
+        mkdir build && cd build
+        cmake .. -DCMAKE_CXX_COMPILER=clang++ -DUSE_${{ matrix.signaling }}_SIGNALING=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        make -j$(nproc)
+
+    - name: Zip binary
+      id: zip-binary
+      run: |
+        cd build
+        if [ "${{ matrix.build_type }}" == "Release" ]; then
+          FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_ubuntu-24.04-arm64.tar.gz"
+        else
+          FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_ubuntu-24.04-arm64_debug.tar.gz"
+        fi
+        tar -czvf $FILENAME pi_webrtc
+        echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+    - name: Upload to GitHub
+      uses: softprops/action-gh-release@v2
+      with:
+        files: build/${{ steps.zip-binary.outputs.filename }}

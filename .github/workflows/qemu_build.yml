@@ -1,0 +1,122 @@
+name: Build Raspberry Pi OS App in QEMU
+
+on: 
+  push:
+    tags:
+      - 'v**-qemu'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - name: Install QEMU and Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y  qemu-system qemu-user-static binfmt-support libfdt-dev
+
+    - name: Install Tool dtmerge 
+      run: |
+        git clone https://github.com/raspberrypi/utils.git
+        cd utils/dtmerge
+        cmake .
+        make
+        sudo make install
+
+    - name: Download and Prepare Raspberry Pi OS Image
+      run: |
+        wget -q https://downloads.raspberrypi.org/raspios_lite_arm64_latest -O rpi-os.img.xz
+        xz -d rpi-os.img.xz
+        fdisk -l rpi-os.img
+
+        sudo mkdir boot
+        sudo mount -o loop,offset=4194304 rpi-os.img boot
+
+        cp boot/kernel8.img kernel8.img
+        cp boot/bcm2710-rpi-3-b-plus.dtb custom.dtb
+
+        dtmerge custom.dtb merged.dtb - uart0=on
+        mv merged.dtb custom.dtb
+        dtmerge custom.dtb merged.dtb boot/overlays/disable-bt.dtbo
+        mv merged.dtb custom.dtb
+      
+        sudo touch boot/ssh
+        echo 'pi:$6$uQd.Z0f45vuTlnIM$fH2KnG/2zM/c7oQNYKf/VOhqPlkR82IFNIjmDWftvrmw/K1XPLNJVMvWgmqq0iMjn9dd7gfJAl2tM5e8vgiu8/' | sudo tee boot/userconf.txt > /dev/null
+        echo -e "\ndtoverlay=disable-bt\ndtparam=uart0=on" | sudo tee -a boot/config.txt > /dev/null
+
+        sudo umount boot
+
+        qemu-img resize rpi-os.img 8g
+
+    - name: Run Raspberry Pi OS with QEMU
+      run: |
+        qemu-system-aarch64 \
+          -machine raspi3b \
+          -cpu cortex-a72 \
+          -smp 4 -m 1G \
+          -kernel kernel8.img \
+          -dtb custom.dtb \
+          -drive "file=rpi-os.img,format=raw,index=0,if=sd" \
+          -append "rw earlyprintk loglevel=8 console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootdelay=1 fsck.repair=yes rootfstype=ext4" \
+          -device usb-net,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 \
+          -display none \
+          -daemonize
+
+        sleep 180
+        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+          sudo parted /dev/mmcblk0 resizepart 2 100% && \
+          sudo resize2fs -fp /dev/mmcblk0p2 && \
+          df -h && \
+          lsblk
+        "
+
+    - name: Install Dependencies in QEMU
+      run: |
+        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+          sudo apt update && \
+          sudo apt install -y \
+          wget \
+          curl \
+          cmake \
+          clang \
+          build-essential \
+          mosquitto-dev \
+          libboost-program-options-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libpulse-dev \
+          libasound2-dev \
+          libjpeg-dev \
+          libcamera-dev \
+          libmosquitto-dev
+        "
+
+    - name: Install Additional libwebrtc and json.hpp in QEMU
+      run: |
+        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+          wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
+          tar -xzf libwebrtc-arm64.tar.gz &&
+          sudo mkdir -p /usr/local/include/webrtc &&
+          sudo mv include/* /usr/local/include/webrtc &&
+          sudo mv lib/* /usr/local/lib &&
+          sudo mkdir -p /usr/local/include/nlohmann &&
+          sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
+        "
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build project inside Raspberry Pi OS
+      run: |
+        sshpass -p "raspberry" scp -P 5555 -r . pi@localhost:~/project
+        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+          ls ~/project && \
+          cd project && \
+          mkdir build && \
+          cd build && \
+          cmake .. -DCMAKE_CXX_COMPILER=clang++ -DUSE_MQTT_SIGNALING=ON -DCMAKE_BUILD_TYPE=Release && \
+          make -j$(nproc) && \
+          tar -czvf pi_webrtc-${{ github.ref_name }}_MQTT_Release.tar.gz pi_webrtc
+        "
