@@ -83,7 +83,7 @@ void HttpSession::HandleRequest() {
         ResponseUnprocessableEntity("Without content type.");
         return;
     } else {
-        content_type_ = req_["Content-Type"].to_string();
+        content_type_.assign(req_["Content-Type"].begin(), req_["Content-Type"].size());
     }
 
     switch (req_.method()) {
@@ -111,7 +111,7 @@ void HttpSession::HandlePostRequest() {
         peer->OnLocalSdp([self = shared_from_this()](const std::string &peer_id,
                                                      const std::string &sdp,
                                                      const std::string &type) {
-            std::string host = self->req_["Host"].to_string();
+            std::string host(self->req_["Host"].begin(), self->req_["Host"].size());
             std::string location = "https://" + host + "/resource/" + peer_id;
             self->res_ = std::make_shared<http::response<http::string_body>>(http::status::created,
                                                                              self->req_.version());
@@ -131,7 +131,7 @@ void HttpSession::HandlePostRequest() {
 }
 
 void HttpSession::HandlePatchRequest() {
-    auto routes = ParseRoutes(req_.target().to_string());
+    auto routes = ParseRoutes(std::string(req_.target().data(), req_.target().size()));
 
     if (content_type_ != "application/trickle-ice-sdpfrag" ||
         (routes.size() < 2 && routes[0] != "resource")) {
@@ -143,7 +143,7 @@ void HttpSession::HandlePatchRequest() {
         ResponsePreconditionFailed();
         return;
     }
-    auto if_match = req_["If-Match"].to_string();
+    auto if_match = std::string(req_["If-Match"].data(), req_["If-Match"].size());
 
     auto peer_id = routes[1];
     auto peer = http_service_->GetPeer(peer_id);
@@ -193,7 +193,7 @@ void HttpSession::HandleOptionsRequest() {
 }
 
 void HttpSession::HandleDeleteRequest() {
-    auto routes = ParseRoutes(req_.target().to_string());
+    auto routes = ParseRoutes(std::string(req_.target().data(), req_.target().size()));
 
     if (routes.size() < 2 && routes[0] != "resource") {
         ResponseUnprocessableEntity("The resource is not appplicable.");
