@@ -1,6 +1,7 @@
 #ifndef ARGS_H_
 #define ARGS_H_
 
+#include <cstdint>
 #include <string>
 
 #include <linux/videodev2.h>

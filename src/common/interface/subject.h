@@ -1,6 +1,7 @@
 #ifndef SUBJECT_H_
 #define SUBJECT_H_
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <vector>
