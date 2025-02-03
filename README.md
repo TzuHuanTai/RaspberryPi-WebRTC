@@ -33,6 +33,7 @@ To set up the environment, please check out the [tutorial video](https://youtu.b
     * [Pi Camera Web](https://picamera.live)
 
   **WHEP**
+    * [Home Assistant](https://www.home-assistant.io)
     * [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player)
 
 ## Hardware Requirements
@@ -112,11 +113,13 @@ An MQTT server is required for communication between devices. For remote access,
 
 # [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
+- [Using the Legacy V4L2 Driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) for usb camera
+- [Run as Linux Service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
 - [Recording](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#recording)
 - [Two-way communication](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-communication)
-- [Legacy V4L2 driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) for usb camera
-- [Run as a background service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
+- [Virtual Camera](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings##virtual-camera)
 - [WHEP with Nginx proxy](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#whep-with-nginx-proxy)
+- [Use WebRTC Camera in Home Assistant](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#use-webrtc-camera-in-home-assistant)
 
 # License
 
