@@ -26,6 +26,7 @@ class LibcameraCapturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
 
+    LibcameraCapturer &SetControls(const int id, const int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
     void StartCapture() override;
 
@@ -37,6 +38,7 @@ class LibcameraCapturer : public VideoCapturer {
     int buffer_count_;
     uint32_t format_;
     Args config_;
+    std::mutex control_mutex_;
 
     std::unique_ptr<libcamera::CameraManager> cm_;
     std::shared_ptr<libcamera::Camera> camera_;
@@ -52,7 +54,6 @@ class LibcameraCapturer : public VideoCapturer {
 
     LibcameraCapturer &SetFormat(int width, int height);
     LibcameraCapturer &SetFps(int fps);
-    LibcameraCapturer &SetAutofocus();
     LibcameraCapturer &SetRotation(int angle);
 
     void Init(std::string device);

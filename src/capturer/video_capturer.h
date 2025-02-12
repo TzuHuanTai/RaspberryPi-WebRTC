@@ -24,6 +24,8 @@ class VideoCapturer {
     virtual void StartCapture() = 0;
     virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() = 0;
 
+    virtual VideoCapturer &SetControls(const int id, const int value) { return *this; };
+
     std::shared_ptr<Observable<V4l2Buffer>> AsRawBufferObservable() {
         return raw_buffer_subject_.AsObservable();
     }

@@ -8,9 +8,10 @@ std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
     ptr->Init(args.device);
     ptr->SetFps(args.fps)
-        .SetAutofocus()
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height)
+        .SetControls(libcamera::controls::AfMode.id(),
+                     libcamera::controls::AfModeEnum::AfModeContinuous)
         .StartCapture();
     return ptr;
 }
@@ -98,11 +99,9 @@ LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     return *this;
 }
 
-LibcameraCapturer &LibcameraCapturer::SetAutofocus() {
-    controls_.set(libcamera::controls::AfMode, libcamera::controls::AfModeEnum::AfModeContinuous);
-
-    DEBUG_PRINT("  AutoFocus: %d", libcamera::controls::AfModeEnum::AfModeContinuous);
-
+LibcameraCapturer &LibcameraCapturer::SetControls(const int id, const int value) {
+    std::lock_guard<std::mutex> lock(control_mutex_);
+    controls_.set(id, value);
     return *this;
 }
 
@@ -179,6 +178,11 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     V4l2Buffer v4l2_buffer((uint8_t *)data, length, V4L2_BUF_FLAG_KEYFRAME, tv);
     NextBuffer(v4l2_buffer);
+
+    {
+        std::lock_guard<std::mutex> lock(control_mutex_);
+        request->controls() = controls_;
+    }
 
     request->reuse(libcamera::Request::ReuseBuffers);
     camera_->queueRequest(request);
