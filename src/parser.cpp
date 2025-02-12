@@ -20,54 +20,57 @@ template <typename T> void SetIfExists(bpo::variables_map &vm, const std::string
 
 void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     bpo::options_description opts("Options");
-    opts.add_options()("help,h", "Display the help message")(
-        "fps", bpo::value<int>()->default_value(args.fps), "Set camera frame rate")(
-        "width", bpo::value<int>()->default_value(args.width), "Set camera frame width")(
-        "height", bpo::value<int>()->default_value(args.height), "Set camera frame height")(
-        "jpeg_quality", bpo::value<int>()->default_value(args.jpeg_quality),
-        "Set the default quality of the snapshot and thumbnail image")(
-        "rotation_angle", bpo::value<int>()->default_value(args.rotation_angle),
-        "Set the rotation angle of the frame")(
-        "peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
-        "The connection timeout, in seconds, after receiving a remote offer")(
-        "segment_duration", bpo::value<int>()->default_value(args.segment_duration),
-        "The length (in seconds) of each MP4 recording.")(
-        "device", bpo::value<std::string>()->default_value(args.device),
-        "Read the specific camera file via V4L2, default is /dev/video0")(
-        "use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
-        "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` flags will be "
-        "suspended")("no_audio", bpo::bool_switch()->default_value(args.no_audio),
-                     "Run without audio source")("uid",
-                                                 bpo::value<std::string>()->default_value(args.uid),
-                                                 "Set the unique id to identify the device")(
-        "stun_url", bpo::value<std::string>()->default_value(args.stun_url),
-        "Stun server, ex: stun:xxx.xxx.xxx")(
+
+    // clang-format off
+    opts.add_options()
+        ("help,h", "Display the help message")
+        ("fps", bpo::value<int>()->default_value(args.fps), "Set camera frame rate")
+        ("width", bpo::value<int>()->default_value(args.width), "Set camera frame width")
+        ("height", bpo::value<int>()->default_value(args.height), "Set camera frame height")
+        ("jpeg_quality", bpo::value<int>()->default_value(args.jpeg_quality),
+            "Set the default quality of the snapshot and thumbnail image")
+        ("rotation_angle", bpo::value<int>()->default_value(args.rotation_angle),
+            "Set the rotation angle of the frame")
+        ("peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
+            "The connection timeout, in seconds, after receiving a remote offer")
+        ("segment_duration", bpo::value<int>()->default_value(args.segment_duration),
+            "The length (in seconds) of each MP4 recording.")
+        ("device", bpo::value<std::string>()->default_value(args.device),
+            "Read the specific camera file via V4L2, default is /dev/video0")
+        ("use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
+            "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` "
+            "flags will be suspended")
+        ("no_audio", bpo::bool_switch()->default_value(args.no_audio), "Run without audio source")
+        ("uid", bpo::value<std::string>()->default_value(args.uid),
+            "Set the unique id to identify the device")
+        ("stun_url", bpo::value<std::string>()->default_value(args.stun_url),
+            "Stun server, ex: stun:xxx.xxx.xxx")(
         "turn_url", bpo::value<std::string>()->default_value(args.turn_url),
-        "Turn server, ex: turn:xxx.xxx.xxx:3478?transport=tcp")(
-        "turn_username", bpo::value<std::string>()->default_value(args.turn_username),
-        "Turn server username")("turn_password",
-                                bpo::value<std::string>()->default_value(args.turn_password),
-                                "Turn server password")
+            "Turn server, ex: turn:xxx.xxx.xxx:3478?transport=tcp")
+        ("turn_username", bpo::value<std::string>()->default_value(args.turn_username),
+            "Turn server username")
+        ("turn_password", bpo::value<std::string>()->default_value(args.turn_password),
+            "Turn server password")
 #if USE_MQTT_SIGNALING
-        ("mqtt_port", bpo::value<int>()->default_value(args.mqtt_port),
-         "Mqtt server port")("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host),
-                             "Mqtt server host")(
-            "mqtt_username", bpo::value<std::string>()->default_value(args.mqtt_username),
-            "Mqtt server username")("mqtt_password",
-                                    bpo::value<std::string>()->default_value(args.mqtt_password),
-                                    "Mqtt server password")
+        ("mqtt_port", bpo::value<int>()->default_value(args.mqtt_port), "Mqtt server port")
+        ("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host),
+            "Mqtt server host")
+        ("mqtt_username", bpo::value<std::string>()->default_value(args.mqtt_username),
+            "Mqtt server username")
+        ("mqtt_password", bpo::value<std::string>()->default_value(args.mqtt_password),
+            "Mqtt server password")
 #elif USE_HTTP_SIGNALING
         ("http_port", bpo::value<uint16_t>()->default_value(args.http_port), "Http server port")
 #endif
-            ("record_path", bpo::value<std::string>()->default_value(args.record_path),
-             "The path to save the recording video files. The recorder will not start if it's "
-             "empty")(
-                "hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
-                "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")(
-                "v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
-                "Set v4l2 camera capture format to `i420`, `mjpeg`, `h264`. The `h264` can pass "
-                "packets into mp4 without encoding to reduce cpu usage."
-                "Use `v4l2-ctl -d /dev/videoX --list-formats` can list available format");
+        ("record_path", bpo::value<std::string>()->default_value(args.record_path),
+            "The path to save the recording video files. The recorder won't start if it's empty")
+        ("hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
+            "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")
+        ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
+            "Set v4l2 camera capture format to `i420`, `mjpeg`, `h264`. The `h264` can pass "
+            "packets into mp4 without encoding to reduce cpu usage."
+            "Use `v4l2-ctl -d /dev/videoX --list-formats` can list available format");
+    // clang-format on
 
     bpo::variables_map vm;
     try {
