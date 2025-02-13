@@ -140,6 +140,10 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig peer_conf
         OnRecord(datachannel, msg);
     });
 
+    peer->OnCameraOption([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+        OnCameraOption(datachannel, msg);
+    });
+
     AddTracks(peer->GetPeer());
 
     DEBUG_PRINT("Peer connection(%s) is created! ", peer->GetId().c_str());
@@ -233,6 +237,21 @@ void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::s
         }
         datachannel->Send(file);
         DEBUG_PRINT("Sent Video: %s", path.c_str());
+    } catch (const std::exception &e) {
+        ERROR_PRINT("%s", e.what());
+    }
+}
+
+void Conductor::OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+    DEBUG_PRINT("OnCameraControl msg: %s", msg.c_str());
+    json jsonObj = json::parse(msg.c_str());
+
+    int key = jsonObj["key"];
+    int value = jsonObj["value"];
+    DEBUG_PRINT("parse meta cmd message => %d, %d", key, value);
+
+    try {
+        video_capture_source_->SetControls(key, value);
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }

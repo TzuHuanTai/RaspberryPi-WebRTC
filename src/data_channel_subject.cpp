@@ -39,7 +39,7 @@ void DataChannelSubject::Next(std::string message) {
         observers_.insert(observers_.end(), observers_map_[CommandType::UNKNOWN].begin(),
                           observers_map_[CommandType::UNKNOWN].end());
 
-        for (auto observer : observers_) {
+        for (auto &observer : observers_) {
             if (observer->subscribed_func_ != nullptr) {
                 observer->subscribed_func_(content);
             }

@@ -26,7 +26,7 @@ class LibcameraCapturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
 
-    LibcameraCapturer &SetControls(const int id, const int value) override;
+    LibcameraCapturer &SetControls(const int key, const int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
     void StartCapture() override;
 
@@ -47,7 +47,7 @@ class LibcameraCapturer : public VideoCapturer {
     std::vector<std::unique_ptr<libcamera::Request>> requests_;
     libcamera::Stream *stream_;
     libcamera::ControlList controls_;
-    std::map<int, std::pair<void *, unsigned int>> mappedBuffers_;
+    std::map<int, std::pair<void *, unsigned int>> mapped_buffers_;
 
     rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer_;
     void NextBuffer(V4l2Buffer &raw_buffer);

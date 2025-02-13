@@ -19,6 +19,7 @@ enum class CommandType : uint8_t {
     SNAPSHOT,
     METADATA,
     RECORD,
+    CAMERA_OPTION,
     UNKNOWN
 };
 

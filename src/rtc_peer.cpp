@@ -100,6 +100,10 @@ void RtcPeer::OnMetadata(OnCommand func) { SubscribeCommandChannel(CommandType::
 
 void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORD, func); }
 
+void RtcPeer::OnCameraOption(OnCommand func) {
+    SubscribeCommandChannel(CommandType::CAMERA_OPTION, func);
+}
+
 void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     auto observer = data_channel_subject_->AsObservable(type);
     observer->Subscribe([this, func](std::string message) {

@@ -37,6 +37,7 @@ class Conductor {
     void OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
     void OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
     void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
+    void OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;

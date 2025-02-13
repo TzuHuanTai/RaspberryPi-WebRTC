@@ -10,8 +10,6 @@ std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     ptr->SetFps(args.fps)
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height)
-        .SetControls(libcamera::controls::AfMode.id(),
-                     libcamera::controls::AfModeEnum::AfModeContinuous)
         .StartCapture();
     return ptr;
 }
@@ -99,9 +97,10 @@ LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     return *this;
 }
 
-LibcameraCapturer &LibcameraCapturer::SetControls(const int id, const int value) {
+LibcameraCapturer &LibcameraCapturer::SetControls(const int key, const int value) {
     std::lock_guard<std::mutex> lock(control_mutex_);
-    controls_.set(id, value);
+    DEBUG_PRINT("Set camera controls, key: %d, value: %d", key, value);
+    controls_.set(key, value);
     return *this;
 }
 
@@ -143,7 +142,7 @@ void LibcameraCapturer::AllocateBuffer() {
             buffer_length += plane.length;
         }
         void *memory = mmap(NULL, buffer_length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        mappedBuffers_[fd] = std::make_pair(memory, buffer_length);
+        mapped_buffers_[fd] = std::make_pair(memory, buffer_length);
         DEBUG_PRINT("Allocated fd(%d) Buffer[%d] pointer: %p, length: %d", fd, i, memory,
                     buffer_length);
 
@@ -170,8 +169,8 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     auto &plane = buffer->planes()[0];
     int fd = plane.fd.get();
-    void *data = mappedBuffers_[fd].first;
-    int length = mappedBuffers_[fd].second;
+    void *data = mapped_buffers_[fd].first;
+    int length = mapped_buffers_[fd].second;
     timeval tv = {};
     tv.tv_sec = buffer->metadata().timestamp / 1000000000;
     tv.tv_usec = (buffer->metadata().timestamp % 1000000000) / 1000;
@@ -179,12 +178,13 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     V4l2Buffer v4l2_buffer((uint8_t *)data, length, V4L2_BUF_FLAG_KEYFRAME, tv);
     NextBuffer(v4l2_buffer);
 
+    request->reuse(libcamera::Request::ReuseBuffers);
+
     {
         std::lock_guard<std::mutex> lock(control_mutex_);
         request->controls() = controls_;
     }
 
-    request->reuse(libcamera::Request::ReuseBuffers);
     camera_->queueRequest(request);
 }
 
@@ -207,8 +207,6 @@ void LibcameraCapturer::StartCapture() {
 
     AllocateBuffer();
 
-    camera_->requestCompleted.connect(this, &LibcameraCapturer::RequestComplete);
-
     ret = camera_->start(&controls_);
     if (ret) {
         ERROR_PRINT("Failed to start capturing");
@@ -216,6 +214,7 @@ void LibcameraCapturer::StartCapture() {
     }
 
     controls_.clear();
+    camera_->requestCompleted.connect(this, &LibcameraCapturer::RequestComplete);
 
     for (auto &request : requests_) {
         ret = camera_->queueRequest(request.get());

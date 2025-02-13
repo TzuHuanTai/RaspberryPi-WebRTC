@@ -93,6 +93,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
     void OnRecord(OnCommand func);
+    void OnCameraOption(OnCommand func);
 
     // SignalingMessageObserver implementation.
     void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
