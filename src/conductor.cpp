@@ -177,49 +177,37 @@ void Conductor::OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std:
     if (args.record_path.empty()) {
         return;
     }
-    try {
-        if (cmd == MetadataCommand::LATEST) {
-            auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
-            MetaMessage metadata(latest_mp4_path);
-            auto metadata_str = metadata.ToString();
-            int file_size = metadata_str.length();
-            std::string size_str = std::to_string(file_size);
 
-            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                              size_str.length());
-            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
-            datachannel->Send(CommandType::METADATA, nullptr, 0);
-        } else if (cmd == MetadataCommand::OLDER) {
-            if (message.empty()) {
-                message = Utils::FindLatestFile(args.record_path, ".mp4");
-            }
-            auto paths = Utils::FindOlderFiles(message, 8);
-
-            for (auto &path : paths) {
-                MetaMessage metadata(path);
-                auto metadata_str = metadata.ToString();
-                int file_size = metadata_str.length();
-                std::string size_str = std::to_string(file_size);
-
-                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                                  size_str.length());
-                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
-                                  file_size);
-                datachannel->Send(CommandType::METADATA, nullptr, 0);
-            }
-        } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
-            auto path = Utils::FindFilesFromDatetime(args.record_path, message);
-
-            MetaMessage metadata(path);
-            auto metadata_str = metadata.ToString();
-            int file_size = metadata_str.length();
-            std::string size_str = std::to_string(file_size);
-
-            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                              size_str.length());
-            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
-            datachannel->Send(CommandType::METADATA, nullptr, 0);
+    if ((cmd == MetadataCommand::LATEST) || (cmd == MetadataCommand::OLDER && message.empty())) {
+        auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+        DEBUG_PRINT("LATEST: %s", latest_mp4_path.c_str());
+        SendMetadata(datachannel, latest_mp4_path);
+    } else if (cmd == MetadataCommand::OLDER) {
+        auto paths = Utils::FindOlderFiles(message, 8);
+        for (auto &path : paths) {
+            DEBUG_PRINT("OLDER: %s", path.c_str());
+            SendMetadata(datachannel, path);
         }
+    } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
+        auto path = Utils::FindFilesFromDatetime(args.record_path, message);
+        SendMetadata(datachannel, path);
+    }
+}
+
+void Conductor::SendMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path) {
+    if (path.empty()) {
+        return;
+    }
+    try {
+        MetaMessage metadata(path);
+        auto body = metadata.ToString();
+        int body_size = body.length();
+        auto header = std::to_string(body_size);
+        int header_size = header.length();
+
+        datachannel->Send(CommandType::METADATA, (uint8_t *)header.c_str(), header_size);
+        datachannel->Send(CommandType::METADATA, (uint8_t *)body.c_str(), body_size);
+        datachannel->Send(CommandType::METADATA, nullptr, 0);
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }

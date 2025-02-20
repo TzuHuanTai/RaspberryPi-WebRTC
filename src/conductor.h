@@ -36,6 +36,7 @@ class Conductor {
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
     void OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
+    void SendMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
     void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
     void OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
 

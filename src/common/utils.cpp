@@ -168,27 +168,6 @@ std::string Utils::GetPreviousDate(const std::string &dateStr) {
     return oss.str();
 }
 
-std::string Utils::FindLatestFile(const std::string &path, const std::string &extension) {
-    std::string latestDateDir = Utils::FindLatestSubDir(path);
-    if (latestDateDir.empty()) {
-        std::cerr << "No date directories found." << std::endl;
-        return "";
-    }
-
-    std::string datePath = path + "/" + latestDateDir;
-    std::string latestHourDir = Utils::FindLatestSubDir(datePath);
-    if (latestHourDir.empty()) {
-        std::cerr << "No hour directories found." << std::endl;
-        return "";
-    }
-
-    std::string latestDir = datePath + "/" + latestHourDir;
-    auto files = Utils::GetFiles(latestDir, extension);
-    std::sort(files.begin(), files.end(), std::greater<>());
-
-    return files[0].second.string();
-}
-
 std::string Utils::FindSecondNewestFile(const std::string &path, const std::string &extension) {
     std::string latestDateDir = Utils::FindLatestSubDir(path);
     if (latestDateDir.empty()) {

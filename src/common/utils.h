@@ -29,7 +29,6 @@ class Utils {
     GetFiles(const std::string &path, const std::string &extension);
     static std::string FindLatestSubDir(const std::string &path);
     static std::string GetPreviousDate(const std::string &dateStr);
-    static std::string FindLatestFile(const std::string &path, const std::string &extension);
     static std::string FindSecondNewestFile(const std::string &path, const std::string &extension);
     static std::chrono::system_clock::time_point ParseDatetime(const std::string &datetime_str);
     static std::string FindFilesFromDatetime(const std::string &root, const std::string &basename);
