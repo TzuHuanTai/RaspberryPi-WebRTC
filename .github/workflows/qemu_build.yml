@@ -1,123 +1,193 @@
-name: Build Raspberry Pi OS App in QEMU
+name: Build in QEMU
 
 on: 
   push:
     tags:
-      - 'v**-qemu'
+      - 'v**-rc.[0-9]+'
 
 jobs:
-  build:
+  prepare-image:
     runs-on: ubuntu-24.04-arm
+    outputs:
+      raspios_version: ${{ steps.os_version.outputs.name }}
 
     steps:
-    - name: Install QEMU and Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y  qemu-system qemu-user-static binfmt-support libfdt-dev
+      - name: Install QEMU and Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y qemu-system qemu-user-static binfmt-support libfdt-dev
 
-    - name: Install Tool dtmerge 
-      run: |
-        git clone https://github.com/raspberrypi/utils.git
-        cd utils/dtmerge
-        cmake .
-        make
-        sudo make install
+      - name: Install Tool dtmerge 
+        run: |
+          git clone https://github.com/raspberrypi/utils.git
+          cd utils/dtmerge
+          cmake .
+          make
+          sudo make install
 
-    - name: Download and Prepare Raspberry Pi OS Image
-      run: |
-        wget -q https://downloads.raspberrypi.org/raspios_lite_arm64_latest -O rpi-os.img.xz
-        xz -d rpi-os.img.xz
-        fdisk -l rpi-os.img
+      - name: Extract OS Version
+        id: os_version
+        run: |
+          FILE_URL=$(curl -sI https://downloads.raspberrypi.org/raspios_lite_arm64_latest | grep -i '^location:' | awk '{print $2}' | tr -d '\r')
+          FILENAME=$(basename $FILE_URL)
+          OS_NAME=$(echo $FILENAME | grep -oP 'raspios-[a-z]+-arm64')
+          echo "name=$OS_NAME" >> $GITHUB_OUTPUT
 
-        sudo mkdir boot
-        sudo mount -o loop,offset=4194304 rpi-os.img boot
+      - name: Download and Prepare Raspberry Pi OS Image
+        run: |
+          wget -q https://downloads.raspberrypi.org/raspios_lite_arm64_latest -O rpi-os.img.xz
+          xz -d rpi-os.img.xz
 
-        cp boot/kernel8.img kernel8.img
-        cp boot/bcm2710-rpi-3-b-plus.dtb custom.dtb
+          sudo mkdir boot
+          sudo mount -o loop,offset=4194304 rpi-os.img boot
 
-        dtmerge custom.dtb merged.dtb - uart0=on
-        mv merged.dtb custom.dtb
-        dtmerge custom.dtb merged.dtb boot/overlays/disable-bt.dtbo
-        mv merged.dtb custom.dtb
-      
-        sudo touch boot/ssh
-        echo 'pi:$6$uQd.Z0f45vuTlnIM$fH2KnG/2zM/c7oQNYKf/VOhqPlkR82IFNIjmDWftvrmw/K1XPLNJVMvWgmqq0iMjn9dd7gfJAl2tM5e8vgiu8/' | sudo tee boot/userconf.txt > /dev/null
-        echo -e "\ndtoverlay=disable-bt\ndtparam=uart0=on" | sudo tee -a boot/config.txt > /dev/null
+          cp boot/kernel8.img kernel8.img
+          cp boot/bcm2710-rpi-3-b-plus.dtb custom.dtb
 
-        sudo umount boot
+          dtmerge custom.dtb merged.dtb - uart0=on
+          mv merged.dtb custom.dtb
+          dtmerge custom.dtb merged.dtb boot/overlays/disable-bt.dtbo
+          mv merged.dtb custom.dtb
+        
+          sudo touch boot/ssh
+          echo 'pi:$6$uQd.Z0f45vuTlnIM$fH2KnG/2zM/c7oQNYKf/VOhqPlkR82IFNIjmDWftvrmw/K1XPLNJVMvWgmqq0iMjn9dd7gfJAl2tM5e8vgiu8/' | sudo tee boot/userconf.txt > /dev/null
+          echo -e "\ndtoverlay=disable-bt\ndtparam=uart0=on" | sudo tee -a boot/config.txt > /dev/null
 
-        qemu-img resize rpi-os.img 8g
+          sudo umount boot
 
-    - name: Run Raspberry Pi OS with QEMU
-      run: |
-        qemu-system-aarch64 \
-          -machine raspi3b \
-          -cpu cortex-a72 \
-          -smp 4 -m 1G \
-          -kernel kernel8.img \
-          -dtb custom.dtb \
-          -drive "file=rpi-os.img,format=raw,index=0,if=sd" \
-          -append "rw earlyprintk loglevel=8 console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootdelay=1 fsck.repair=yes rootfstype=ext4" \
-          -device usb-net,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 \
-          -display none \
-          -daemonize
+          qemu-img resize rpi-os.img 8g
 
-        sleep 180
-        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-          sudo parted /dev/mmcblk0 resizepart 2 100% && \
-          sudo resize2fs -fp /dev/mmcblk0p2 && \
-          df -h && \
-          lsblk
-        "
+      - name: Install Dependencies in QEMU
+        run: |
+          qemu-system-aarch64 \
+            -machine raspi3b \
+            -cpu cortex-a72 \
+            -smp 4 -m 1G \
+            -kernel kernel8.img \
+            -dtb custom.dtb \
+            -drive "file=rpi-os.img,format=raw,index=0,if=sd" \
+            -append "rw console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootfstype=ext4" \
+            -device usb-net,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 \
+            -display none \
+            -daemonize
 
-    - name: Install Dependencies in QEMU
-      run: |
-        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-          sudo apt update && \
-          sudo apt full-upgrade -y && \
-          sudo apt install -y \
-          wget \
-          curl \
-          cmake \
-          clang \
-          build-essential \
-          mosquitto-dev \
-          libboost-program-options-dev \
-          libavformat-dev \
-          libavcodec-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libpulse-dev \
-          libasound2-dev \
-          libjpeg-dev \
-          libcamera-dev \
-          libmosquitto-dev
-        "
+          sleep 300
 
-    - name: Install Additional libwebrtc and json.hpp in QEMU
-      run: |
-        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-          wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
-          tar -xzf libwebrtc-arm64.tar.gz &&
-          sudo mkdir -p /usr/local/include/webrtc &&
-          sudo mv include/* /usr/local/include/webrtc &&
-          sudo mv lib/* /usr/local/lib &&
-          sudo mkdir -p /usr/local/include/nlohmann &&
-          sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
-        "
+          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+            sudo parted /dev/mmcblk0 resizepart 2 100% && \
+            sudo resize2fs -fp /dev/mmcblk0p2 && \
+            df -h && \
+            lsblk && \
+            echo "CONF_SWAPSIZE=1024" | sudo tee -a /etc/dphys-swapfile && \
+            sudo systemctl restart dphys-swapfile
+          "
 
-    - name: Checkout code
-      uses: actions/checkout@v4
+          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+            sudo apt update && \
+            sudo apt full-upgrade -y && \
+            sudo apt install -y \
+            wget \
+            curl \
+            cmake \
+            clang \
+            build-essential \
+            mosquitto-dev \
+            libboost-program-options-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libpulse-dev \
+            libasound2-dev \
+            libjpeg-dev \
+            libcamera-dev \
+            libmosquitto-dev
+          "
 
-    - name: Build project inside Raspberry Pi OS
-      run: |
-        sshpass -p "raspberry" scp -P 5555 -r . pi@localhost:~/project
-        sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-          ls ~/project && \
-          cd project && \
-          mkdir build && \
-          cd build && \
-          cmake .. -DCMAKE_CXX_COMPILER=clang++ -DUSE_MQTT_SIGNALING=ON -DCMAKE_BUILD_TYPE=Release && \
-          make -j$(nproc) && \
-          tar -czvf pi_webrtc-${{ github.ref_name }}_MQTT_Release.tar.gz pi_webrtc
-        "
+      - name: Install Additional libwebrtc and json.hpp in QEMU
+        run: |
+          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
+            tar -xzf libwebrtc-arm64.tar.gz &&
+            sudo mkdir -p /usr/local/include/webrtc &&
+            sudo mv include/* /usr/local/include/webrtc &&
+            sudo mv lib/* /usr/local/lib &&
+            sudo mkdir -p /usr/local/include/nlohmann &&
+            sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
+          "
+
+      - name: Upload Raspberry Pi OS Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpi-os-image
+          path: |
+            rpi-os.img
+            kernel8.img
+            custom.dtb
+
+  build:
+    runs-on: ubuntu-24.04-arm
+    needs: prepare-image
+    strategy:
+      matrix:
+        signaling: [MQTT, HTTP]
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Install QEMU and Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y qemu-system qemu-user-static binfmt-support libfdt-dev
+
+      - name: Download Raspberry Pi OS Image
+        uses: actions/download-artifact@v4
+        with:
+          name: rpi-os-image
+          path: .
+
+      - name: Run Raspberry Pi OS with QEMU
+        run: |
+          qemu-system-aarch64 \
+            -machine raspi3b \
+            -cpu cortex-a72 \
+            -smp 4 -m 1G \
+            -kernel kernel8.img \
+            -dtb custom.dtb \
+            -drive "file=rpi-os.img,format=raw,index=0,if=sd" \
+            -append "rw console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootfstype=ext4" \
+            -device usb-net,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:22 \
+            -display none \
+            -daemonize
+
+          sleep 300
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build project inside Raspberry Pi OS
+        run: |
+          sshpass -p "raspberry" scp -P 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r . pi@localhost:~/project
+          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
+            cd project && \
+            mkdir build && \
+            cd build && \
+            cmake .. -DCMAKE_CXX_COMPILER=clang++ -DUSE_${{ matrix.signaling }}_SIGNALING=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} && \
+            make -j$(nproc)
+          "
+          sshpass -p "raspberry" scp -P 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null pi@localhost:~/project/build/pi_webrtc .
+
+      - name: Zip binary
+        id: zip-binary
+        run: |
+          if [ "${{ matrix.build_type }}" == "Release" ]; then
+            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_${{ needs.prepare-image.outputs.raspios_version }}.tar.gz"
+          else
+            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_${{ needs.prepare-image.outputs.raspios_version }}_debug.tar.gz"
+          fi
+          sudo tar -czvf $FILENAME pi_webrtc
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.zip-binary.outputs.filename }}
