@@ -33,6 +33,7 @@ jobs:
         run: |
           docker run --name rpi-container -v ${{ github.workspace }}:/app rpi-docker-image /usr/bin/bash -c "
             apt update --fix-missing &&
+            apt full-upgrade -y &&
             apt install -y \
               wget \
               curl \

@@ -74,6 +74,7 @@ jobs:
       run: |
         sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
           sudo apt update && \
+          sudo apt full-upgrade -y && \
           sudo apt install -y \
           wget \
           curl \

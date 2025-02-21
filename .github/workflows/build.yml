@@ -27,6 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update --fix-missing
+        sudo apt full-upgrade -y
         sudo apt install -y \
           mosquitto-dev \
           libboost-program-options-dev \
