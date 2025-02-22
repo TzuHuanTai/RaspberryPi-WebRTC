@@ -85,7 +85,7 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
     std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;
 
-    void Send(CommandType type, const uint8_t *data, size_t size);
+    void Send(MetaMessage metadata);
     void Send(Buffer image);
     void Send(std::ifstream &file);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
@@ -95,6 +95,7 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
     std::map<CommandType, std::vector<std::shared_ptr<Observable<std::string>>>> observers_map_;
 
     void Send(const uint8_t *data, size_t size);
+    void Send(CommandType type, const uint8_t *data, size_t size);
 };
 
 #endif // DATA_CHANNEL_H_

@@ -81,8 +81,8 @@ void DataChannelSubject::Send(CommandType type, const uint8_t *data, size_t size
 
     while (bytes_read < size) {
         if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
-            sleep(1);
-            DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
+            usleep(100);
+            DEBUG_PRINT("Sleeping for 100 microsecond due to MaxSendQueueSize reached.");
             continue;
         }
         int read_size = std::min(CHUNK_SIZE - header_size, size - bytes_read);
@@ -102,6 +102,18 @@ void DataChannelSubject::Send(const uint8_t *data, size_t size) {
     rtc::CopyOnWriteBuffer buffer(data, size);
     webrtc::DataBuffer data_buffer(buffer, true);
     data_channel_->Send(data_buffer);
+}
+
+void DataChannelSubject::Send(MetaMessage metadata) {
+    auto type = CommandType::METADATA;
+    auto body = metadata.ToString();
+    int body_size = body.length();
+    auto header = std::to_string(body_size);
+    int header_size = header.length();
+
+    Send(type, (uint8_t *)header.c_str(), header_size);
+    Send(type, (uint8_t *)body.c_str(), body_size);
+    Send(type, nullptr, 0);
 }
 
 void DataChannelSubject::Send(Buffer image) {

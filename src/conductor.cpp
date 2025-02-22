@@ -200,14 +200,7 @@ void Conductor::SendMetadata(std::shared_ptr<DataChannelSubject> datachannel, st
     }
     try {
         MetaMessage metadata(path);
-        auto body = metadata.ToString();
-        int body_size = body.length();
-        auto header = std::to_string(body_size);
-        int header_size = header.length();
-
-        datachannel->Send(CommandType::METADATA, (uint8_t *)header.c_str(), header_size);
-        datachannel->Send(CommandType::METADATA, (uint8_t *)body.c_str(), body_size);
-        datachannel->Send(CommandType::METADATA, nullptr, 0);
+        datachannel->Send(metadata);
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }
