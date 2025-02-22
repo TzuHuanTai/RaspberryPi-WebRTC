@@ -84,6 +84,11 @@ LibcameraCapturer &LibcameraCapturer::SetFormat(int width, int height) {
 
     INFO_PRINT("  width: %d, height: %d, stride: %d", width_, height_, stride_);
 
+    if (width_ != stride_) {
+        ERROR_PRINT("Stride is not equal to width");
+        exit(1);
+    }
+
     return *this;
 }
 
