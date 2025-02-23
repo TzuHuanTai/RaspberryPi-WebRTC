@@ -18,6 +18,7 @@ struct Args {
     bool no_audio = false;
     bool hw_accel = false;
     bool use_libcamera = false;
+    bool fixed_resolution = false;
     uint32_t format = V4L2_PIX_FMT_MJPEG;
     std::string v4l2_format = "mjpeg";
     std::string device = "/dev/video0";

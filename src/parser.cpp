@@ -40,6 +40,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
             "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` "
             "flags will be suspended")
+        ("fixed_resolution", bpo::bool_switch()->default_value(args.fixed_resolution),
+            "Disable adaptive resolution scaling and keep a fixed resolution.")
         ("no_audio", bpo::bool_switch()->default_value(args.no_audio), "Run without audio source")
         ("uid", bpo::value<std::string>()->default_value(args.uid),
             "Set the unique id to identify the device")
@@ -108,6 +110,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "record_path", args.record_path);
 
     args.use_libcamera = vm["use_libcamera"].as<bool>();
+    args.fixed_resolution = vm["fixed_resolution"].as<bool>();
     args.no_audio = vm["no_audio"].as<bool>();
     args.hw_accel = vm["hw_accel"].as<bool>();
 

@@ -49,7 +49,7 @@ std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
     if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
         if (args_.hw_accel) {
-            return V4l2H264Encoder::Create();
+            return V4l2H264Encoder::Create(args_);
         } else {
             return webrtc::H264Encoder::Create(cricket::VideoCodec(format));
         }

@@ -6,12 +6,13 @@
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
 
+#include "args.h"
 #include "v4l2_codecs/v4l2_encoder.h"
 
 class V4l2H264Encoder : public webrtc::VideoEncoder {
   public:
-    static std::unique_ptr<webrtc::VideoEncoder> Create();
-    V4l2H264Encoder();
+    static std::unique_ptr<webrtc::VideoEncoder> Create(Args args);
+    V4l2H264Encoder(Args args);
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
                        const VideoEncoder::Settings &settings) override;
