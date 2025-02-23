@@ -2,9 +2,7 @@
 #define V4L2_CODEC_
 
 #include "common/v4l2_utils.h"
-
-#include <mutex>
-#include <queue>
+#include "common/thread_safe_queue.h"
 
 #include "common/worker.h"
 
@@ -18,7 +16,6 @@ class V4l2Codec {
                        bool has_dmafd = false);
     void Start();
     void EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer &)> on_capture);
-    void ReleaseCodec();
 
   protected:
     int fd_;
@@ -27,11 +24,10 @@ class V4l2Codec {
     virtual void HandleEvent(){};
 
   private:
-    bool abort_;
-    std::mutex mutex_;
+    std::atomic<bool> abort_;
     std::unique_ptr<Worker> worker_;
-    std::queue<int> output_buffer_index_;
-    std::queue<std::function<void(V4l2Buffer &)>> capturing_tasks_;
+    ThreadSafeQueue<int> output_buffer_index_;
+    ThreadSafeQueue<std::function<void(V4l2Buffer &)>> capturing_tasks_;
     const char *file_name_;
     bool CaptureBuffer();
 };

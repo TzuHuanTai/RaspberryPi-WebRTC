@@ -16,7 +16,11 @@ H264Encoder::H264Encoder(Args args)
       bitrate_(width_ * height_ * fps_ * 0.1),
       encoder_(nullptr) {}
 
-H264Encoder::~H264Encoder() { ReleaseCodec(); }
+H264Encoder::~H264Encoder() {
+    encoder_->Uninitialize();
+    WelsDestroySVCEncoder(encoder_);
+    DEBUG_PRINT("sw h264 encode was released!\n");
+}
 
 void H264Encoder::Init() {
     int rv = WelsCreateSVCEncoder(&encoder_);
@@ -96,11 +100,4 @@ void H264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_b
 
         on_capture(encoded_buf.data(), encoded_size);
     }
-}
-
-void H264Encoder::ReleaseCodec() {
-    encoder_->Uninitialize();
-    WelsDestroySVCEncoder(encoder_);
-
-    printf("sw h264 encode was released!\n");
 }

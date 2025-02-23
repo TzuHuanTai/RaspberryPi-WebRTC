@@ -8,14 +8,18 @@ V4l2Codec::V4l2Codec()
       abort_(false) {}
 
 V4l2Codec::~V4l2Codec() {
+    abort_ = true;
     worker_.reset();
-    ReleaseCodec();
-    capturing_tasks_ = {};
-    output_buffer_index_ = {};
+    V4l2Util::StreamOff(fd_, output_.type);
+    V4l2Util::StreamOff(fd_, capture_.type);
+
+    V4l2Util::DeallocateBuffer(fd_, &output_);
+    V4l2Util::DeallocateBuffer(fd_, &capture_);
+
+    V4l2Util::CloseDevice(fd_);
 }
 
 bool V4l2Codec::Open(const char *file_name) {
-    std::lock_guard<std::mutex> lock(mutex_);
     file_name_ = file_name;
     fd_ = V4l2Util::OpenDevice(file_name);
     if (fd_ < 0) {
@@ -27,7 +31,6 @@ bool V4l2Codec::Open(const char *file_name) {
 bool V4l2Codec::PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height, uint32_t pix_fmt,
                               v4l2_buf_type type, v4l2_memory memory, int buffer_num,
                               bool has_dmafd) {
-    std::lock_guard<std::mutex> lock(mutex_);
     if (!V4l2Util::InitBuffer(fd_, gbuffer, type, memory, has_dmafd)) {
         return false;
     }
@@ -62,16 +65,11 @@ void V4l2Codec::Start() {
 }
 
 void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer &)> on_capture) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (abort_) {
+    auto item = output_buffer_index_.pop();
+    if (!item) {
         return;
     }
-    if (output_buffer_index_.empty()) {
-        return;
-    }
-
-    int index = output_buffer_index_.front();
-    output_buffer_index_.pop();
+    auto index = item.value();
 
     if (output_.memory == V4L2_MEMORY_DMABUF) {
         v4l2_buffer *buf = &output_.buffers[index].inner;
@@ -93,7 +91,10 @@ void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer 
 }
 
 bool V4l2Codec::CaptureBuffer() {
-    V4l2Buffer buffer = {};
+
+    if (abort_) {
+        return false;
+    }
 
     fd_set fds[2];
     fd_set *rd_fds = &fds[0]; /* for capture */
@@ -108,71 +109,59 @@ bool V4l2Codec::CaptureBuffer() {
 
     int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
+    if (abort_) {
+        return false;
+    } else if (r <= 0) { // failed or timeout
+        return false;
+    }
+
+    if (rd_fds && FD_ISSET(fd_, rd_fds)) {
+        struct v4l2_buffer buf = {0};
+        struct v4l2_plane planes = {0};
+        buf.memory = output_.memory;
+        buf.length = 1;
+        buf.m.planes = &planes;
+        buf.type = output_.type;
+        if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
+            return false;
+        }
+        output_buffer_index_.push(buf.index);
+
+        buf = {};
+        planes = {};
+        buf.memory = capture_.memory;
+        buf.length = 1;
+        buf.m.planes = &planes;
+        buf.type = capture_.type;
+        if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
+            return false;
+        }
+
+        V4l2Buffer buffer;
+        buffer.start = capture_.buffers[buf.index].start;
+        buffer.length = buf.m.planes[0].bytesused;
+        buffer.dmafd = capture_.buffers[buf.index].dmafd;
+        buffer.flags = buf.flags;
+
         if (abort_) {
             return false;
-        } else if (r <= 0) { // failed or timeout
+        }
+
+        auto item = capturing_tasks_.pop();
+        if (item) {
+            auto task = item.value();
+            task(buffer);
+        }
+
+        if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
             return false;
         }
-
-        if (rd_fds && FD_ISSET(fd_, rd_fds)) {
-            struct v4l2_buffer buf = {0};
-            struct v4l2_plane planes = {0};
-            buf.memory = output_.memory;
-            buf.length = 1;
-            buf.m.planes = &planes;
-            buf.type = output_.type;
-            if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
-                return false;
-            }
-            output_buffer_index_.push(buf.index);
-
-            buf = {};
-            planes = {};
-            buf.memory = capture_.memory;
-            buf.length = 1;
-            buf.m.planes = &planes;
-            buf.type = capture_.type;
-            if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
-                return false;
-            }
-
-            buffer.start = capture_.buffers[buf.index].start;
-            buffer.length = buf.m.planes[0].bytesused;
-            buffer.dmafd = capture_.buffers[buf.index].dmafd;
-            buffer.flags = buf.flags;
-
-            if (!capturing_tasks_.empty()) {
-                auto task = capturing_tasks_.front();
-                capturing_tasks_.pop();
-                task(buffer);
-            } else {
-                return false;
-            }
-
-            if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
-                return false;
-            }
-        }
-
-        if (ex_fds && FD_ISSET(fd_, ex_fds)) {
-            ERROR_PRINT("Exception in fd(%d).", fd_);
-            HandleEvent();
-        }
     }
+
+    if (ex_fds && FD_ISSET(fd_, ex_fds)) {
+        ERROR_PRINT("Exception in fd(%d).", fd_);
+        HandleEvent();
+    }
+
     return true;
-}
-
-void V4l2Codec::ReleaseCodec() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    abort_ = true;
-    V4l2Util::StreamOff(fd_, output_.type);
-    V4l2Util::StreamOff(fd_, capture_.type);
-
-    V4l2Util::DeallocateBuffer(fd_, &output_);
-    V4l2Util::DeallocateBuffer(fd_, &capture_);
-
-    V4l2Util::CloseDevice(fd_);
-    fd_ = 0;
 }

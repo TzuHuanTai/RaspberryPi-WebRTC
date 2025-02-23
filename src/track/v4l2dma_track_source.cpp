@@ -12,7 +12,6 @@
 rtc::scoped_refptr<V4l2DmaTrackSource>
 V4l2DmaTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
     auto obj = rtc::make_ref_counted<V4l2DmaTrackSource>(std::move(capturer));
-    obj->Init();
     obj->StartTrack();
     return obj;
 }
@@ -24,12 +23,6 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<VideoCapturer> capturer)
       config_height_(capturer->height()) {}
 
 V4l2DmaTrackSource::~V4l2DmaTrackSource() { scaler.reset(); }
-
-void V4l2DmaTrackSource::Init() {
-    scaler = std::make_unique<V4l2Scaler>();
-    scaler->Configure(width, height, width, height, is_dma_src_, true);
-    scaler->Start();
-}
 
 void V4l2DmaTrackSource::StartTrack() {
     auto observer = capturer->AsFrameBufferObservable();
@@ -52,20 +45,30 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer decoded_buffer) {
     if (adapted_width != config_width_ || adapted_height != config_height_) {
         config_width_ = adapted_width;
         config_height_ = adapted_height;
-        scaler->ReleaseCodec();
+        scaler = std::make_unique<V4l2Scaler>();
         scaler->Configure(width, height, config_width_, config_height_, is_dma_src_, true);
         scaler->Start();
     }
 
-    scaler->EmplaceBuffer(
-        decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
-            auto dst_buffer = V4l2FrameBuffer::Create(config_width_, config_height_, scaled_buffer,
-                                                      V4L2_PIX_FMT_YUV420);
+    if (scaler) {
+        scaler->EmplaceBuffer(
+            decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
+                auto dst_buffer = V4l2FrameBuffer::Create(config_width_, config_height_,
+                                                          scaled_buffer, V4L2_PIX_FMT_YUV420);
 
-            OnFrame(webrtc::VideoFrame::Builder()
-                        .set_video_frame_buffer(dst_buffer)
-                        .set_rotation(webrtc::kVideoRotation_0)
-                        .set_timestamp_us(translated_timestamp_us)
-                        .build());
-        });
+                OnFrame(webrtc::VideoFrame::Builder()
+                            .set_video_frame_buffer(dst_buffer)
+                            .set_rotation(webrtc::kVideoRotation_0)
+                            .set_timestamp_us(translated_timestamp_us)
+                            .build());
+            });
+    } else {
+        auto dst_buffer = V4l2FrameBuffer::Create(config_width_, config_height_, decoded_buffer,
+                                                  V4L2_PIX_FMT_YUV420);
+        OnFrame(webrtc::VideoFrame::Builder()
+                    .set_video_frame_buffer(dst_buffer)
+                    .set_rotation(webrtc::kVideoRotation_0)
+                    .set_timestamp_us(translated_timestamp_us)
+                    .build());
+    }
 }
