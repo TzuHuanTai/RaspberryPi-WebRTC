@@ -126,7 +126,7 @@ void V4l2Capturer::CaptureImage() {
     FD_SET(fd_, &fds);
     timeval tv = {};
     tv.tv_sec = 0;
-    tv.tv_usec = 500000;
+    tv.tv_usec = 200000;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
     if (r == -1) {
         ERROR_PRINT("select failed");
