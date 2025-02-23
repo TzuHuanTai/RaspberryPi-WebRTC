@@ -26,9 +26,7 @@ int main(int argc, char *argv[]) {
     auto capturer = V4l2Capturer::Create(args);
     auto observer = capturer->AsFrameBufferObservable();
 
-    auto encoder = std::make_unique<V4l2Encoder>();
-    encoder->Configure(args.width, args.height, true);
-    encoder->Start();
+    auto encoder = V4l2Encoder::Create(args.width, args.height, true);
 
     int cam_frame_count = 0;
     auto cam_start_time = std::chrono::steady_clock::now();
@@ -91,8 +89,7 @@ int main(int argc, char *argv[]) {
         return is_finished;
     });
 
-    encoder->Stop();
-    encoder->ReleaseCodec();
+    encoder.reset();
     observer->UnSubscribe();
 
     return 0;

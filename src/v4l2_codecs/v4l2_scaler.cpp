@@ -4,6 +4,14 @@
 const char *SCALER_FILE = "/dev/video12";
 const int BUFFER_NUM = 2;
 
+std::unique_ptr<V4l2Scaler> V4l2Scaler::Create(int src_width, int src_height, int dst_width,
+                                               int dst_height, bool is_dma_src, bool is_dma_dst) {
+    auto scaler = std::make_unique<V4l2Scaler>();
+    scaler->Configure(src_width, src_height, dst_width, dst_height, is_dma_src, is_dma_dst);
+    scaler->Start();
+    return scaler;
+}
+
 bool V4l2Scaler::Configure(int src_width, int src_height, int dst_width, int dst_height,
                            bool is_dma_src, bool is_dma_dst) {
     if (!Open(SCALER_FILE)) {

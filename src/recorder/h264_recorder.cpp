@@ -52,8 +52,7 @@ void H264Recorder::InitCodecs() {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (config.hw_accel) {
-        encoder_ = std::make_unique<V4l2Encoder>();
-        encoder_->Configure(config.width, config.height, false);
+        encoder_ = V4l2Encoder::Create(config.width, config.height, false);
         encoder_->SetFps(config.fps);
         encoder_->SetBitrate(config.width * config.height * config.fps * 0.1);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
@@ -62,9 +61,6 @@ void H264Recorder::InitCodecs() {
                              V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60);
-        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE,
-                             config.width * config.height * config.fps * 0.1);
-        encoder_->Start();
     } else {
         sw_encoder_ = H264Encoder::Create(config);
     }

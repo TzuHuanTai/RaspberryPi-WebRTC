@@ -45,9 +45,8 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer decoded_buffer) {
     if (adapted_width != config_width_ || adapted_height != config_height_) {
         config_width_ = adapted_width;
         config_height_ = adapted_height;
-        scaler = std::make_unique<V4l2Scaler>();
-        scaler->Configure(width, height, config_width_, config_height_, is_dma_src_, true);
-        scaler->Start();
+        scaler =
+            V4l2Scaler::Create(width, height, config_width_, config_height_, is_dma_src_, true);
     }
 
     if (scaler) {

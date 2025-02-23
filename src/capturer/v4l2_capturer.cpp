@@ -198,9 +198,7 @@ void V4l2Capturer::StartCapture() {
     V4l2Util::StreamOn(fd_, capture_.type);
 
     if (hw_accel_ && IsCompressedFormat()) {
-        decoder_ = std::make_unique<V4l2Decoder>();
-        decoder_->Configure(config_.width, config_.height, format_, true);
-        decoder_->Start();
+        decoder_ = V4l2Decoder::Create(config_.width, config_.height, format_, true);
     }
 
     worker_ = std::make_unique<Worker>("V4l2Capture", [this]() {

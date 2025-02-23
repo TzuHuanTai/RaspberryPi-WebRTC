@@ -35,9 +35,7 @@ int main(int argc, char *argv[]) {
               .format = V4L2_PIX_FMT_YUV420,
               .device = "/dev/video0"};
 
-    auto scaler = std::make_unique<V4l2Scaler>();
-    scaler->Configure(args.width, args.height, 320, 240, false, false);
-    scaler->Start();
+    auto scaler = V4l2Scaler::Create(args.width, args.height, 320, 240, false, false);
 
     auto capturer = V4l2Capturer::Create(args);
     auto observer = capturer->AsRawBufferObservable();
@@ -61,8 +59,7 @@ int main(int argc, char *argv[]) {
         return is_finished;
     });
 
-    scaler->Stop();
-    scaler->ReleaseCodec();
+    scaler.reset();
     observer->UnSubscribe();
 
     return 0;

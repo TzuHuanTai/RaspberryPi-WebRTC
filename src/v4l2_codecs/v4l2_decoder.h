@@ -5,9 +5,11 @@
 
 class V4l2Decoder : public V4l2Codec {
   public:
-    bool Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst);
+    static std::unique_ptr<V4l2Decoder> Create(int width, int height, uint32_t src_pix_fmt,
+                                               bool is_dma_dst);
 
   protected:
+    bool Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst);
     void HandleEvent() override;
 };
 

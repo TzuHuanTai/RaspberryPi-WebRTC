@@ -33,9 +33,7 @@ int main(int argc, char *argv[]) {
               .device = "/dev/video0"};
 
     auto capturer = V4l2Capturer::Create(args);
-    auto decoder = std::make_unique<V4l2Decoder>();
-    decoder->Configure(args.width, args.height, capturer->format(), false);
-    decoder->Start();
+    auto decoder = V4l2Decoder::Create(args.width, args.height, capturer->format(), false);
 
     auto observer = capturer->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
@@ -60,8 +58,7 @@ int main(int argc, char *argv[]) {
         return is_finished;
     });
 
-    decoder->Stop();
-    decoder->ReleaseCodec();
+    decoder.reset();
     observer->UnSubscribe();
 
     return 0;

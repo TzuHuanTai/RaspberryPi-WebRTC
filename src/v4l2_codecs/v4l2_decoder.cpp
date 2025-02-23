@@ -7,6 +7,14 @@
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
+std::unique_ptr<V4l2Decoder> V4l2Decoder::Create(int width, int height, uint32_t src_pix_fmt,
+                                                 bool is_dma_dst) {
+    auto decoder = std::make_unique<V4l2Decoder>();
+    decoder->Configure(width, height, src_pix_fmt, is_dma_dst);
+    decoder->Start();
+    return decoder;
+}
+
 bool V4l2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst) {
     if (!Open(DECODER_FILE)) {
         DEBUG_PRINT("Failed to turn on decoder: %s", DECODER_FILE);
