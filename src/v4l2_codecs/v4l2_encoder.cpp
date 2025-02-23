@@ -3,7 +3,7 @@
 
 const char *ENCODER_FILE = "/dev/video11";
 const int BUFFER_NUM = 4;
-const int KEY_FRAME_INTERVAL = 240;
+const int KEY_FRAME_INTERVAL = 600;
 
 V4l2Encoder::V4l2Encoder()
     : V4l2Codec(),
