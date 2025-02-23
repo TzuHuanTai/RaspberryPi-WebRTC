@@ -2,9 +2,6 @@
 #define VIDEO_RECORDER_H_
 
 #include <atomic>
-#include <mutex>
-#include <optional>
-#include <queue>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -12,55 +9,10 @@ extern "C" {
 }
 
 #include "args.h"
+#include "common/thread_safe_queue.h"
 #include "common/v4l2_frame_buffer.h"
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
-
-template <typename T> class ThreadSafeQueue {
-  public:
-    void push(T t) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        queue_.push(t);
-    }
-
-    std::optional<T> pop() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (queue_.empty()) {
-            return std::nullopt;
-        }
-        T t = queue_.front();
-        queue_.pop();
-        return t;
-    }
-
-    std::optional<T> front() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (queue_.empty()) {
-            return std::nullopt;
-        }
-        T t = queue_.front();
-        return t;
-    }
-
-    bool empty() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.empty();
-    }
-
-    size_t size() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.size();
-    }
-
-    void clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        queue_ = std::queue<T>();
-    }
-
-  private:
-    std::queue<T> queue_;
-    std::mutex mutex_;
-};
 
 class VideoRecorder : public Recorder<V4l2Buffer> {
   public:
