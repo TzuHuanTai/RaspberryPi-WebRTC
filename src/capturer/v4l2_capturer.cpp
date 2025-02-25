@@ -13,7 +13,7 @@
 
 std::shared_ptr<V4l2Capturer> V4l2Capturer::Create(Args args) {
     auto ptr = std::make_shared<V4l2Capturer>(args);
-    ptr->Init(args.device);
+    ptr->Init(args.cameraId);
     ptr->SetFps(args.fps)
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height)
@@ -28,8 +28,9 @@ V4l2Capturer::V4l2Capturer(Args args)
       has_first_keyframe_(false),
       config_(args) {}
 
-void V4l2Capturer::Init(std::string device) {
-    fd_ = V4l2Util::OpenDevice(device.c_str());
+void V4l2Capturer::Init(int deviceId) {
+    std::string devicePath = "/dev/video" + std::to_string(deviceId);
+    fd_ = V4l2Util::OpenDevice(devicePath.c_str());
 
     if (!V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)) {
         exit(0);

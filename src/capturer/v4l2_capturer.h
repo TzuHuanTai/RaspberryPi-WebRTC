@@ -47,7 +47,7 @@ class V4l2Capturer : public VideoCapturer {
     V4l2Capturer &SetFps(int fps = 30);
     V4l2Capturer &SetRotation(int angle);
 
-    void Init(std::string device);
+    void Init(int deviceId);
     bool IsCompressedFormat() const;
     void CaptureImage();
     bool CheckMatchingDevice(std::string unique_name);

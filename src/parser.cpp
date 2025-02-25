@@ -35,11 +35,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "The connection timeout, in seconds, after receiving a remote offer")
         ("segment_duration", bpo::value<int>()->default_value(args.segment_duration),
             "The length (in seconds) of each MP4 recording.")
-        ("device", bpo::value<std::string>()->default_value(args.device),
-            "Read the specific camera file via V4L2, default is /dev/video0")
-        ("use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
-            "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` "
-            "flags will be suspended")
+        ("camera", bpo::value<std::string>()->default_value(args.camera),
+            "Specify the camera using V4L2 or Libcamera. "
+            "Examples: \"libcamera:0\" for Libcamera, \"v4l2:/dev/video0\" for V4L2.")
         ("fixed_resolution", bpo::bool_switch()->default_value(args.fixed_resolution),
             "Disable adaptive resolution scaling and keep a fixed resolution.")
         ("no_audio", bpo::bool_switch()->default_value(args.no_audio), "Run without audio source")
@@ -95,7 +93,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "rotation_angle", args.rotation_angle);
     SetIfExists(vm, "peer_timeout", args.peer_timeout);
     SetIfExists(vm, "segment_duration", args.segment_duration);
-    SetIfExists(vm, "device", args.device);
+    SetIfExists(vm, "camera", args.camera);
     SetIfExists(vm, "v4l2_format", args.v4l2_format);
     SetIfExists(vm, "uid", args.uid);
     SetIfExists(vm, "stun_url", args.stun_url);
@@ -109,7 +107,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "http_port", args.http_port);
     SetIfExists(vm, "record_path", args.record_path);
 
-    args.use_libcamera = vm["use_libcamera"].as<bool>();
     args.fixed_resolution = vm["fixed_resolution"].as<bool>();
     args.no_audio = vm["no_audio"].as<bool>();
     args.hw_accel = vm["hw_accel"].as<bool>();
@@ -134,16 +131,38 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     }
 
-    if (args.use_libcamera) {
+    ParseDevice(args);
+}
+
+void Parser::ParseDevice(Args &args) {
+    size_t pos = args.camera.find(':');
+    if (pos == std::string::npos) {
+        throw std::runtime_error("Unknown device format: " + args.camera);
+    }
+
+    std::string prefix = args.camera.substr(0, pos);
+    std::string id = args.camera.substr(pos + 1);
+
+    try {
+        args.cameraId = std::stoi(id);
+    } catch (const std::exception &e) {
+        throw std::runtime_error("Invalid camera ID: " + id);
+    }
+
+    if (prefix == "libcamera") {
+        args.use_libcamera = true;
         args.format = V4L2_PIX_FMT_YUV420;
-    } else {
+        std::cout << "Using Libcamera, ID: " << args.cameraId << std::endl;
+    } else if (prefix == "v4l2") {
         auto it = format_map.find(args.v4l2_format);
         if (it != format_map.end()) {
             args.format = it->second;
-            printf("Use %s format source in v4l2\n", args.v4l2_format.c_str());
+            std::cout << "Using V4L2: " << args.v4l2_format << std::endl;
         } else {
-            std::cerr << "Unsupported format: " << args.v4l2_format << std::endl;
-            exit(1);
+            throw std::runtime_error("Unsupported format: " + args.v4l2_format);
         }
+        std::cout << "Using V4L2, ID: " << args.cameraId << std::endl;
+    } else {
+        throw std::runtime_error("Unknown device format: " + prefix);
     }
 }

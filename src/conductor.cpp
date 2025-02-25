@@ -50,7 +50,7 @@ void Conductor::InitializeTracks() {
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
 
-    if (video_track_ == nullptr && !args.device.empty()) {
+    if (video_track_ == nullptr && !args.camera.empty()) {
         video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
             if (args.use_libcamera) {
                 return LibcameraCapturer::Create(args);

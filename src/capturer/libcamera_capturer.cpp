@@ -6,7 +6,7 @@
 
 std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
-    ptr->Init(args.device);
+    ptr->Init(args.cameraId);
     ptr->SetFps(args.fps)
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height)
@@ -19,18 +19,25 @@ LibcameraCapturer::LibcameraCapturer(Args args)
       format_(args.format),
       config_(args) {}
 
-void LibcameraCapturer::Init(std::string device) {
+void LibcameraCapturer::Init(int deviceId) {
     cm_ = std::make_unique<libcamera::CameraManager>();
-    cm_->start();
-
-    if (cm_->cameras().size() == 0) {
-        ERROR_PRINT("No camera is available via libcamera.");
-        exit(1);
+    int ret = cm_->start();
+    if (ret) {
+        throw std::runtime_error("Failed to start camera manager");
     }
 
-    std::string cameraId = cm_->cameras()[0]->id();
-    INFO_PRINT("camera id: %s", cameraId.c_str());
-    camera_ = cm_->get(cameraId);
+    auto cameras = cm_->cameras();
+    if (cameras.size() == 0) {
+        throw std::runtime_error("No camera is available via libcamera.");
+    }
+
+    if (config_.cameraId >= cameras.size()) {
+        throw std::runtime_error("Selected camera is not available.");
+    }
+
+    std::string const &cam_id = cameras[config_.cameraId]->id();
+    INFO_PRINT("camera id: %s", cam_id.c_str());
+    camera_ = cm_->get(cam_id);
     camera_->acquire();
     camera_config_ = camera_->generateConfiguration({libcamera::StreamRole::VideoRecording});
 }

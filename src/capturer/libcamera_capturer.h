@@ -56,7 +56,7 @@ class LibcameraCapturer : public VideoCapturer {
     LibcameraCapturer &SetFps(int fps);
     LibcameraCapturer &SetRotation(int angle);
 
-    void Init(std::string device);
+    void Init(int deviceId);
     void AllocateBuffer();
     void RequestComplete(libcamera::Request *request);
 };
