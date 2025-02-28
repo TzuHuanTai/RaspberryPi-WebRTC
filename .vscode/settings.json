@@ -83,5 +83,6 @@
     },
     "clang-format.executable": "/usr/bin/clang-format",
     "clang-format.style": "file",
-    "C_Cpp.dimInactiveRegions": false
+    "C_Cpp.dimInactiveRegions": false,
+    "python.defaultInterpreterPath": "/home/pi/venv/bin/python",
 }

@@ -14,6 +14,10 @@ Usage:
     3. Run the script:
         python virtual_cam.py
 
+    4. Test the video output:
+        /path/to/pi_webrtc --camera=v4l2:16 --width=1920 --height=1080 ...   # View the processed feed by WebRTC
+        ffplay /dev/video16                                                  # View the processed feed by ffplay
+
 Requirements:
     - Raspberry Pi with Camera Module
     - v4l2loopback kernel module installed
