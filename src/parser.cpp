@@ -116,7 +116,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         exit(1);
     }
 
-    if (!args.turn_url.empty() && args.turn_url.substr(0, 4) == "turn") {
+    if (!args.turn_url.empty() && args.turn_url.substr(0, 4) != "turn") {
         std::cout << "Turn url should start with \"turn:\"" << std::endl;
         exit(1);
     }
