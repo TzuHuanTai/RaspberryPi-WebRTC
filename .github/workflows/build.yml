@@ -2,7 +2,7 @@ name: Build
 on:
   push:
     tags:
-      - 'v**-ubuntu'
+      - 'v**'
 
 jobs:
   build:
@@ -10,7 +10,6 @@ jobs:
 
     strategy:
       matrix:
-        signaling: [MQTT, HTTP]
         build_type: [Debug, Release]
     
     steps:
@@ -47,7 +46,7 @@ jobs:
     - name: Build project
       run: |
         mkdir build && cd build
-        cmake .. -DCMAKE_CXX_COMPILER=clang++ -DUSE_${{ matrix.signaling }}_SIGNALING=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        cmake .. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         make -j$(nproc)
 
     - name: Zip binary
@@ -55,9 +54,9 @@ jobs:
       run: |
         cd build
         if [ "${{ matrix.build_type }}" == "Release" ]; then
-          FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_ubuntu-24.04-arm64.tar.gz"
+          FILENAME="pi_webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64.tar.gz"
         else
-          FILENAME="pi_webrtc-${{ github.ref_name }}_${{ matrix.signaling }}_ubuntu-24.04-arm64_debug.tar.gz"
+          FILENAME="pi_webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64_debug.tar.gz"
         fi
         tar -czvf $FILENAME pi_webrtc
         echo "filename=$FILENAME" >> $GITHUB_OUTPUT

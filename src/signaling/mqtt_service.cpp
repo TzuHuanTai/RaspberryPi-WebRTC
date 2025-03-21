@@ -262,7 +262,7 @@ void MqttService::Connect() {
         return;
     }
 
-    int rc = mosquitto_loop_forever(connection_, -1, 1); // already handle reconnections
+    int rc = mosquitto_loop_start(connection_); // already handle reconnections
     if (rc != MOSQ_ERR_SUCCESS) {
         ERROR_PRINT("%s", mosquitto_strerror(rc));
     }

@@ -92,6 +92,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
         --fps=30 \
         --width=1280 \
         --height=960 \
+        --use_mqtt \
         --mqtt_host=your.mqtt.cloud \
         --mqtt_port=8883 \
         --mqtt_username=hakunamatata \

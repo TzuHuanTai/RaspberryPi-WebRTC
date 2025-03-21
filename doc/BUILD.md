@@ -20,8 +20,6 @@
 
 | <div style="width:200px">Command line</div> | Default | Valid values |
 | --------------------------------------------| ----------- | ------------ |
-| -DUSE_MQTT_SIGNALING | OFF | (ON, OFF). Build the project by using MOSQUITTO as signaling. |
-| -DUSE_HTTP_SIGNALING | OFF | (ON, OFF). Build the project by using HTTP as signaling. (WHEP) |
 | -DBUILD_TEST |  | (http_server, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler). Build the test codes |
 | -DCMAKE_BUILD_TYPE | Debug | (Debug, Release) |
 
@@ -29,11 +27,11 @@ Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DUSE_MQTT_SIGNALING=ON -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
 make -j
 ```
 
 Run `pi_webrtc` to start the service.
 ```bash
-./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=<hostname> --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password> --hw_accel
+./pi_webrtc --camera=libcamera:0 --fps=30 --width=1280 --height=720 --use_mqtt --mqtt_host=<hostname> --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password> --hw_accel
 ```

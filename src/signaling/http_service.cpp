@@ -6,21 +6,22 @@
 
 #include "common/logging.h"
 
-std::shared_ptr<HttpService> HttpService::Create(Args args, std::shared_ptr<Conductor> conductor) {
-    return std::make_shared<HttpService>(args, conductor);
+std::shared_ptr<HttpService> HttpService::Create(Args args, std::shared_ptr<Conductor> conductor,
+                                                 boost::asio::io_context &ioc) {
+    return std::make_shared<HttpService>(args, conductor, ioc);
 }
 
-HttpService::HttpService(Args args, std::shared_ptr<Conductor> conductor)
+HttpService::HttpService(Args args, std::shared_ptr<Conductor> conductor,
+                         boost::asio::io_context &ioc)
     : SignalingService(conductor, true),
       port_(args.http_port),
-      acceptor_({ioc_, {asio::ip::address_v6::any(), port_}}) {}
+      acceptor_({ioc, {boost::asio::ip::address_v6::any(), port_}}) {}
 
 HttpService::~HttpService() {}
 
 void HttpService::Connect() {
     INFO_PRINT("Http server is running on http://*:%d", port_);
     AcceptConnection();
-    ioc_.run();
 }
 
 void HttpService::Disconnect() {}

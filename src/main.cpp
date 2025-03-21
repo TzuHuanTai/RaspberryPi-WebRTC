@@ -6,12 +6,8 @@
 #include "conductor.h"
 #include "parser.h"
 #include "recorder/recorder_manager.h"
-#include "signaling/signaling_service.h"
-#if USE_MQTT_SIGNALING
-#include "signaling/mqtt_service.h"
-#elif USE_HTTP_SIGNALING
 #include "signaling/http_service.h"
-#endif
+#include "signaling/mqtt_service.h"
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -28,21 +24,29 @@ int main(int argc, char *argv[]) {
         DEBUG_PRINT("Recorder is not started!");
     }
 
-    auto signaling_service = ([args, conductor]() -> std::shared_ptr<SignalingService> {
-#if USE_MQTT_SIGNALING
-        return MqttService::Create(args, conductor);
-#elif USE_HTTP_SIGNALING
-        return HttpService::Create(args, conductor);
-#else
-        return nullptr;
-#endif
-    })();
+    boost::asio::io_context ioc_;
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(
+        ioc_.get_executor());
+    std::vector<std::shared_ptr<SignalingService>> services;
 
-    if (signaling_service) {
-        signaling_service->Start();
-    } else {
-        INFO_PRINT("There is no any signaling service found!");
+    if (args.use_whep) {
+        services.push_back(HttpService::Create(args, conductor, ioc_));
     }
+
+    if (args.use_mqtt) {
+        services.push_back(MqttService::Create(args, conductor));
+    }
+
+    if (services.empty()) {
+        ERROR_PRINT("No signaling service is running.");
+        work_guard.reset();
+    }
+
+    for (auto &service : services) {
+        service->Start();
+    }
+
+    ioc_.run();
 
     return 0;
 }

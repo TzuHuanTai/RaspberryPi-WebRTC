@@ -13,8 +13,7 @@
 
 namespace beast = boost::beast;
 namespace http = beast::http;
-namespace asio = boost::asio;
-using tcp = asio::ip::tcp;
+using tcp = boost::asio::ip::tcp;
 
 struct IceCandidates {
     std::string ice_ufrag;
@@ -25,17 +24,18 @@ struct IceCandidates {
 class HttpService : public SignalingService,
                     public std::enable_shared_from_this<HttpService> {
   public:
-    static std::shared_ptr<HttpService> Create(Args args, std::shared_ptr<Conductor> conductor);
+    static std::shared_ptr<HttpService> Create(Args args, std::shared_ptr<Conductor> conductor,
+                                               boost::asio::io_context &ioc);
 
-    HttpService(Args args, std::shared_ptr<Conductor> conductor);
+    HttpService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
     ~HttpService();
 
+  protected:
     void Connect() override;
     void Disconnect() override;
 
   private:
     uint16_t port_;
-    asio::io_context ioc_;
     tcp::acceptor acceptor_;
 
     void AcceptConnection();

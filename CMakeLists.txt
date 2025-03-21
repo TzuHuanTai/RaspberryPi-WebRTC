@@ -3,8 +3,6 @@ project(pi_webrtc)
 
 set(CMAKE_CXX_STANDARD 20)
 set(BUILD_TEST "" CACHE STRING "test")
-set(USE_HTTP_SIGNALING OFF CACHE BOOL "Enable HTTP signaling")
-set(USE_MQTT_SIGNALING OFF CACHE BOOL "Enable MQTT signaling")
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
 if(NOT BUILD_TYPE_LOWER OR BUILD_TYPE_LOWER STREQUAL "debug")
@@ -20,18 +18,6 @@ if(NOT BUILD_TYPE_LOWER OR BUILD_TYPE_LOWER STREQUAL "debug")
     endif()
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-endif()
-
-if(USE_HTTP_SIGNALING AND USE_MQTT_SIGNALING)
-    message(FATAL_ERROR "Please enable only one signaling method (HTTP or MQTT).")
-endif()
-
-if(USE_HTTP_SIGNALING)
-    add_definitions(-DUSE_HTTP_SIGNALING)
-    message(STATUS "SIGNALING: HTTP(WHEP)")
-elseif(USE_MQTT_SIGNALING)
-    add_definitions(-DUSE_MQTT_SIGNALING)
-    message(STATUS "SIGNALING: MQTT")
 endif()
 
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)

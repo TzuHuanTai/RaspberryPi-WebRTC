@@ -15,6 +15,7 @@ class MqttService : public SignalingService {
     MqttService(Args args, std::shared_ptr<Conductor> conductor);
     ~MqttService();
 
+  protected:
     void Connect() override;
     void Disconnect() override;
     void RefreshPeerMap() override;

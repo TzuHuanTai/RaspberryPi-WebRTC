@@ -51,7 +51,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Turn server username")
         ("turn_password", bpo::value<std::string>()->default_value(args.turn_password),
             "Turn server password")
-#if USE_MQTT_SIGNALING
         ("mqtt_port", bpo::value<int>()->default_value(args.mqtt_port), "Mqtt server port")
         ("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host),
             "Mqtt server host")
@@ -59,13 +58,15 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Mqtt server username")
         ("mqtt_password", bpo::value<std::string>()->default_value(args.mqtt_password),
             "Mqtt server password")
-#elif USE_HTTP_SIGNALING
         ("http_port", bpo::value<uint16_t>()->default_value(args.http_port), "Http server port")
-#endif
         ("record_path", bpo::value<std::string>()->default_value(args.record_path),
             "The path to save the recording video files. The recorder won't start if it's empty")
         ("hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
             "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")
+        ("use_mqtt", bpo::bool_switch()->default_value(args.use_mqtt),
+            "Use mqtt to exchange sdp and ice candidates")
+        ("use_whep", bpo::bool_switch()->default_value(args.use_whep),
+            "Use whep to exchange sdp and ice candidates")
         ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
             "Set v4l2 camera capture format to `i420`, `mjpeg`, `h264`. The `h264` can pass "
             "packets into mp4 without encoding to reduce cpu usage."
@@ -110,6 +111,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     args.fixed_resolution = vm["fixed_resolution"].as<bool>();
     args.no_audio = vm["no_audio"].as<bool>();
     args.hw_accel = vm["hw_accel"].as<bool>();
+    args.use_mqtt = vm["use_mqtt"].as<bool>();
+    args.use_whep = vm["use_whep"].as<bool>();
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
