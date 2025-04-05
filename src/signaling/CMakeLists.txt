@@ -11,4 +11,4 @@ add_library(${PROJECT_NAME}
     websocket_service.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${MOSQUITTO_LIBS})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${MOSQUITTO_LIBS})

@@ -2,111 +2,142 @@
 
 #include <nlohmann/json.hpp>
 
-#include "common/logging.h"
-
-const int MAX_RETRIES = 10;
-
-std::shared_ptr<WebsocketService> WebsocketService::Create(Args args,
-                                                           std::shared_ptr<Conductor> conductor,
-                                                           boost::asio::io_context &ioc) {
+std::shared_ptr<WebsocketService>
+WebsocketService::Create(Args args, std::shared_ptr<Conductor> conductor, net::io_context &ioc) {
     return std::make_shared<WebsocketService>(args, conductor, ioc);
 }
 
 WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conductor,
-                                   boost::asio::io_context &ioc)
+                                   net::io_context &ioc)
     : SignalingService(conductor),
       args_(args),
-      resolver_(ioc),
-      ws_(ioc) {}
+      ws_(InitWebSocket(ioc)),
+      resolver_(net::make_strand(ioc)) {}
 
 WebsocketService::~WebsocketService() { Disconnect(); }
 
-void WebsocketService::OnRemoteIce(const std::string &message) {
-    nlohmann::json res = nlohmann::json::parse(message);
-    std::string target = res["target"];
-    std::string canditateInit = res["candidateInit"];
+WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
+    if (args_.use_tls) {
+        // The SSL context created via boost::asio::ssl::context uses the underlying BoringSSL
+        // implementation (when linked with WebRTC or other BoringSSL-based libraries). BoringSSL is
+        // not a drop-in replacement for OpenSSL and does not implement all OpenSSL APIs. As a
+        // result, certain methods may be unsupported or behave differently.
+        // Ensure that only compatible OpenSSL APIs are used when BoringSSL is present.
+        DEBUG_PRINT("Using TLS WebSocket, SSL version: %s", OpenSSL_version(OPENSSL_VERSION));
 
-    nlohmann::json canditateObj = nlohmann::json::parse(canditateInit);
-    std::string sdp_mid = canditateObj["sdpMid"];
-    int sdp_mline_index = canditateObj["sdpMLineIndex"];
-    std::string candidate = canditateObj["candidate"];
-    DEBUG_PRINT("Received remote ICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index,
-                candidate.c_str());
+        ssl::context ctx(ssl::context::tls);
+        ctx.set_default_verify_paths();
+        ctx.set_verify_mode(ssl::verify_peer);
 
-    if (target == "PUBLISHER") {
-        pub_peer_->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
-    } else if (target == "SUBSCRIBER") {
-        sub_peer_->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
+        return websocket::stream<ssl::stream<tcp::socket>>(net::make_strand(ioc), ctx);
+    } else {
+        return websocket::stream<tcp::socket>(net::make_strand(ioc));
     }
 }
 
 void WebsocketService::Connect() {
+    auto port = args_.use_tls ? 443 : 80;
+    INFO_PRINT("Connect to WebSocket %s:%d", args_.ws_host.c_str(), port);
+
     resolver_.async_resolve(
-        args_.ws_host, std::to_string(args_.ws_port),
+        args_.ws_host, std::to_string(port),
         [this](boost::system::error_code ec, tcp::resolver::results_type results) {
             OnResolve(ec, results);
         });
 }
 
 void WebsocketService::Disconnect() {
-    if (ws_.is_open()) {
-        ws_.async_close(websocket::close_code::normal, [this](boost::system::error_code ec) {
-            if (ec) {
-                ERROR_PRINT("Close Error: %s", ec.message().c_str());
+    std::visit(
+        [](auto &ws) {
+            if (ws.is_open()) {
+                ws.async_close(websocket::close_code::normal, [](boost::system::error_code ec) {
+                    if (ec) {
+                        ERROR_PRINT("Close Error: %s", ec.message().c_str());
+                    } else {
+                        INFO_PRINT("WebSocket Closed");
+                    }
+                });
             } else {
-                INFO_PRINT("WebSocket Closed");
+                INFO_PRINT("WebSocket already closed");
             }
-        });
-    } else {
-        INFO_PRINT("WebSocket already closed");
-    }
+        },
+        ws_);
 }
 
-void WebsocketService::OnResolve(boost::system::error_code ec,
-                                 tcp::resolver::results_type results) {
-    if (!ec) {
-        net::async_connect(ws_.next_layer(), results,
-                           [this](boost::system::error_code ec, tcp::endpoint) {
-                               OnConnect(ec);
-                           });
-    } else {
+void WebsocketService::OnResolve(beast::error_code ec, tcp::resolver::results_type results) {
+    if (ec) {
         ERROR_PRINT("Failed to resolve: %s", ec.message().c_str());
         return;
     }
+
+    std::visit(
+        [this, results](auto &ws) {
+            net::async_connect(beast::get_lowest_layer(ws), results,
+                               [this, &ws](boost::system::error_code ec, tcp::endpoint) {
+                                   OnConnect(ec);
+                               });
+        },
+        ws_);
 }
 
-void WebsocketService::OnConnect(boost::system::error_code ec) {
-    if (!ec) {
-        std::string target = "/rtc?token=" + args_.ws_token;
-        ws_.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
-            OnHandshake(ec);
+void WebsocketService::OnConnect(beast::error_code ec) {
+    if (ec) {
+        ERROR_PRINT("Failed to connect: %s", ec.message().c_str());
+        return;
+    }
+
+    std::visit(
+        [this](auto &ws) {
+            OnHandshake(ws);
+        },
+        ws_);
+}
+
+void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
+    std::string target = "/rtc?token=" + args_.ws_token;
+    ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+        OnHandshake(ec);
+    });
+}
+
+void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
+    ws.next_layer().async_handshake(
+        ssl::stream_base::client, [this, &ws](boost::system::error_code ec) {
+            if (ec) {
+                ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
+            }
+            std::string target = "/rtc?token=" + args_.ws_token;
+            ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+                OnHandshake(ec);
+            });
         });
-    } else {
-        ERROR_PRINT("Connection Error: %s", ec.message().c_str());
-    }
 }
 
-void WebsocketService::OnHandshake(boost::system::error_code ec) {
-    if (!ec) {
-        INFO_PRINT("WebSocket is connected!");
-        Read();
-    } else {
-        ERROR_PRINT("Handshake Error: %s", ec.message().c_str());
+void WebsocketService::OnHandshake(beast::error_code ec) {
+    if (ec) {
+        ERROR_PRINT("Failed to handshake: %s", ec.message().c_str());
+        return;
     }
+
+    Read();
 }
 
 void WebsocketService::Read() {
-    ws_.async_read(buffer_, [this](boost::system::error_code ec, std::size_t bytes_transferred) {
-        if (!ec) {
-            std::string req = beast::buffers_to_string(buffer_.data());
-            OnMessage(req);
-            buffer_.consume(bytes_transferred);
-            Read();
-        } else {
-            ERROR_PRINT("Read Error: %s", ec.message().c_str());
-            Disconnect();
-        }
-    });
+    std::visit(
+        [this](auto &ws) {
+            ws.async_read(buffer_,
+                          [this](boost::system::error_code ec, std::size_t bytes_transferred) {
+                              if (ec) {
+                                  ERROR_PRINT("Failed to read: %s", ec.message().c_str());
+                                  Disconnect();
+                              }
+                              std::string req = beast::buffers_to_string(buffer_.data());
+                              OnMessage(req);
+                              buffer_.consume(bytes_transferred);
+                              Read();
+                          });
+        },
+        ws_);
 }
 
 void WebsocketService::OnMessage(const std::string &req) {
@@ -163,6 +194,25 @@ void WebsocketService::OnMessage(const std::string &req) {
     }
 }
 
+void WebsocketService::OnRemoteIce(const std::string &message) {
+    nlohmann::json res = nlohmann::json::parse(message);
+    std::string target = res["target"];
+    std::string canditateInit = res["candidateInit"];
+
+    nlohmann::json canditateObj = nlohmann::json::parse(canditateInit);
+    std::string sdp_mid = canditateObj["sdpMid"];
+    int sdp_mline_index = canditateObj["sdpMLineIndex"];
+    std::string candidate = canditateObj["candidate"];
+    DEBUG_PRINT("Received remote ICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index,
+                candidate.c_str());
+
+    if (target == "PUBLISHER") {
+        pub_peer_->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    } else if (target == "SUBSCRIBER") {
+        sub_peer_->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    }
+}
+
 void WebsocketService::Write(const std::string &action, const std::string &message) {
     nlohmann::json request_json;
     request_json["action"] = action;
@@ -182,17 +232,22 @@ void WebsocketService::DoWrite() {
     if (write_queue_.empty())
         return;
 
-    ws_.async_write(boost::asio::buffer(write_queue_.front()),
-                    [this](boost::system::error_code ec, std::size_t bytes_transferred) {
-                        std::lock_guard<std::mutex> lock(write_mutex_);
-                        if (!ec) {
-                            write_queue_.pop_front();
-                            if (!write_queue_.empty()) {
-                                DoWrite();
-                            }
-                        } else {
-                            ERROR_PRINT("Write Error: %s", ec.message().c_str());
-                            Disconnect();
-                        }
-                    });
+    std::visit(
+        [this](auto &ws) {
+            ws.async_write(net::buffer(write_queue_.front()),
+                           [this](boost::system::error_code ec, std::size_t bytes_transferred) {
+                               std::lock_guard<std::mutex> lock(write_mutex_);
+                               if (ec) {
+                                   ERROR_PRINT("Failed to write: %s", ec.message().c_str());
+                                   Disconnect();
+                               }
+
+                               write_queue_.pop_front();
+
+                               if (!write_queue_.empty()) {
+                                   DoWrite();
+                               }
+                           });
+        },
+        ws_);
 }

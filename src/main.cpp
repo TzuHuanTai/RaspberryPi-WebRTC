@@ -25,17 +25,17 @@ int main(int argc, char *argv[]) {
         DEBUG_PRINT("Recorder is not started!");
     }
 
-    boost::asio::io_context ioc_;
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(
-        ioc_.get_executor());
+    boost::asio::io_context ioc;
+    auto work_guard = boost::asio::make_work_guard(ioc);
+
     std::vector<std::shared_ptr<SignalingService>> services;
 
     if (args.use_whep) {
-        services.push_back(HttpService::Create(args, conductor, ioc_));
+        services.push_back(HttpService::Create(args, conductor, ioc));
     }
 
     if (args.use_websocket) {
-        services.push_back(WebsocketService::Create(args, conductor, ioc_));
+        services.push_back(WebsocketService::Create(args, conductor, ioc));
     }
 
     if (args.use_mqtt) {
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         service->Start();
     }
 
-    ioc_.run();
+    ioc.run();
 
     return 0;
 }
