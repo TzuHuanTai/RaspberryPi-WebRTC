@@ -43,14 +43,13 @@ struct Args {
     uint16_t http_port = 8080;
 
     // websocket signaling
-    int ws_port = 8080;
+    bool use_tls = false;
     std::string ws_host = "192.168.4.21";
     std::string ws_token =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJleHAiOjE3NzQ3NDU2MzksImlzcyI6IkFQSVduUVRzNHRtVVp2QSIsIm5iZiI6MTc0MzIwOTYzOSwic3ViIjoiZj"
-        "JkNzRiOTUtMmYxNi00ODRiLTg3NjctYThjNWY3NzFlZWY2IiwidmlkZW8iOnsiY2FuUHVibGlzaCI6dHJ1ZSwiY2Fu"
-        "UHVibGlzaERhdGEiOnRydWUsImNhblN1YnNjcmliZSI6ZmFsc2UsInJvb20iOiJkZXZpY2UtMSIsInJvb21Kb2luIj"
-        "p0cnVlfX0.o7e-gjkqfMpeDjATwaWWLKUWPa8RlaoIOcuw3p8FxQk";
+        "eyJleHAiOjE3NzM4OTI2NjEsImlzcyI6IkFQSVduUVRzNHRtVVp2QSIsIm5iZiI6MTc0MjM1NjY2MSwic3ViIj"
+        "oiMTMxZGZjMzItNjRlMi00YjZiLTllZGEtZDdjYTU5NTNjYWJlIiwidmlkZW8iOnsicm9vbSI6ImRldmljZS0x"
+        "Iiwicm9vbUpvaW4iOnRydWV9fQ.ThQTHYd8CBR0t3epwcak6oaleeu760V96UF8GbOMUks";
 };
 
 #endif // ARGS_H_

@@ -4,14 +4,22 @@
 #include "signaling/signaling_service.h"
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/websocket.hpp>
 
-#include "args.h"
+#include <variant>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
 namespace net = boost::asio;
+namespace ssl = boost::asio::ssl;
 using tcp = net::ip::tcp;
+using WebSocketVariant = std::variant<websocket::stream<tcp::socket>, // non-TLS WebSocket
+                                      websocket::stream<ssl::stream<tcp::socket>> // TLS WebSocket
+                                      >;
 
 class WebsocketService : public SignalingService {
   public:
@@ -27,19 +35,22 @@ class WebsocketService : public SignalingService {
 
   private:
     Args args_;
+    WebSocketVariant ws_;
     tcp::resolver resolver_;
     beast::flat_buffer buffer_;
-    websocket::stream<tcp::socket> ws_;
     std::deque<std::string> write_queue_;
     std::mutex write_mutex_;
     rtc::scoped_refptr<RtcPeer> pub_peer_;
     rtc::scoped_refptr<RtcPeer> sub_peer_;
 
-    void OnRemoteIce(const std::string &message);
-    void OnResolve(boost::system::error_code ec, tcp::resolver::results_type results);
-    void OnConnect(boost::system::error_code ec);
-    void OnHandshake(boost::system::error_code ec);
+    WebSocketVariant InitWebSocket(net::io_context &ioc);
+    void OnResolve(beast::error_code ec, tcp::resolver::results_type results);
+    void OnConnect(beast::error_code ec);
+    void OnHandshake(beast::error_code ec);
+    void OnHandshake(websocket::stream<tcp::socket> &ws);
+    void OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws);
     void OnMessage(const std::string &req);
+    void OnRemoteIce(const std::string &message);
     void Read();
     void Write(const std::string &action, const std::string &message);
     void DoWrite();

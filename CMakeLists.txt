@@ -36,6 +36,7 @@ add_compile_definitions(
     WEBRTC_LINUX
     WEBRTC_USE_H264
     USE_CPPRESTSDK
+    OPENSSL_IS_BORINGSSL
 )
 
 add_compile_options(
@@ -48,6 +49,7 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}
     ${WEBRTC_INCLUDE_DIR}/third_party/abseil-cpp
     ${WEBRTC_INCLUDE_DIR}/third_party/libyuv/include
+    ${WEBRTC_INCLUDE_DIR}/third_party/boringssl/src/include
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
 
@@ -147,8 +149,6 @@ else()
     add_executable(${PROJECT_NAME} src/main.cpp)
     target_link_libraries(${PROJECT_NAME}
         src
-    )
-    target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}
         boost_program_options
         Threads::Threads

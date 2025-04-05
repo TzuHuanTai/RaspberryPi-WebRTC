@@ -61,7 +61,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("http_port", bpo::value<uint16_t>()->default_value(args.http_port), "Http server port")
         ("ws_host", bpo::value<std::string>()->default_value(args.ws_host),
             "Websocket server host")
-        ("ws_port", bpo::value<int>()->default_value(args.ws_port), "Websocket server port")
         ("ws_token", bpo::value<std::string>()->default_value(args.ws_token),
             "Websocket server token")
         ("record_path", bpo::value<std::string>()->default_value(args.record_path),
@@ -74,6 +73,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Use whep to exchange sdp and ice candidates")
         ("use_websocket", bpo::bool_switch()->default_value(args.use_websocket),
             "Use websocket to exchange sdp and ice candidates")
+        ("use_tls", bpo::bool_switch()->default_value(args.use_tls),
+            "Use TLS for websocket connection")
         ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
             "Set v4l2 camera capture format to `i420`, `mjpeg`, `h264`. The `h264` can pass "
             "packets into mp4 without encoding to reduce cpu usage."
@@ -114,7 +115,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "mqtt_password", args.mqtt_password);
     SetIfExists(vm, "http_port", args.http_port);
     SetIfExists(vm, "ws_host", args.ws_host);
-    SetIfExists(vm, "ws_port", args.ws_port);
     SetIfExists(vm, "ws_token", args.ws_token);
     SetIfExists(vm, "record_path", args.record_path);
 
@@ -124,6 +124,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     args.use_mqtt = vm["use_mqtt"].as<bool>();
     args.use_whep = vm["use_whep"].as<bool>();
     args.use_websocket = vm["use_websocket"].as<bool>();
+    args.use_tls = vm["use_tls"].as<bool>();
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
