@@ -125,6 +125,11 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     peer->SetPeer(result.MoveValue());
 
+    if (config.is_sfu_peer) {
+        peer->CreateDataChannel(ChannelLabel::Lossy);
+        peer->CreateDataChannel(ChannelLabel::Reliable);
+    }
+
     if (!config.is_publisher) {
         return peer;
     }

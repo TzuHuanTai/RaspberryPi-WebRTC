@@ -12,6 +12,12 @@
 #include "common/logging.h"
 #include "data_channel_subject.h"
 
+enum ChannelLabel {
+    Command,
+    Lossy,
+    Reliable
+};
+
 struct PeerConfig : public webrtc::PeerConnectionInterface::RTCConfiguration {
     int timeout = 10;
     bool is_publisher = true;
@@ -91,7 +97,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    void CreateDataChannel();
+    void CreateDataChannel(ChannelLabel label = ChannelLabel::Command);
     std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
@@ -102,6 +108,19 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
     void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
                       const std::string &candidate) override;
+
+    static std::string LabelToString(ChannelLabel label) {
+        switch (label) {
+            case Command:
+                return "cmd_channel";
+            case Lossy:
+                return "_lossy";
+            case Reliable:
+                return "_reliable";
+            default:
+                return "unknown";
+        }
+    }
 
   private:
     void SubscribeCommandChannel(CommandType type, OnCommand func);

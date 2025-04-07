@@ -61,28 +61,35 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
 
-void RtcPeer::CreateDataChannel() {
+void RtcPeer::CreateDataChannel(ChannelLabel label) {
     struct webrtc::DataChannelInit init;
     init.ordered = true;
     init.reliable = true;
-    init.id = 0;
-    auto result = peer_connection_->CreateDataChannelOrError("cmd_channel", &init);
+    init.id = static_cast<int>(label);
+
+    if (label == ChannelLabel::Lossy) {
+        init.maxRetransmits = 0;
+    }
+
+    auto result = peer_connection_->CreateDataChannelOrError(RtcPeer::LabelToString(label), &init);
 
     if (!result.ok()) {
         ERROR_PRINT("Failed to create data channel.");
         return;
     }
 
-    DEBUG_PRINT("The data channel is established successfully.");
-    data_channel_subject_ = std::make_shared<DataChannelSubject>();
-    data_channel_subject_->SetDataChannel(result.MoveValue());
+    if (label == ChannelLabel::Command) {
+        DEBUG_PRINT("The data channel is established successfully.");
+        data_channel_subject_ = std::make_shared<DataChannelSubject>();
+        data_channel_subject_->SetDataChannel(result.MoveValue());
 
-    auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-    conn_observer->Subscribe([this](std::string message) {
-        if (message == "false") { // todo: use enum or so.
-            peer_connection_->Close();
-        }
-    });
+        auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
+        conn_observer->Subscribe([this](std::string message) {
+            if (message == "false") { // todo: use enum or so.
+                peer_connection_->Close();
+            }
+        });
+    }
 }
 
 std::string RtcPeer::RestartIce(std::string ice_ufrag, std::string ice_pwd) {
