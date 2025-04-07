@@ -125,6 +125,10 @@ void WebsocketService::OnHandshake(beast::error_code ec) {
 void WebsocketService::Read() {
     std::visit(
         [this](auto &ws) {
+            if (!ws.is_open()) {
+                return;
+            }
+
             ws.async_read(buffer_,
                           [this](boost::system::error_code ec, std::size_t bytes_transferred) {
                               if (ec) {
@@ -141,51 +145,63 @@ void WebsocketService::Read() {
 }
 
 void WebsocketService::OnMessage(const std::string &req) {
+    DEBUG_PRINT("Received message: %s", req.c_str());
+    try {
+        nlohmann::json jsonObj = nlohmann::json::parse(req.c_str());
+    } catch (const std::exception &e) {
+        ERROR_PRINT("Failed to parse message: %s", e.what());
+        return;
+    }
+
     json jsonObj = json::parse(req.c_str());
     std::string action = jsonObj["action"];
     std::string message = jsonObj["message"];
-    DEBUG_PRINT("Received message: %s", req.c_str());
 
     if (action == "join") {
         PeerConfig config;
-        webrtc::PeerConnectionInterface::IceServer ice_server;
+        config.is_sfu_peer = true;
 
+        webrtc::PeerConnectionInterface::IceServer ice_server;
         nlohmann::json messageJson = nlohmann::json::parse(jsonObj["message"].get<std::string>());
         ice_server.urls = messageJson["urls"].get<std::vector<std::string>>();
         ice_server.username = messageJson["username"];
         ice_server.password = messageJson["credential"];
         config.servers.push_back(ice_server);
 
-        pub_peer_ = conductor->CreatePeerConnection(config);
-        pub_peer_->OnLocalSdp(
-            [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
+        pub_peer_ = CreatePeer(config);
+        if (pub_peer_) {
+            pub_peer_->OnLocalSdp([this](const std::string &peer_id, const std::string &sdp,
+                                         const std::string &type) {
                 Write(type, sdp);
             });
-        pub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
-                                     int sdp_mline_index, const std::string &candidate) {
-            Write("trickle", candidate);
-        });
+            pub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
+                                         int sdp_mline_index, const std::string &candidate) {
+                Write("trickle", candidate);
+            });
+        }
 
         config.is_publisher = false;
-        sub_peer_ = conductor->CreatePeerConnection(config);
-        sub_peer_->OnLocalSdp(
-            [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
+        sub_peer_ = CreatePeer(config);
+        if (sub_peer_) {
+            sub_peer_->OnLocalSdp([this](const std::string &peer_id, const std::string &sdp,
+                                         const std::string &type) {
                 Write(type, sdp);
             });
-        sub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
-                                     int sdp_mline_index, const std::string &candidate) {
-            Write("trickle", candidate);
-        });
+            sub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
+                                         int sdp_mline_index, const std::string &candidate) {
+                Write("trickle", candidate);
+            });
+        }
 
         Write("addVideoTrack", args_.uid);
         if (!args_.no_audio) {
             Write("addAudioTrack", args_.uid);
         }
-    } else if (action == "offer" && !sub_peer_->IsConnected()) {
+    } else if (action == "offer" && sub_peer_ && !sub_peer_->IsConnected()) {
         sub_peer_->SetRemoteSdp(message, "offer");
-    } else if (action == "answer" && !pub_peer_->IsConnected()) {
+    } else if (action == "answer" && pub_peer_ && !pub_peer_->IsConnected()) {
         pub_peer_->SetRemoteSdp(message, "answer");
-    } else if (action == "trackPublished") {
+    } else if (action == "trackPublished" && pub_peer_) {
         pub_peer_->CreateOffer();
     } else if (action == "trickle") {
         OnRemoteIce(message);

@@ -15,6 +15,7 @@
 struct PeerConfig : public webrtc::PeerConnectionInterface::RTCConfiguration {
     int timeout = 10;
     bool is_publisher = true;
+    bool is_sfu_peer = false;
     bool has_candidates_in_sdp = false;
 };
 

@@ -13,7 +13,7 @@ std::shared_ptr<HttpService> HttpService::Create(Args args, std::shared_ptr<Cond
 
 HttpService::HttpService(Args args, std::shared_ptr<Conductor> conductor,
                          boost::asio::io_context &ioc)
-    : SignalingService(conductor, true),
+    : SignalingService(conductor),
       port_(args.http_port),
       acceptor_({ioc, {boost::asio::ip::address_v6::any(), port_}}) {}
 
@@ -108,7 +108,9 @@ void HttpSession::HandleRequest() {
 
 void HttpSession::HandlePostRequest() {
     if (content_type_ == "application/sdp") {
-        auto peer = http_service_->CreatePeer();
+        PeerConfig config;
+        config.has_candidates_in_sdp = true;
+        auto peer = http_service_->CreatePeer(config);
         peer->OnLocalSdp([self = shared_from_this()](const std::string &peer_id,
                                                      const std::string &sdp,
                                                      const std::string &type) {
