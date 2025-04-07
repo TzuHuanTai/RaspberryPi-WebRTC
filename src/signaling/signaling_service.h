@@ -8,8 +8,7 @@
 class SignalingService {
   public:
     SignalingService(std::shared_ptr<Conductor> conductor, bool has_candidates_in_sdp = false)
-        : conductor(conductor),
-          has_candidates_in_sdp_(has_candidates_in_sdp) {}
+        : conductor(conductor) {}
 
     void Start() {
         worker_ = std::make_unique<Worker>("cleaner", [this]() {
@@ -21,10 +20,15 @@ class SignalingService {
     }
 
     rtc::scoped_refptr<RtcPeer> CreatePeer(PeerConfig config = PeerConfig{}) {
-        config.has_candidates_in_sdp = has_candidates_in_sdp_;
+        if (!conductor) {
+            ERROR_PRINT("Conductor is not initialized.");
+            return nullptr;
+        }
 
-        auto peer = conductor->CreatePeerConnection(std::move(config));
-        peer_map_[peer->GetId()] = peer;
+        auto peer = conductor->CreatePeerConnection(config);
+        if (!config.is_sfu_peer) {
+            peer_map_[peer->GetId()] = peer;
+        }
         return peer;
     }
 
@@ -60,7 +64,6 @@ class SignalingService {
     std::shared_ptr<Conductor> conductor;
 
   private:
-    bool has_candidates_in_sdp_;
     std::unique_ptr<Worker> worker_;
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
 };

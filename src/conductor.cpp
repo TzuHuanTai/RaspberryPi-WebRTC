@@ -114,7 +114,7 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
     }
 
     config.timeout = args.peer_timeout;
-    auto peer = RtcPeer::Create(std::move(config));
+    auto peer = RtcPeer::Create(config);
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(peer.get()));
 

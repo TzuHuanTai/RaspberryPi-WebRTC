@@ -152,6 +152,11 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
     if (topic.starts_with(sdp_base_topic_)) {
         auto peer = CreatePeer();
+        if (!peer) {
+            ERROR_PRINT("Failed to create peer.");
+            return;
+        }
+
         peer->OnLocalSdp(
             [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
                 AnswerLocalSdp(peer_id, sdp, type);
