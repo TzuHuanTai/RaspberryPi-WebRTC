@@ -1,8 +1,6 @@
 #ifndef DATA_CHANNEL_H_
 #define DATA_CHANNEL_H_
 
-#include "common/interface/subject.h"
-
 #include <fstream>
 #include <map>
 #include <vector>
@@ -10,6 +8,7 @@
 #include <api/data_channel_interface.h>
 #include <nlohmann/json.hpp>
 
+#include "common/interface/subject.h"
 #include "common/utils.h"
 
 using json = nlohmann::json;

@@ -10,7 +10,7 @@
 
 #include "args.h"
 #include "common/logging.h"
-#include "data_channel_subject.h"
+#include "rtc/data_channel_subject.h"
 
 enum ChannelLabel {
     Command,

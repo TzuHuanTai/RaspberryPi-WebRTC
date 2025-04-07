@@ -3,7 +3,7 @@
 
 #include "common/logging.h"
 #include "common/worker.h"
-#include "conductor.h"
+#include "rtc/conductor.h"
 
 class SignalingService {
   public:
