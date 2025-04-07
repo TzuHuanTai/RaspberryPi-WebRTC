@@ -13,7 +13,7 @@
 #include "args.h"
 #include "capturer/pa_capturer.h"
 #include "capturer/video_capturer.h"
-#include "rtc_peer.h"
+#include "rtc/rtc_peer.h"
 #include "track/scale_track_source.h"
 
 class Conductor {
