@@ -21,10 +21,12 @@ else()
 endif()
 
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
-set(WEBRTC_LIBRARY /usr/local/lib/libwebrtc.a)
-set(WEBRTC_LINK_LIBS dl)
+set(WEBRTC_LIBRARY
+    /usr/local/lib/libwebrtc.a
+    avcodec
+)
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
 
 message(STATUS "BUILD_TEST: ${BUILD_TEST}")
 message(STATUS "WEBRTC_INCLUDE_DIR: ${WEBRTC_INCLUDE_DIR}")
@@ -35,7 +37,6 @@ add_compile_definitions(
     WEBRTC_POSIX
     WEBRTC_LINUX
     WEBRTC_USE_H264
-    USE_CPPRESTSDK
     OPENSSL_IS_BORINGSSL
 )
 
@@ -53,105 +54,75 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
 
+add_subdirectory(src/capturer)
+add_subdirectory(src/codecs/h264)
+add_subdirectory(src/codecs/v4l2)
+add_subdirectory(src/common)
+add_subdirectory(src/recorder)
+add_subdirectory(src/rtc)
+add_subdirectory(src/signaling)
+add_subdirectory(src/track)
+
 if(BUILD_TEST STREQUAL "http_server")
     add_executable(test_http_server test/test_http_server.cpp)
+    target_link_libraries(test_http_server
+        signaling
+    )
 elseif(BUILD_TEST STREQUAL "pulseaudio")
     add_executable(test_pulseaudio test/test_pulseaudio.cpp)
-
     target_link_libraries(test_pulseaudio
         pulse-simple pulse
     )
 elseif(BUILD_TEST STREQUAL "recorder")
-    add_subdirectory(src/common)
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/recorder)
-    add_subdirectory(src/v4l2_codecs)
     add_executable(test_recorder test/test_recorder.cpp)
     target_link_libraries(test_recorder
-        capturer
         recorder
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
-    add_subdirectory(src/signaling)
     add_executable(test_mqtt test/test_mqtt.cpp)
-
     target_link_libraries(test_mqtt
         signaling
     )
-    target_link_libraries(test_mqtt
-        Threads::Threads
-        ${MOSQUITTO_LIBS}
-    )
 elseif(BUILD_TEST STREQUAL "websocket")
     add_executable(test_websocket test/test_websocket.cpp)
-
     target_link_libraries(test_websocket
-        ssl
-        crypto
+        signaling
     )
 elseif(BUILD_TEST STREQUAL "openh264")
     add_executable(test_openh264 test/test_openh264.cpp)
+    # Use the OpenH264 library in libwebrtc.a
     target_link_libraries(test_openh264
-        ${WEBRTC_LINK_LIBS}
         ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capturer")
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/common)
-    add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_capturer test/test_v4l2_capturer.cpp)
     target_link_libraries(test_v4l2_capturer
         capturer
-        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "v4l2_encoder")
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/common)
-    add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_encoder test/test_v4l2_encoder.cpp)
     target_link_libraries(test_v4l2_encoder
         capturer
-        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "v4l2_decoder")
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/common)
-    add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_decoder test/test_v4l2_decoder.cpp)
     target_link_libraries(test_v4l2_decoder
         capturer
-        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/common)
-    add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_scaler test/test_v4l2_scaler.cpp)
     target_link_libraries(test_v4l2_scaler
         capturer
-        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "libcamera")
-    add_subdirectory(src/capturer)
-    add_subdirectory(src/common)
     add_executable(test_libcamera test/test_libcamera.cpp)
     target_link_libraries(test_libcamera
         capturer
-        common
-    )
-    target_link_libraries(test_libcamera
-        ${WEBRTC_LINK_LIBS}
-        Threads::Threads
-        ${WEBRTC_LIBRARY}
     )
 else()
     add_subdirectory(src)
     add_executable(${PROJECT_NAME} src/main.cpp)
     target_link_libraries(${PROJECT_NAME}
         src
-        ${WEBRTC_LINK_LIBS}
-        boost_program_options
-        Threads::Threads
-        ${WEBRTC_LIBRARY}
     )
 endif()
