@@ -7,5 +7,11 @@ aux_source_directory(${PROJECT_SOURCE_DIR} COMMON_FILES)
 
 add_library(${PROJECT_NAME} ${COMMON_FILES})
 
-target_link_libraries(${PROJECT_NAME} ${JPEG_LIBRARIES} ${WEBRTC_LINK_LIBS}
-    ${WEBRTC_LIBRARY} Threads::Threads avformat uuid)
+# Use libyuv in libwebrtc.a
+target_link_libraries(${PROJECT_NAME}
+    avutil
+    avformat
+    uuid
+    ${JPEG_LIBRARIES}
+    ${WEBRTC_LIBRARY}
+)

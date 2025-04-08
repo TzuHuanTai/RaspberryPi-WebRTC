@@ -1,6 +1,6 @@
 project(recorder)
 
-set(FFMPEG_LINK_LIBS avformat avcodec swscale avutil)
+set(FFMPEG_LINK_LIBS avformat)
 
 aux_source_directory(${PROJECT_SOURCE_DIR} RECORDER_FILES)
 

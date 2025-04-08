@@ -11,4 +11,9 @@ add_library(${PROJECT_NAME}
     websocket_service.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${MOSQUITTO_LIBS})
+# Use boringssl in libwebrtc.a
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    rtc
+    ${MOSQUITTO_LIBS}
+    ${WEBRTC_LIBRARY}
+)
