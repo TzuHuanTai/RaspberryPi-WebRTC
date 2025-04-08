@@ -46,4 +46,6 @@ int main(int argc, char *argv[]) {
     cond_var.wait(lock, [&] {
         return is_finished;
     });
+
+    return 0;
 }
