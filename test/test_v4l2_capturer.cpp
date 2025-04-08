@@ -1,4 +1,3 @@
-#include "args.h"
 #include "capturer/v4l2_capturer.h"
 
 #include <condition_variable>
@@ -28,11 +27,7 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int i = 0;
     int images_nb = 10;
-    Args args{.fps = 15,
-              .width = 1280,
-              .height = 720,
-              .format = V4L2_PIX_FMT_MJPEG,
-              .device = "/dev/video0"};
+    Args args{.fps = 15, .width = 1280, .height = 720, .cameraId = 0, .format = V4L2_PIX_FMT_MJPEG};
 
     auto capturer = V4L2Capturer::Create(args);
     auto observer = capturer->AsRawBufferObservable();
@@ -49,4 +44,6 @@ int main(int argc, char *argv[]) {
     cond_var.wait(lock, [&] {
         return is_finished;
     });
+
+    return 0;
 }
