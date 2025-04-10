@@ -63,8 +63,8 @@ void AudioRecorder::Encode() {
         return;
     }
 
+    AVPacket *pkt = av_packet_alloc();
     while (ret >= 0) {
-        AVPacket *pkt = av_packet_alloc();
         ret = avcodec_receive_packet(encoder, pkt);
         if (ret == AVERROR(EAGAIN)) {
             break;
@@ -79,10 +79,9 @@ void AudioRecorder::Encode() {
         pkt->duration = av_rescale_q(pkt->duration, encoder->time_base, st->time_base);
 
         OnPacketed(pkt);
-
-        av_packet_unref(pkt);
-        av_packet_free(&pkt);
     }
+    av_packet_unref(pkt);
+    av_packet_free(&pkt);
 }
 
 void AudioRecorder::OnBuffer(PaBuffer &buffer) {
@@ -106,7 +105,7 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
 
     if (fifo_buffer.write(reinterpret_cast<void **>(converted_input_samples), samples_per_channel) <
         samples_per_channel) {
-        DEBUG_PRINT("Failed to write audio date into fifo buffer.");
+        DEBUG_PRINT("Failed to write audio data into fifo buffer.");
     }
 
     if (converted_input_samples) {
