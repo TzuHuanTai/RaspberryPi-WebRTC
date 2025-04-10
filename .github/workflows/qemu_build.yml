@@ -71,7 +71,7 @@ jobs:
             -display none \
             -daemonize
 
-          sleep 300
+          sleep 360
 
           sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
             sudo parted /dev/mmcblk0 resizepart 2 100% && \
@@ -158,7 +158,7 @@ jobs:
             -display none \
             -daemonize
 
-          sleep 300
+          sleep 600
 
       - name: Checkout code
         uses: actions/checkout@v4
