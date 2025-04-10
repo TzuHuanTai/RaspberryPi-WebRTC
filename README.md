@@ -67,8 +67,8 @@ sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
 
 Prepare the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
 ```bash
-wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/latest/download/pi_webrtc-v1.0.6-rc.2_raspios-bookworm-arm64.tar.gz
-tar -xzf pi_webrtc-v1.0.6-rc.2_raspios-bookworm-arm64.tar.gz
+wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/latest/download/pi_webrtc-v1.0.6-rc.3_raspios-bookworm-arm64.tar.gz
+tar -xzf pi_webrtc-v1.0.6-rc.3_raspios-bookworm-arm64.tar.gz
 ```
 
 ### 4. Set Up MQTT
