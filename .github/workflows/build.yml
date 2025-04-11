@@ -21,7 +21,7 @@ jobs:
         sudo cp -r include/* /usr/local/include/webrtc
         sudo cp -r lib/* /usr/local/lib
         sudo mkdir -p /usr/local/include/nlohmann
-        sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
+        sudo curl -L https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
 
     - name: Install dependencies
       run: |

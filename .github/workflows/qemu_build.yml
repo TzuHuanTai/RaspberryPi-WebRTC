@@ -71,7 +71,7 @@ jobs:
             -display none \
             -daemonize
 
-          sleep 300
+          sleep 360
 
           sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
             sudo parted /dev/mmcblk0 resizepart 2 100% && \
@@ -101,19 +101,14 @@ jobs:
             libasound2-dev \
             libjpeg-dev \
             libcamera-dev \
-            libmosquitto-dev
-          "
-
-      - name: Install Additional libwebrtc and json.hpp in QEMU
-        run: |
-          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
+            libmosquitto-dev && \
+            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Builder/releases/download/5790/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             sudo mkdir -p /usr/local/include/webrtc &&
             sudo mv include/* /usr/local/include/webrtc &&
             sudo mv lib/* /usr/local/lib &&
             sudo mkdir -p /usr/local/include/nlohmann &&
-            sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
+            sudo curl -L https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
           "
 
       - name: Upload Raspberry Pi OS Image
@@ -158,7 +153,7 @@ jobs:
             -display none \
             -daemonize
 
-          sleep 300
+          sleep 600
 
       - name: Checkout code
         uses: actions/checkout@v4
