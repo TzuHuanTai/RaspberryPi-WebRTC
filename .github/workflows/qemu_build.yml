@@ -101,13 +101,8 @@ jobs:
             libasound2-dev \
             libjpeg-dev \
             libcamera-dev \
-            libmosquitto-dev
-          "
-
-      - name: Install Additional libwebrtc and json.hpp in QEMU
-        run: |
-          sshpass -p "raspberry" ssh -o StrictHostKeyChecking=no -p 5555 pi@localhost "\
-            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
+            libmosquitto-dev && \
+            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Builder/releases/download/5790/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             sudo mkdir -p /usr/local/include/webrtc &&
             sudo mv include/* /usr/local/include/webrtc &&
