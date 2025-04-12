@@ -44,13 +44,8 @@ struct Args {
 
     // websocket signaling
     bool use_tls = false;
-    std::string ws_host = "192.168.4.21";
-    std::string ws_token =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJleHAiOjE3NzQ3NDU2MzksImlzcyI6IkFQSVduUVRzNHRtVVp2QSIsIm5iZiI6MTc0MzIwOTYzOSwic3ViIjoiZj"
-        "JkNzRiOTUtMmYxNi00ODRiLTg3NjctYThjNWY3NzFlZWY2IiwidmlkZW8iOnsiY2FuUHVibGlzaCI6dHJ1ZSwiY2Fu"
-        "UHVibGlzaERhdGEiOnRydWUsImNhblN1YnNjcmliZSI6ZmFsc2UsInJvb20iOiJkZXZpY2UtMSIsInJvb21Kb2luIj"
-        "p0cnVlfX0.o7e-gjkqfMpeDjATwaWWLKUWPa8RlaoIOcuw3p8FxQk";
+    std::string ws_host = "";
+    std::string ws_token = "";
 };
 
 #endif // ARGS_H_
