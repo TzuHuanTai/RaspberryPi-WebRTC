@@ -113,7 +113,7 @@ void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::
 
 void RtcPeer::OnMetadata(OnCommand func) { SubscribeCommandChannel(CommandType::METADATA, func); }
 
-void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORD, func); }
+void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORDING, func); }
 
 void RtcPeer::OnCameraOption(OnCommand func) {
     SubscribeCommandChannel(CommandType::CAMERA_OPTION, func);
