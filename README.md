@@ -14,20 +14,23 @@
     <img src="doc/pi_4b_latency_demo.gif" alt="Pi 4b latency demo">
 </p>
 
-Turn your Raspberry Pi into a low-latency home security camera using the V4L2 DMA hardware encoder and WebRTC. [[demo video](https://www.youtube.com/watch?v=JZ5bcSAsXog)]
+Turn your Raspberry Pi into a low-latency security camera using the hardware encoder and WebRTC.
 
 - Supports real-time adjustment of camera parameters and video recording download.
 - Support [multiple users](doc/pi_4b_users_demo.gif) for simultaneous live streaming.
 - Support signaling 
 
   **MQTT**
-    * [PiCamera.js](https://www.npmjs.com/package/picamera.js)
-    * [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera) *(for development and testing)*
-    * [Pi Camera Web](https://picamera.live) *(for development and testing)*
+    * [picamera.js](https://www.npmjs.com/package/picamera.js)
+    * [picamera-react-nadive](https://www.npmjs.com/package/picamera-react-native)
+    * [picamera-app](https://github.com/TzuHuanTai/picamera-app) *(demo application)*
+    * [picamera-web](https://picamera.live) *(demo application)*
 
   **[WHEP](https://www.ietf.org/archive/id/draft-ietf-wish-whep-02.html)**
     * [Home Assistant](https://www.home-assistant.io)
     * [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player)
+- 🎥 [Watch demo](https://www.youtube.com/watch?v=JZ5bcSAsXog)
+
 
 # Quick Start
 
@@ -115,7 +118,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
 
 # [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
-- [Using the V4L2 Driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) for usb camera
+- [Using the V4L2 Driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) (for usb camera)
 - [Run as Linux Service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
 - [Recording](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#recording)
 - [Two-way communication](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-communication)
