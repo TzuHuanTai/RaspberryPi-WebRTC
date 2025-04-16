@@ -132,7 +132,7 @@ void DataChannelSubject::Send(std::ifstream &file) {
     int bytes_read = 0;
     int count = 0;
     const int header_size = sizeof(CommandType);
-    auto type = CommandType::RECORD;
+    auto type = CommandType::RECORDING;
 
     int file_size = file.tellg();
     std::string size_str = std::to_string(file_size);
