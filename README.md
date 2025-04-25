@@ -22,7 +22,7 @@ Turn your Raspberry Pi into a low-latency security camera using the hardware enc
 
   **MQTT**
     * [picamera.js](https://www.npmjs.com/package/picamera.js)
-    * [picamera-react-nadive](https://www.npmjs.com/package/picamera-react-native)
+    * [picamera-react-native](https://www.npmjs.com/package/picamera-react-native)
     * [picamera-app](https://github.com/TzuHuanTai/picamera-app) *(demo application)*
     * [picamera-web](https://picamera.live) *(demo application)*
 
