@@ -42,60 +42,61 @@ void Utils::RotateFiles(const std::string &folder_path) {
         }
     }
 
-    if (!date_folders.empty()) {
-        std::sort(date_folders.begin(), date_folders.end());
-        fs::path oldest_date_folder = date_folders.front();
-        std::vector<fs::path> hour_folders;
+    if (date_folders.empty()) {
+        return;
+    }
 
-        for (const auto &hour_entry : fs::directory_iterator(oldest_date_folder)) {
-            if (hour_entry.is_directory()) {
-                hour_folders.push_back(hour_entry.path());
-            }
+    std::sort(date_folders.begin(), date_folders.end());
+    fs::path oldest_date_folder = date_folders.front();
+    std::vector<fs::path> hour_folders;
+
+    for (const auto &hour_entry : fs::directory_iterator(oldest_date_folder)) {
+        if (hour_entry.is_directory()) {
+            hour_folders.push_back(hour_entry.path());
         }
+    }
 
-        if (!hour_folders.empty()) {
-            std::sort(hour_folders.begin(), hour_folders.end());
-            fs::path oldest_hour_folder = hour_folders.front();
+    if (hour_folders.empty()) {
+        return;
+    }
 
-            std::vector<fs::path> mp4_files;
+    std::sort(hour_folders.begin(), hour_folders.end());
+    fs::path oldest_hour_folder = hour_folders.front();
 
-            for (const auto &file_entry : fs::directory_iterator(oldest_hour_folder)) {
-                if (file_entry.is_regular_file() && file_entry.path().extension() == ".mp4") {
-                    mp4_files.push_back(file_entry.path());
-                }
+    try {
+        auto mp4_files = GetFiles(oldest_hour_folder.string(), ".mp4");
+        if (!mp4_files.empty()) {
+            std::sort(mp4_files.begin(), mp4_files.end());
+
+            const auto &oldest_file = mp4_files.front().second;
+            fs::remove(oldest_file);
+            INFO_PRINT("Deleted oldest .mp4 file: %s", oldest_file.string().c_str());
+
+            fs::path corresponding_image = oldest_file;
+            corresponding_image.replace_extension(".jpg");
+            if (fs::exists(corresponding_image)) {
+                fs::remove(corresponding_image);
+                INFO_PRINT("Deleted corresponding .jpg file: %s",
+                           corresponding_image.string().c_str());
             }
 
-            if (!mp4_files.empty()) {
-                std::sort(mp4_files.begin(), mp4_files.end(),
-                          [](const fs::path &a, const fs::path &b) {
-                              return fs::last_write_time(a) < fs::last_write_time(b);
-                          });
-                fs::remove(mp4_files.front());
-                INFO_PRINT("Deleted oldest .mp4 file: %s", mp4_files.front().string().c_str());
-
-                fs::path corresponding_image = mp4_files.front().replace_extension(".jpg");
-                if (fs::exists(corresponding_image)) {
-                    fs::remove(corresponding_image);
-                    INFO_PRINT("Deleted corresponding .jpg file: %s",
-                               corresponding_image.string().c_str());
-                }
-
-                if (fs::is_empty(oldest_hour_folder)) {
-                    fs::remove(oldest_hour_folder);
-                    INFO_PRINT("Deleted empty hour folder: %s",
-                               oldest_hour_folder.string().c_str());
-
-                    if (fs::is_empty(oldest_date_folder)) {
-                        fs::remove(oldest_date_folder);
-                        INFO_PRINT("Deleted empty date folder: %s",
-                                   oldest_date_folder.string().c_str());
-                    }
-                }
-            } else {
-                fs::remove_all(oldest_hour_folder);
+            if (fs::is_empty(oldest_hour_folder)) {
+                fs::remove(oldest_hour_folder);
                 INFO_PRINT("Deleted empty hour folder: %s", oldest_hour_folder.string().c_str());
+
+                if (fs::is_empty(oldest_date_folder)) {
+                    fs::remove(oldest_date_folder);
+                    INFO_PRINT("Deleted empty date folder: %s",
+                               oldest_date_folder.string().c_str());
+                }
             }
+        } else {
+            fs::remove_all(oldest_hour_folder);
+            INFO_PRINT("Deleted empty hour folder: %s", oldest_hour_folder.string().c_str());
         }
+    } catch (const fs::filesystem_error &e) {
+        std::cerr << "Error while deleting: " << e.what() << std::endl;
+        return;
     }
 }
 

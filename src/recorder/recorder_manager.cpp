@@ -14,7 +14,7 @@
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 
-const double SECOND_PER_FILE = 60.0;
+const int ROTATION_PERIOD = 60;
 const unsigned long MIN_FREE_BYTE = 400 * 1024 * 1024;
 const char *CONTAINER_FORMAT = "mp4";
 const char *PREVIEW_IMAGE_EXTENSION = ".jpg";
@@ -67,6 +67,15 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
         instance->CreateAudioRecorder(audio_src);
         instance->SubscribeAudioSource(audio_src);
     }
+
+    instance->worker_ = std::make_unique<Worker>("rotation_worker", [config]() {
+        DEBUG_PRINT("Rotate files.");
+        while (!Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
+            Utils::RotateFiles(config.record_path);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(ROTATION_PERIOD));
+    });
+    instance->worker_->Run();
 
     return instance;
 }
@@ -212,6 +221,7 @@ void RecorderManager::Stop() {
 RecorderManager::~RecorderManager() {
     printf("~RecorderManager\n");
     Stop();
+    worker_.reset();
     video_recorder.reset();
     audio_recorder.reset();
     video_observer.reset();

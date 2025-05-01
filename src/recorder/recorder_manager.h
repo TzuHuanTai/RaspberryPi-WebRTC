@@ -55,6 +55,8 @@ class RecorderManager {
 
   private:
     double elapsed_time_;
+    std::mutex rotation_mtx_;
+    std::unique_ptr<Worker> worker_;
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
 
