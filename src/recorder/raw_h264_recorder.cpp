@@ -5,8 +5,6 @@
 #define NAL_UNIT_TYPE_SPS 7
 #define NAL_UNIT_TYPE_PPS 8
 
-const int SECOND_PER_FILE = 300;
-
 std::unique_ptr<RawH264Recorder> RawH264Recorder::Create(Args config) {
     return std::make_unique<RawH264Recorder>(config, "h264_v4l2m2m");
 }
