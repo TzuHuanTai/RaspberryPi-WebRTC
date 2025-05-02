@@ -24,7 +24,7 @@ Turn your Raspberry Pi into a low-latency security camera using the hardware enc
     * [picamera.js](https://www.npmjs.com/package/picamera.js)
     * [picamera-react-native](https://www.npmjs.com/package/picamera-react-native)
     * [picamera-app](https://github.com/TzuHuanTai/picamera-app) *(demo application)*
-    * [picamera-web](https://picamera.live) *(demo application)*
+    * [picamera-web](https://app.picamera.live) *(demo application)*
 
   **[WHEP](https://www.ietf.org/archive/id/draft-ietf-wish-whep-02.html)**
     * [Home Assistant](https://www.home-assistant.io)
@@ -89,7 +89,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
 
 ## Running the Application
 
-* Set up the MQTT settings on your [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera-App) or [Pi Camera Web](https://picamera.live), and create a new device in the **Settings** page to get a `UID`. 
+* Set up the MQTT settings on your [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera-App) or [Pi Camera Web](https://app.picamera.live), and create a new device in the **Settings** page to get a `UID`. 
 * Run the command based on your network settings and `UID` on the Raspberry Pi:
     ```bash
     ./pi_webrtc \
