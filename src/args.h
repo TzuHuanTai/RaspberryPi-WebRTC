@@ -45,7 +45,8 @@ struct Args {
     // websocket signaling
     bool use_tls = false;
     std::string ws_host = "";
-    std::string ws_token = "";
+    std::string ws_room = "";
+    std::string ws_key = "";
 };
 
 #endif // ARGS_H_

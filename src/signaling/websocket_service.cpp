@@ -7,6 +7,41 @@ WebsocketService::Create(Args args, std::shared_ptr<Conductor> conductor, net::i
     return std::make_shared<WebsocketService>(args, conductor, ioc);
 }
 
+std::string WebsocketService::UrlEncode(const std::string &value) {
+    std::ostringstream escaped;
+    escaped.fill('0');
+    escaped << std::hex;
+
+    for (const char c : value) {
+        if (isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' ||
+            c == '~') {
+            escaped << c;
+        } else {
+            escaped << '%' << std::setw(2) << std::uppercase << int(static_cast<unsigned char>(c));
+        }
+    }
+    return escaped.str();
+}
+
+std::string
+WebsocketService::BuildWebSocketTarget(const std::string &basePath,
+                                       const std::map<std::string, std::string> &params) {
+    std::ostringstream target;
+    target << basePath;
+
+    if (!params.empty()) {
+        target << "?";
+        bool first = true;
+        for (const auto &[key, value] : params) {
+            if (!first)
+                target << "&";
+            target << key << "=" << UrlEncode(value);
+            first = false;
+        }
+    }
+    return target.str();
+}
+
 WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conductor,
                                    net::io_context &ioc)
     : SignalingService(conductor),
@@ -94,23 +129,25 @@ void WebsocketService::OnConnect(beast::error_code ec) {
 }
 
 void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
-    std::string target = "/rtc?token=" + args_.ws_token;
+    std::string target = BuildWebSocketTarget(
+        "/rtc", {{"apiKey", args_.ws_key}, {"roomId", args_.ws_room}, {"userId", args_.uid}});
     ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
         OnHandshake(ec);
     });
 }
 
 void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
-    ws.next_layer().async_handshake(
-        ssl::stream_base::client, [this, &ws](boost::system::error_code ec) {
-            if (ec) {
-                ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
-            }
-            std::string target = "/rtc?token=" + args_.ws_token;
-            ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
-                OnHandshake(ec);
-            });
+    ws.next_layer().async_handshake(ssl::stream_base::client, [this,
+                                                               &ws](boost::system::error_code ec) {
+        if (ec) {
+            ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
+        }
+        std::string target = BuildWebSocketTarget(
+            "/rtc", {{"apiKey", args_.ws_key}, {"roomId", args_.ws_room}, {"userId", args_.uid}});
+        ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+            OnHandshake(ec);
         });
+    });
 }
 
 void WebsocketService::OnHandshake(beast::error_code ec) {

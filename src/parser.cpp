@@ -61,8 +61,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("http_port", bpo::value<uint16_t>()->default_value(args.http_port), "Http server port")
         ("ws_host", bpo::value<std::string>()->default_value(args.ws_host),
             "Websocket server host")
-        ("ws_token", bpo::value<std::string>()->default_value(args.ws_token),
-            "Websocket server token")
+        ("ws_room", bpo::value<std::string>()->default_value(args.ws_room),
+            "The room name to join")
+        ("ws_key", bpo::value<std::string>()->default_value(args.ws_key),
+            "Websocket server api key")
         ("record_path", bpo::value<std::string>()->default_value(args.record_path),
             "The path to save the recording video files. The recorder won't start if it's empty")
         ("hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
@@ -115,7 +117,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     SetIfExists(vm, "mqtt_password", args.mqtt_password);
     SetIfExists(vm, "http_port", args.http_port);
     SetIfExists(vm, "ws_host", args.ws_host);
-    SetIfExists(vm, "ws_token", args.ws_token);
+    SetIfExists(vm, "ws_room", args.ws_room);
+    SetIfExists(vm, "ws_key", args.ws_key);
     SetIfExists(vm, "record_path", args.record_path);
 
     args.fixed_resolution = vm["fixed_resolution"].as<bool>();
