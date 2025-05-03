@@ -213,7 +213,7 @@ void WebsocketService::OnMessage(const std::string &req) {
             });
             pub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
                                          int sdp_mline_index, const std::string &candidate) {
-                Write("trickle", candidate);
+                Write("tricklePublisher", candidate);
             });
         }
 
@@ -226,7 +226,7 @@ void WebsocketService::OnMessage(const std::string &req) {
             });
             sub_peer_->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
                                          int sdp_mline_index, const std::string &candidate) {
-                Write("trickle", candidate);
+                Write("trickleSubscriber", candidate);
             });
         }
 
@@ -234,12 +234,13 @@ void WebsocketService::OnMessage(const std::string &req) {
         if (!args_.no_audio) {
             Write("addAudioTrack", args_.uid);
         }
+
+        pub_peer_->CreateOffer();
+
     } else if (action == "offer" && sub_peer_ && !sub_peer_->IsConnected()) {
         sub_peer_->SetRemoteSdp(message, "offer");
     } else if (action == "answer" && pub_peer_ && !pub_peer_->IsConnected()) {
         pub_peer_->SetRemoteSdp(message, "answer");
-    } else if (action == "trackPublished" && pub_peer_) {
-        pub_peer_->CreateOffer();
     } else if (action == "trickle") {
         OnRemoteIce(message);
     } else if (action == "leave") {
