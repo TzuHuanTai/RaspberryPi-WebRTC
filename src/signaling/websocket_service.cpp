@@ -129,25 +129,29 @@ void WebsocketService::OnConnect(beast::error_code ec) {
 }
 
 void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
-    std::string target = BuildWebSocketTarget(
-        "/rtc", {{"apiKey", args_.ws_key}, {"roomId", args_.ws_room}, {"userId", args_.uid}});
+    std::string target = BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
+                                                       {"roomId", args_.ws_room},
+                                                       {"userId", args_.uid},
+                                                       {"canSubscribe", "0"}});
     ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
         OnHandshake(ec);
     });
 }
 
 void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
-    ws.next_layer().async_handshake(ssl::stream_base::client, [this,
-                                                               &ws](boost::system::error_code ec) {
-        if (ec) {
-            ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
-        }
-        std::string target = BuildWebSocketTarget(
-            "/rtc", {{"apiKey", args_.ws_key}, {"roomId", args_.ws_room}, {"userId", args_.uid}});
-        ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
-            OnHandshake(ec);
+    ws.next_layer().async_handshake(
+        ssl::stream_base::client, [this, &ws](boost::system::error_code ec) {
+            if (ec) {
+                ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
+            }
+            std::string target = BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
+                                                               {"roomId", args_.ws_room},
+                                                               {"userId", args_.uid},
+                                                               {"canSubscribe", "0"}});
+            ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+                OnHandshake(ec);
+            });
         });
-    });
 }
 
 void WebsocketService::OnHandshake(beast::error_code ec) {
