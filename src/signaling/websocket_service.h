@@ -25,6 +25,9 @@ class WebsocketService : public SignalingService {
   public:
     static std::shared_ptr<WebsocketService> Create(Args args, std::shared_ptr<Conductor> conductor,
                                                     boost::asio::io_context &ioc);
+    static std::string UrlEncode(const std::string &value);
+    static std::string BuildWebSocketTarget(const std::string &basePath,
+                                            const std::map<std::string, std::string> &params);
 
     WebsocketService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
     ~WebsocketService();
