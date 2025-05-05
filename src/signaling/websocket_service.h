@@ -45,6 +45,7 @@ class WebsocketService : public SignalingService {
     std::mutex write_mutex_;
     rtc::scoped_refptr<RtcPeer> pub_peer_;
     rtc::scoped_refptr<RtcPeer> sub_peer_;
+    boost::asio::steady_timer ping_timer_;
 
     WebSocketVariant InitWebSocket(net::io_context &ioc);
     void OnResolve(beast::error_code ec, tcp::resolver::results_type results);
@@ -54,6 +55,7 @@ class WebsocketService : public SignalingService {
     void OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws);
     void OnMessage(const std::string &req);
     void OnRemoteIce(const std::string &message);
+    void ScheduleNextPing();
     void Read();
     void Write(const std::string &action, const std::string &message);
     void DoWrite();
