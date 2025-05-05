@@ -36,7 +36,7 @@ void V4L2DmaTrackSource::OnFrameCaptured(V4L2Buffer decoded_buffer) {
     const int64_t translated_timestamp_us =
         timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
 
-    if (capturer->config().fixed_resolution) {
+    if (capturer->config().no_adaptive) {
         auto dst_buffer = V4L2FrameBuffer::Create(config_width_, config_height_, decoded_buffer,
                                                   V4L2_PIX_FMT_YUV420);
         OnFrame(webrtc::VideoFrame::Builder()
