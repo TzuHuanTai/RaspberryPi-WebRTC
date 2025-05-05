@@ -47,7 +47,8 @@ WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conduct
     : SignalingService(conductor),
       args_(args),
       ws_(InitWebSocket(ioc)),
-      resolver_(net::make_strand(ioc)) {}
+      resolver_(net::make_strand(ioc)),
+      ping_timer_(ioc) {}
 
 WebsocketService::~WebsocketService() { Disconnect(); }
 
@@ -82,6 +83,8 @@ void WebsocketService::Connect() {
 }
 
 void WebsocketService::Disconnect() {
+    ping_timer_.cancel();
+
     std::visit(
         [](auto &ws) {
             if (ws.is_open()) {
@@ -161,6 +164,7 @@ void WebsocketService::OnHandshake(beast::error_code ec) {
     }
 
     Read();
+    ScheduleNextPing();
 }
 
 void WebsocketService::Read() {
@@ -175,6 +179,7 @@ void WebsocketService::Read() {
                               if (ec) {
                                   ERROR_PRINT("Failed to read: %s", ec.message().c_str());
                                   Disconnect();
+                                  return;
                               }
                               std::string req = beast::buffers_to_string(buffer_.data());
                               OnMessage(req);
@@ -269,6 +274,21 @@ void WebsocketService::OnRemoteIce(const std::string &message) {
     } else if (target == "SUBSCRIBER") {
         sub_peer_->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
+}
+
+void WebsocketService::ScheduleNextPing() {
+    ping_timer_.expires_after(std::chrono::seconds(15));
+    ping_timer_.async_wait([this](const boost::system::error_code &ec) {
+        if (ec) {
+            if (ec != boost::asio::error::operation_aborted) {
+                ERROR_PRINT("Ping timer error: %s", ec.message().c_str());
+            }
+            return;
+        }
+
+        Write("ping", "");
+        ScheduleNextPing();
+    });
 }
 
 void WebsocketService::Write(const std::string &action, const std::string &message) {
