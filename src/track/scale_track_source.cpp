@@ -38,7 +38,7 @@ void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuff
         timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
 
     int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
-    if (capturer->config().fixed_resolution) {
+    if (capturer->config().no_adaptive) {
         adapted_width = width;
         adapted_height = height;
     } else if (!AdaptFrame(width, height, timestamp_us, &adapted_width, &adapted_height,

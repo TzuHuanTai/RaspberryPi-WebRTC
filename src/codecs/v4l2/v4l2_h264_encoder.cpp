@@ -8,7 +8,7 @@ std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
 
 V4L2H264Encoder::V4L2H264Encoder(Args args)
     : fps_adjuster_(args.fps),
-      is_dma_(!args.fixed_resolution),
+      is_dma_(!args.no_adaptive),
       bitrate_adjuster_(.85, 1),
       callback_(nullptr) {}
 
