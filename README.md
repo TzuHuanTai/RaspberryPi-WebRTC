@@ -92,7 +92,9 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
 
 ## Running the Application
 
-* Set up the MQTT settings on your [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera-App) or [Pi Camera Web](https://app.picamera.live), and create a new device in the **Settings** page to get a `UID`. 
+![preview_demo](https://github.com/user-attachments/assets/d472b6e0-8104-4aaf-b02b-9925c5c363d0)
+
+* Set up the MQTT settings on the [picamera-web](https://app.picamera.live), and create a new device with a `UID`.
 * Run the command based on your network settings and `UID` on the Raspberry Pi:
     ```bash
     ./pi_webrtc \
@@ -111,13 +113,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
     ```
 
 > [!IMPORTANT]
-> Use `--hw_accel` for Pi Zero 2W, 3B, 3B+, and 4B. Remove for Pi 5 or devices without hardware encoding.
-
-* Go to the Live page to enjoy real-time streaming!
-
-<p align=center>
-    <img src="doc/web_live_demo.jpg" alt="Pi 5 live demo on web">
-</p>
+> Use `--hw_accel` on Pi Zero 2W, 3B/3B+, and 4B only. Remove it on Pi 5 or devices without HW encoder.
 
 # [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
