@@ -54,8 +54,8 @@ jobs:
             wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             mkdir -p /usr/local/include/webrtc &&
-            cp -r include/* /usr/local/include/webrtc &&
-            cp -r lib/* /usr/local/lib &&
+            mv include/* /usr/local/include/webrtc &&
+            mv lib/* /usr/local/lib &&
             mkdir -p /usr/local/include/nlohmann &&
             curl -L https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
           "
