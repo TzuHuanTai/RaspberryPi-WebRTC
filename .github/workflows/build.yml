@@ -18,8 +18,8 @@ jobs:
         wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz
         tar -xzf libwebrtc-arm64.tar.gz
         sudo mkdir -p /usr/local/include/webrtc
-        sudo cp -r include/* /usr/local/include/webrtc
-        sudo cp -r lib/* /usr/local/lib
+        sudo mv include/* /usr/local/include/webrtc
+        sudo mv lib/* /usr/local/lib
         sudo mkdir -p /usr/local/include/nlohmann
         sudo curl -L https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
 
