@@ -29,6 +29,10 @@ Turn your Raspberry Pi into a low-latency security camera using the hardware enc
   **[WHEP](https://www.ietf.org/archive/id/draft-ietf-wish-whep-02.html)**
     * [Home Assistant](https://www.home-assistant.io)
     * [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player)
+
+  **WebSocket**
+    * [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#watch-videos-via-the-sfu-server) *(SFU signaling & broadcasting)*
+
 - 🎥 [Watch demo](https://www.youtube.com/watch?v=JZ5bcSAsXog)
 
 
@@ -118,6 +122,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
 
 # [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
+- [Broadcasting Live Stream to 1,000+ Viewers via SFU](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#broadcasting-live-stream-to-1000-viewers-via-sfu)
 - [Using the V4L2 Driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) (for usb camera)
 - [Run as Linux Service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
 - [Recording](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#recording)
