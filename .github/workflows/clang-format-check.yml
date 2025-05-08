@@ -1,5 +1,21 @@
 name: clang-format Check
-on: [push, pull_request]
+
+on:
+  push:
+    paths-ignore:
+      - 'doc/**'
+      - 'example/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - 'example/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '*.md'
+
 jobs:
   formatting-check:
     name: Formatting Check
@@ -10,9 +26,9 @@ jobs:
           - 'src'
           - 'test'
     steps:
-    - uses: actions/checkout@v4
-    - name: Run clang-format style check for C/C++/Protobuf programs.
-      uses: jidicula/clang-format-action@v4.14.0
-      with:
-        clang-format-version: '14'
-        check-path: ${{ matrix.path }}
+      - uses: actions/checkout@v4
+      - name: Run clang-format style check for C/C++/Protobuf programs.
+        uses: jidicula/clang-format-action@v4.14.0
+        with:
+          clang-format-version: '14'
+          check-path: ${{ matrix.path }}

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v**-rc.[0-9]+'
+    paths-ignore:
+      - 'doc/**'
+      - 'example/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '*.md'
 
 jobs:
   prepare-image:
