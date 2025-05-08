@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(pi_webrtc)
+project(pi-webrtc)
 
 set(CMAKE_CXX_STANDARD 20)
 set(BUILD_TEST "" CACHE STRING "test")
@@ -64,59 +64,58 @@ add_subdirectory(src/signaling)
 add_subdirectory(src/track)
 
 if(BUILD_TEST STREQUAL "http_server")
-    add_executable(test_http_server test/test_http_server.cpp)
-    target_link_libraries(test_http_server
+    add_executable(test-http-server test/test_http_server.cpp)
+    target_link_libraries(test-http-server
         signaling
     )
 elseif(BUILD_TEST STREQUAL "pulseaudio")
-    add_executable(test_pulseaudio test/test_pulseaudio.cpp)
-    target_link_libraries(test_pulseaudio
+    add_executable(test-pulseaudio test/test_pulseaudio.cpp)
+    target_link_libraries(test-pulseaudio
         pulse-simple pulse
     )
 elseif(BUILD_TEST STREQUAL "recorder")
-    add_executable(test_recorder test/test_recorder.cpp)
-    target_link_libraries(test_recorder
+    add_executable(test-recorder test/test_recorder.cpp)
+    target_link_libraries(test-recorder
         recorder
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
-    add_executable(test_mqtt test/test_mqtt.cpp)
-    target_link_libraries(test_mqtt
+    add_executable(test-mqtt test/test_mqtt.cpp)
+    target_link_libraries(test-mqtt
         signaling
     )
 elseif(BUILD_TEST STREQUAL "websocket")
-    add_executable(test_websocket test/test_websocket.cpp)
-    target_link_libraries(test_websocket
+    add_executable(test-websocket test/test_websocket.cpp)
+    target_link_libraries(test-websocket
         signaling
     )
 elseif(BUILD_TEST STREQUAL "openh264")
-    add_executable(test_openh264 test/test_openh264.cpp)
-    # Use the OpenH264 library in libwebrtc.a
-    target_link_libraries(test_openh264
+    add_executable(test-openh264 test/test_openh264.cpp)
+    target_link_libraries(test-openh264
         ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capturer")
-    add_executable(test_v4l2_capturer test/test_v4l2_capturer.cpp)
-    target_link_libraries(test_v4l2_capturer
+    add_executable(test-v4l2-capturer test/test_v4l2_capturer.cpp)
+    target_link_libraries(test-v4l2-capturer
         capturer
     )
 elseif(BUILD_TEST STREQUAL "v4l2_encoder")
-    add_executable(test_v4l2_encoder test/test_v4l2_encoder.cpp)
-    target_link_libraries(test_v4l2_encoder
+    add_executable(test-v4l2-encoder test/test_v4l2_encoder.cpp)
+    target_link_libraries(test-v4l2-encoder
         capturer
     )
 elseif(BUILD_TEST STREQUAL "v4l2_decoder")
-    add_executable(test_v4l2_decoder test/test_v4l2_decoder.cpp)
-    target_link_libraries(test_v4l2_decoder
+    add_executable(test-v4l2-decoder test/test_v4l2_decoder.cpp)
+    target_link_libraries(test-v4l2-decoder
         capturer
     )
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
-    add_executable(test_v4l2_scaler test/test_v4l2_scaler.cpp)
-    target_link_libraries(test_v4l2_scaler
+    add_executable(test-v4l2-scaler test/test_v4l2_scaler.cpp)
+    target_link_libraries(test-v4l2-scaler
         capturer
     )
 elseif(BUILD_TEST STREQUAL "libcamera")
-    add_executable(test_libcamera test/test_libcamera.cpp)
-    target_link_libraries(test_libcamera
+    add_executable(test-libcamera test/test_libcamera.cpp)
+    target_link_libraries(test-libcamera
         capturer
     )
 else()
