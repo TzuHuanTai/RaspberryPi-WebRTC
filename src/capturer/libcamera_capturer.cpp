@@ -34,8 +34,12 @@ std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
         if (args.lens_position || args.set_default_lens_position) {
             args.af_mode = libcamera::controls::AfModeManual;
         } else {
-            args.af_mode =
-                ptr->camera_->controls().at(&libcamera::controls::AfMode).max().get<int>();
+            if (ptr->camera_->controls().find(libcamera::controls::AF_MODE) !=
+                    ptr->camera_->controls().end() &&
+                ptr->camera_->controls().count(&libcamera::controls::AfMode) > 0) {
+                args.af_mode =
+                    ptr->camera_->controls().at(&libcamera::controls::AfMode).max().get<int>();
+            }
         }
     }
     ptr->SetControls(libcamera::controls::AF_MODE, args.af_mode)
