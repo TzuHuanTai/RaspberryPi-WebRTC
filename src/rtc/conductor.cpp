@@ -239,6 +239,9 @@ void Conductor::OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, 
     DEBUG_PRINT("parse meta cmd message => %d, %d", key, value);
 
     try {
+        if (!args.use_libcamera) {
+            throw std::runtime_error("Setting camera options only valid with libcamera.");
+        }
         video_capture_source_->SetControls(key, value);
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
