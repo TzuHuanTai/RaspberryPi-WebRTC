@@ -27,63 +27,63 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("camera", bpo::value<std::string>()->default_value(args.camera),
             "Specify the camera using V4L2 or Libcamera. "
             "e.g. \"libcamera:0\" for Libcamera, \"v4l2:0\" for V4L2 at `/dev/video0`.")
-        ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
+        ("v4l2-format", bpo::value<std::string>()->default_value(args.v4l2_format),
             "The input format (`i420`, `mjpeg`, `h264`) of the V4L2 camera.")
         ("uid", bpo::value<std::string>()->default_value(args.uid),
             "The unique id to identify the device.")
         ("fps", bpo::value<int>()->default_value(args.fps), "Specify the camera frames per second.")
         ("width", bpo::value<int>()->default_value(args.width), "Set camera frame width.")
         ("height", bpo::value<int>()->default_value(args.height), "Set camera frame height.")
-        ("jpeg_quality", bpo::value<int>()->default_value(args.jpeg_quality),
-            "Set the default quality of the snapshot and thumbnail images.")
-        ("rotation_angle", bpo::value<int>()->default_value(args.rotation_angle),
+        ("rotation-angle", bpo::value<int>()->default_value(args.rotation_angle),
             "Set the rotation angle of the camera (0, 90, 180, 270).")
-        ("sample_rate", bpo::value<int>()->default_value(args.sample_rate),
+        ("sample-rate", bpo::value<int>()->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
-        ("no_audio", bpo::bool_switch()->default_value(args.no_audio), "Runs without audio source.")
-        ("hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
-            "Enable hardware acceleration by sharing DMA buffers between the decoder, "
-            "scaler, and encoder to reduce CPU usage.")
-        ("no_adaptive", bpo::bool_switch()->default_value(args.no_adaptive),
-            "Disable WebRTC's adaptive resolution scaling. When enabled, "
-            "the output resolution will remain fixed regardless of network or device conditions.")
-        ("record_path", bpo::value<std::string>()->default_value(args.record_path),
+        ("no-audio", bpo::bool_switch()->default_value(args.no_audio), "Runs without audio source.")
+        ("record-path", bpo::value<std::string>()->default_value(args.record_path),
             "Set the path where recording video files will be saved. "
             "If the value is empty or unavailable, the recorder will not start.")
-        ("file_duration", bpo::value<int>()->default_value(args.file_duration),
+        ("file-duration", bpo::value<int>()->default_value(args.file_duration),
             "The length (in seconds) of each MP4 recording.")
-        ("peer_timeout", bpo::value<int>()->default_value(args.peer_timeout),
+        ("jpeg-quality", bpo::value<int>()->default_value(args.jpeg_quality),
+            "Set the quality of the snapshot and thumbnail images in range 0 to 100.")
+        ("peer-timeout", bpo::value<int>()->default_value(args.peer_timeout),
             "The connection timeout (in seconds) after receiving a remote offer")
-        ("stun_url", bpo::value<std::string>()->default_value(args.stun_url),
+        ("hw-accel", bpo::bool_switch()->default_value(args.hw_accel),
+            "Enable hardware acceleration by sharing DMA buffers between the decoder, "
+            "scaler, and encoder to reduce CPU usage.")
+        ("no-adaptive", bpo::bool_switch()->default_value(args.no_adaptive),
+            "Disable WebRTC's adaptive resolution scaling. When enabled, "
+            "the output resolution will remain fixed regardless of network or device conditions.")
+        ("stun-url", bpo::value<std::string>()->default_value(args.stun_url),
             "Set the STUN server URL for WebRTC. e.g. `stun:xxx.xxx.xxx`.")
-        ("turn_url", bpo::value<std::string>()->default_value(args.turn_url),
+        ("turn-url", bpo::value<std::string>()->default_value(args.turn_url),
             "Set the TURN server URL for WebRTC. e.g. `turn:xxx.xxx.xxx:3478?transport=tcp`.")
-        ("turn_username", bpo::value<std::string>()->default_value(args.turn_username),
+        ("turn-username", bpo::value<std::string>()->default_value(args.turn_username),
             "Set the TURN server username for WebRTC authentication.")
-        ("turn_password", bpo::value<std::string>()->default_value(args.turn_password),
+        ("turn-password", bpo::value<std::string>()->default_value(args.turn_password),
             "Set the TURN server password for WebRTC authentication.")
-        ("use_mqtt", bpo::bool_switch()->default_value(args.use_mqtt),
+        ("use-mqtt", bpo::bool_switch()->default_value(args.use_mqtt),
             "Use MQTT to exchange sdp and ice candidates.")
-        ("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host),
+        ("mqtt-host", bpo::value<std::string>()->default_value(args.mqtt_host),
             "Set the MQTT server host.")
-        ("mqtt_port", bpo::value<int>()->default_value(args.mqtt_port), "Set the MQTT server port.")
-        ("mqtt_username", bpo::value<std::string>()->default_value(args.mqtt_username),
+        ("mqtt-port", bpo::value<int>()->default_value(args.mqtt_port), "Set the MQTT server port.")
+        ("mqtt-username", bpo::value<std::string>()->default_value(args.mqtt_username),
             "Set the MQTT server username.")
-        ("mqtt_password", bpo::value<std::string>()->default_value(args.mqtt_password),
+        ("mqtt-password", bpo::value<std::string>()->default_value(args.mqtt_password),
             "Set the MQTT server password.")
-        ("use_whep", bpo::bool_switch()->default_value(args.use_whep),
+        ("use-whep", bpo::bool_switch()->default_value(args.use_whep),
             "Use WHEP (WebRTC-HTTP Egress Protocol) to exchange SDP and ICE candidates.")
-        ("http_port", bpo::value<uint16_t>()->default_value(args.http_port),
+        ("http-port", bpo::value<uint16_t>()->default_value(args.http_port),
             "Local HTTP server port to handle signaling when using WHEP.")
-        ("use_websocket", bpo::bool_switch()->default_value(args.use_websocket),
+        ("use-websocket", bpo::bool_switch()->default_value(args.use_websocket),
             "Enables the WebSocket client to connect to the SFU server.")
-        ("use_tls", bpo::bool_switch()->default_value(args.use_tls),
+        ("use-tls", bpo::bool_switch()->default_value(args.use_tls),
             "Use TLS for the WebSocket connection. Use it when connecting to a `wss://` URL.")
-        ("ws_host", bpo::value<std::string>()->default_value(args.ws_host),
+        ("ws-host", bpo::value<std::string>()->default_value(args.ws_host),
             "The WebSocket host address of the SFU server.")
-        ("ws_room", bpo::value<std::string>()->default_value(args.ws_room),
+        ("ws-room", bpo::value<std::string>()->default_value(args.ws_room),
             "The room name to join on the SFU server.")
-        ("ws_key", bpo::value<std::string>()->default_value(args.ws_key),
+        ("ws-key", bpo::value<std::string>()->default_value(args.ws_key),
             "The API key used to authenticate with the SFU server.");
     // clang-format on
 
@@ -102,37 +102,37 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     SetIfExists(vm, "camera", args.camera);
-    SetIfExists(vm, "v4l2_format", args.v4l2_format);
+    SetIfExists(vm, "v4l2-format", args.v4l2_format);
     SetIfExists(vm, "uid", args.uid);
     SetIfExists(vm, "fps", args.fps);
     SetIfExists(vm, "width", args.width);
     SetIfExists(vm, "height", args.height);
-    SetIfExists(vm, "jpeg_quality", args.jpeg_quality);
-    SetIfExists(vm, "rotation_angle", args.rotation_angle);
-    SetIfExists(vm, "sample_rate", args.sample_rate);
-    SetIfExists(vm, "record_path", args.record_path);
-    SetIfExists(vm, "file_duration", args.file_duration);
-    SetIfExists(vm, "peer_timeout", args.peer_timeout);
-    SetIfExists(vm, "stun_url", args.stun_url);
-    SetIfExists(vm, "turn_url", args.turn_url);
-    SetIfExists(vm, "turn_username", args.turn_username);
-    SetIfExists(vm, "turn_password", args.turn_password);
-    SetIfExists(vm, "mqtt_host", args.mqtt_host);
-    SetIfExists(vm, "mqtt_port", args.mqtt_port);
-    SetIfExists(vm, "mqtt_username", args.mqtt_username);
-    SetIfExists(vm, "mqtt_password", args.mqtt_password);
-    SetIfExists(vm, "http_port", args.http_port);
-    SetIfExists(vm, "ws_host", args.ws_host);
-    SetIfExists(vm, "ws_room", args.ws_room);
-    SetIfExists(vm, "ws_key", args.ws_key);
+    SetIfExists(vm, "rotation-angle", args.rotation_angle);
+    SetIfExists(vm, "sample-rate", args.sample_rate);
+    SetIfExists(vm, "record-path", args.record_path);
+    SetIfExists(vm, "file-duration", args.file_duration);
+    SetIfExists(vm, "jpeg-quality", args.jpeg_quality);
+    SetIfExists(vm, "peer-timeout", args.peer_timeout);
+    SetIfExists(vm, "stun-url", args.stun_url);
+    SetIfExists(vm, "turn-url", args.turn_url);
+    SetIfExists(vm, "turn-username", args.turn_username);
+    SetIfExists(vm, "turn-password", args.turn_password);
+    SetIfExists(vm, "mqtt-host", args.mqtt_host);
+    SetIfExists(vm, "mqtt-port", args.mqtt_port);
+    SetIfExists(vm, "mqtt-username", args.mqtt_username);
+    SetIfExists(vm, "mqtt-password", args.mqtt_password);
+    SetIfExists(vm, "http-port", args.http_port);
+    SetIfExists(vm, "ws-host", args.ws_host);
+    SetIfExists(vm, "ws-room", args.ws_room);
+    SetIfExists(vm, "ws-key", args.ws_key);
 
-    args.no_audio = vm["no_audio"].as<bool>();
-    args.hw_accel = vm["hw_accel"].as<bool>();
-    args.no_adaptive = vm["no_adaptive"].as<bool>();
-    args.use_mqtt = vm["use_mqtt"].as<bool>();
-    args.use_whep = vm["use_whep"].as<bool>();
-    args.use_websocket = vm["use_websocket"].as<bool>();
-    args.use_tls = vm["use_tls"].as<bool>();
+    args.no_audio = vm["no-audio"].as<bool>();
+    args.hw_accel = vm["hw-accel"].as<bool>();
+    args.no_adaptive = vm["no-adaptive"].as<bool>();
+    args.use_mqtt = vm["use-mqtt"].as<bool>();
+    args.use_whep = vm["use-whep"].as<bool>();
+    args.use_websocket = vm["use-websocket"].as<bool>();
+    args.use_tls = vm["use-tls"].as<bool>();
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
