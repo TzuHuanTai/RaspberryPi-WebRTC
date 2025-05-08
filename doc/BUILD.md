@@ -33,5 +33,5 @@ make -j
 
 Run `pi_webrtc` to start the service.
 ```bash
-./pi_webrtc --camera=libcamera:0 --fps=30 --width=1280 --height=720 --use_mqtt --mqtt_host=<hostname> --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password> --hw_accel
+./pi_webrtc --camera=libcamera:0 --fps=30 --width=1280 --height=720 --use-mqtt --mqtt-host=<hostname> --mqtt-port=1883 --mqtt-username=<username> --mqtt-password=<password> --hw-accel
 ```

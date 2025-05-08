@@ -13,6 +13,9 @@
 
 class V4L2Capturer : public VideoCapturer {
   public:
+    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
     static std::shared_ptr<V4L2Capturer> Create(Args args);
 
     V4L2Capturer(Args args);
@@ -24,6 +27,8 @@ class V4L2Capturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
     void StartCapture() override;
+
+    V4L2Capturer &SetControls(int key, ControlValue value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
   private:
@@ -43,9 +48,9 @@ class V4L2Capturer : public VideoCapturer {
     rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
     void NextBuffer(V4L2Buffer &raw_buffer);
 
-    V4L2Capturer &SetFormat(int width, int height);
-    V4L2Capturer &SetFps(int fps = 30);
-    V4L2Capturer &SetRotation(int angle);
+    V4L2Capturer &SetResolution(int width, int height) override;
+    V4L2Capturer &SetFps(int fps) override;
+    V4L2Capturer &SetRotation(int angle) override;
 
     void Init(int deviceId);
     bool IsCompressedFormat() const;
