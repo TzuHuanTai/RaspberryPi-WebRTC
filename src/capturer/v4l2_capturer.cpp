@@ -14,9 +14,21 @@
 std::shared_ptr<V4L2Capturer> V4L2Capturer::Create(Args args) {
     auto ptr = std::make_shared<V4L2Capturer>(args);
     ptr->Init(args.cameraId);
+
+    if (args.format == V4L2_PIX_FMT_H264) {
+        ptr->SetControls(V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
+            .SetControls(V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_HIGH)
+            .SetControls(V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true)
+            .SetControls(V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0)
+            .SetControls(V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60) /* trick */
+            .SetControls(V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1)
+            .SetControls(V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
+    }
+
     ptr->SetFps(args.fps)
-        .SetRotation(args.rotation_angle)
-        .SetFormat(args.width, args.height)
+        .SetRotation(args.rotation)
+        .SetResolution(args.width, args.height)
+        .SetControls(V4L2_CID_MPEG_VIDEO_BITRATE, 10000 * 1000)
         .StartCapture();
     return ptr;
 }
@@ -85,24 +97,10 @@ int V4L2Capturer::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_
     return -1;
 }
 
-V4L2Capturer &V4L2Capturer::SetFormat(int width, int height) {
+V4L2Capturer &V4L2Capturer::SetResolution(int width, int height) {
     width_ = width;
     height_ = height;
-
     V4L2Util::SetFormat(fd_, &capture_, width, height, format_);
-    V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000 * 1000);
-
-    if (format_ == V4L2_PIX_FMT_H264) {
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
-                             V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
-                             V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60); /* trick */
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
-        V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
-    }
     return *this;
 }
 
@@ -152,6 +150,18 @@ void V4L2Capturer::CaptureImage() {
     if (!V4L2Util::QueueBuffer(fd_, &buf)) {
         return;
     }
+}
+
+V4L2Capturer &V4L2Capturer::SetControls(int key, ControlValue value) {
+    std::visit(overloaded{[&](int v) {
+                              V4L2Util::SetExtCtrl(fd_, key, v);
+                          },
+                          [&](auto &&v) {
+                              std::cerr << "Unsupported control value type: " << typeid(v).name()
+                                        << "\n";
+                          }},
+               value);
+    return *this;
 }
 
 rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame() {

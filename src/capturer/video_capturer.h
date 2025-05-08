@@ -7,8 +7,16 @@
 #include "common/v4l2_utils.h"
 #include <modules/video_capture/video_capture.h>
 
+#include <libcamera/libcamera.h>
+
+#include <variant>
+
 class VideoCapturer {
   public:
+    using ControlValue =
+        std::variant<int, signed long, float, bool, libcamera::Span<const float, 2UL>,
+                     libcamera::Span<const libcamera::Rectangle>>;
+
     VideoCapturer() = default;
     ~VideoCapturer() {
         raw_buffer_subject_.UnSubscribe();
@@ -24,7 +32,10 @@ class VideoCapturer {
     virtual void StartCapture() = 0;
     virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() = 0;
 
-    virtual VideoCapturer &SetControls(const int key, const int value) { return *this; };
+    virtual VideoCapturer &SetResolution(int width, int height) = 0;
+    virtual VideoCapturer &SetFps(int fps) = 0;
+    virtual VideoCapturer &SetRotation(int angle) = 0;
+    virtual VideoCapturer &SetControls(int key, ControlValue value) = 0;
 
     std::shared_ptr<Observable<V4L2Buffer>> AsRawBufferObservable() {
         return raw_buffer_subject_.AsObservable();

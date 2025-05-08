@@ -71,7 +71,7 @@ sudo apt install libcamera0.5 libmosquitto1 pulseaudio libavformat59 libswscale6
 
 ### 3. Download & Unpack
 
-Prepare the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
+Prepare the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases).
 ```bash
 wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/latest/download/pi_webrtc-v1.0.6_raspios-bookworm-arm64.tar.gz
 tar -xzf pi_webrtc-v1.0.6_raspios-bookworm-arm64.tar.gz
@@ -102,18 +102,18 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
         --fps=30 \
         --width=1280 \
         --height=960 \
-        --use_mqtt \
-        --mqtt_host=your.mqtt.cloud \
-        --mqtt_port=8883 \
-        --mqtt_username=hakunamatata \
-        --mqtt_password=Wonderful \
+        --use-mqtt \
+        --mqtt-host=your.mqtt.cloud \
+        --mqtt-port=8883 \
+        --mqtt-username=hakunamatata \
+        --mqtt-password=Wonderful \
         --uid=your-custom-uid \
-        --no_audio \
-        --hw_accel # Only Pi Zero 2W, 3B, 4B support hw encoding
+        --no-audio \
+        --hw-accel # Only Pi Zero 2W, 3B, 4B support hw encoding
     ```
 
 > [!IMPORTANT]
-> Use `--hw_accel` on Pi Zero 2W, 3B/3B+, and 4B only. Remove it on Pi 5 or devices without HW encoder.
+> Use `--hw-accel` on Pi Zero 2W, 3B/3B+, and 4B only. Remove it on Pi 5 or devices without HW encoder.
 
 # [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 

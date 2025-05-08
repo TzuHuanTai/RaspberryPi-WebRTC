@@ -3,14 +3,76 @@
 #include <sys/mman.h>
 
 #include "common/logging.h"
+#include <libcamera/geometry.h>
 
 std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
     ptr->Init(args.cameraId);
-    ptr->SetFps(args.fps)
-        .SetRotation(args.rotation_angle)
-        .SetFormat(args.width, args.height)
-        .StartCapture();
+    ptr->SetFps(args.fps).SetRotation(args.rotation).SetResolution(args.width, args.height);
+
+    if (args.gain) {
+        ptr->SetControls(libcamera::controls::ANALOGUE_GAIN_MODE,
+                         libcamera::controls::AnalogueGainModeManual)
+            .SetControls(libcamera::controls::ANALOGUE_GAIN, args.gain);
+    }
+
+    ptr->SetControls(libcamera::controls::SHARPNESS, args.sharpness)
+        .SetControls(libcamera::controls::CONTRAST, args.contrast)
+        .SetControls(libcamera::controls::BRIGHTNESS, args.brightness)
+        .SetControls(libcamera::controls::SATURATION, args.saturation)
+        .SetControls(libcamera::controls::EXPOSURE_VALUE, args.ev)
+        .SetControls(libcamera::controls::EXPOSURE_TIME,
+                     args.shutter.get<std::chrono::microseconds>())
+        .SetControls(libcamera::controls::AE_METERING_MODE, args.ae_metering_mode)
+        .SetControls(libcamera::controls::AE_EXPOSURE_MODE, args.ae_mode)
+        .SetControls(libcamera::controls::AWB_MODE, args.awb_mode)
+        .SetControls(libcamera::controls::COLOUR_GAINS,
+                     libcamera::Span<const float, 2>({args.awb_gain_r, args.awb_gain_b}))
+        .SetControls(libcamera::controls::draft::NOISE_REDUCTION_MODE, args.denoise_mode);
+
+    if (args.af_mode == -1) {
+        if (args.lens_position || args.set_default_lens_position) {
+            args.af_mode = libcamera::controls::AfModeManual;
+        } else {
+            args.af_mode =
+                ptr->camera_->controls().at(&libcamera::controls::AfMode).max().get<int>();
+        }
+    }
+    ptr->SetControls(libcamera::controls::AF_MODE, args.af_mode)
+        .SetControls(libcamera::controls::AF_RANGE, args.af_range_mode)
+        .SetControls(libcamera::controls::AF_SPEED, args.af_speed_mode);
+
+    if (args.af_window_width != 0 && args.af_window_height != 0) {
+        libcamera::Rectangle sensor_area = ptr->camera_->controls()
+                                               .at(&libcamera::controls::ScalerCrop)
+                                               .max()
+                                               .get<libcamera::Rectangle>();
+        int x = args.af_window_x * sensor_area.width;
+        int y = args.af_window_y * sensor_area.height;
+        int w = args.af_window_width * sensor_area.width;
+        int h = args.af_window_height * sensor_area.height;
+        libcamera::Rectangle afwindows_rectangle[1];
+        afwindows_rectangle[0] = libcamera::Rectangle(x, y, w, h);
+        afwindows_rectangle[0].translateBy(sensor_area.topLeft());
+
+        ptr->SetControls(libcamera::controls::AF_METERING, libcamera::controls::AfMeteringWindows)
+            .SetControls(libcamera::controls::AF_WINDOWS,
+                         libcamera::Span<const libcamera::Rectangle>(afwindows_rectangle));
+    }
+
+    if (args.af_mode == libcamera::controls::AfModeEnum::AfModeAuto) {
+        ptr->SetControls(libcamera::controls::AF_TRIGGER, libcamera::controls::AfTriggerStart);
+    } else if (args.lens_position || args.set_default_lens_position) {
+        float f;
+        if (args.lens_position) {
+            f = args.lens_position.value();
+        } else {
+            f = ptr->camera_->controls().at(&libcamera::controls::LensPosition).def().get<float>();
+        }
+        ptr->SetControls(libcamera::controls::LENS_POSITION, f);
+    }
+
+    ptr->StartCapture();
     return ptr;
 }
 
@@ -19,7 +81,7 @@ LibcameraCapturer::LibcameraCapturer(Args args)
       format_(args.format),
       config_(args) {}
 
-void LibcameraCapturer::Init(int deviceId) {
+void LibcameraCapturer::Init(int cameraId) {
     cm_ = std::make_unique<libcamera::CameraManager>();
     int ret = cm_->start();
     if (ret) {
@@ -31,11 +93,11 @@ void LibcameraCapturer::Init(int deviceId) {
         throw std::runtime_error("No camera is available via libcamera.");
     }
 
-    if (config_.cameraId >= cameras.size()) {
+    if (cameraId >= cameras.size()) {
         throw std::runtime_error("Selected camera is not available.");
     }
 
-    std::string const &cam_id = cameras[config_.cameraId]->id();
+    std::string const &cam_id = cameras[cameraId]->id();
     INFO_PRINT("camera id: %s", cam_id.c_str());
     camera_ = cm_->get(cam_id);
     camera_->acquire();
@@ -64,7 +126,7 @@ uint32_t LibcameraCapturer::format() const { return format_; }
 
 Args LibcameraCapturer::config() const { return config_; }
 
-LibcameraCapturer &LibcameraCapturer::SetFormat(int width, int height) {
+LibcameraCapturer &LibcameraCapturer::SetResolution(int width, int height) {
     DEBUG_PRINT("camera original format: %s", camera_config_->at(0).toString().c_str());
 
     if (width && height) {
@@ -109,10 +171,17 @@ LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     return *this;
 }
 
-LibcameraCapturer &LibcameraCapturer::SetControls(const int key, const int value) {
+LibcameraCapturer &LibcameraCapturer::SetControls(int key, ControlValue value) {
     std::lock_guard<std::mutex> lock(control_mutex_);
-    DEBUG_PRINT("Set camera controls, key: %d, value: %d", key, value);
-    controls_.set(key, value);
+
+    if (controls_.contains(key) && camera_->controls().count(key) > 0) {
+        std::visit(
+            [&](auto &&v) {
+                controls_.set(key, v);
+            },
+            value);
+    }
+
     return *this;
 }
 
