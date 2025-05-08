@@ -7,76 +7,12 @@
 
 std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
-    ptr->Init(args.cameraId);
-    ptr->SetFps(args.fps).SetRotation(args.rotation).SetResolution(args.width, args.height);
-
-    if (args.gain) {
-        ptr->SetControls(libcamera::controls::ANALOGUE_GAIN_MODE,
-                         libcamera::controls::AnalogueGainModeManual)
-            .SetControls(libcamera::controls::ANALOGUE_GAIN, args.gain);
-    }
-
-    ptr->SetControls(libcamera::controls::SHARPNESS, args.sharpness)
-        .SetControls(libcamera::controls::CONTRAST, args.contrast)
-        .SetControls(libcamera::controls::BRIGHTNESS, args.brightness)
-        .SetControls(libcamera::controls::SATURATION, args.saturation)
-        .SetControls(libcamera::controls::EXPOSURE_VALUE, args.ev)
-        .SetControls(libcamera::controls::EXPOSURE_TIME,
-                     args.shutter.get<std::chrono::microseconds>())
-        .SetControls(libcamera::controls::AE_METERING_MODE, args.ae_metering_mode)
-        .SetControls(libcamera::controls::AE_EXPOSURE_MODE, args.ae_mode)
-        .SetControls(libcamera::controls::AWB_MODE, args.awb_mode)
-        .SetControls(libcamera::controls::COLOUR_GAINS,
-                     libcamera::Span<const float, 2>({args.awb_gain_r, args.awb_gain_b}))
-        .SetControls(libcamera::controls::draft::NOISE_REDUCTION_MODE, args.denoise_mode);
-
-    if (args.af_mode == -1) {
-        if (args.lens_position || args.set_default_lens_position) {
-            args.af_mode = libcamera::controls::AfModeManual;
-        } else {
-            if (ptr->camera_->controls().find(libcamera::controls::AF_MODE) !=
-                    ptr->camera_->controls().end() &&
-                ptr->camera_->controls().count(&libcamera::controls::AfMode) > 0) {
-                args.af_mode =
-                    ptr->camera_->controls().at(&libcamera::controls::AfMode).max().get<int>();
-            }
-        }
-    }
-    ptr->SetControls(libcamera::controls::AF_MODE, args.af_mode)
-        .SetControls(libcamera::controls::AF_RANGE, args.af_range_mode)
-        .SetControls(libcamera::controls::AF_SPEED, args.af_speed_mode);
-
-    if (args.af_window_width != 0 && args.af_window_height != 0) {
-        libcamera::Rectangle sensor_area = ptr->camera_->controls()
-                                               .at(&libcamera::controls::ScalerCrop)
-                                               .max()
-                                               .get<libcamera::Rectangle>();
-        int x = args.af_window_x * sensor_area.width;
-        int y = args.af_window_y * sensor_area.height;
-        int w = args.af_window_width * sensor_area.width;
-        int h = args.af_window_height * sensor_area.height;
-        libcamera::Rectangle afwindows_rectangle[1];
-        afwindows_rectangle[0] = libcamera::Rectangle(x, y, w, h);
-        afwindows_rectangle[0].translateBy(sensor_area.topLeft());
-
-        ptr->SetControls(libcamera::controls::AF_METERING, libcamera::controls::AfMeteringWindows)
-            .SetControls(libcamera::controls::AF_WINDOWS,
-                         libcamera::Span<const libcamera::Rectangle>(afwindows_rectangle));
-    }
-
-    if (args.af_mode == libcamera::controls::AfModeEnum::AfModeAuto) {
-        ptr->SetControls(libcamera::controls::AF_TRIGGER, libcamera::controls::AfTriggerStart);
-    } else if (args.lens_position || args.set_default_lens_position) {
-        float f;
-        if (args.lens_position) {
-            f = args.lens_position.value();
-        } else {
-            f = ptr->camera_->controls().at(&libcamera::controls::LensPosition).def().get<float>();
-        }
-        ptr->SetControls(libcamera::controls::LENS_POSITION, f);
-    }
-
-    ptr->StartCapture();
+    ptr->InitCamera(args.cameraId);
+    ptr->InitControls(args);
+    ptr->SetFps(args.fps)
+        .SetRotation(args.rotation)
+        .SetResolution(args.width, args.height)
+        .StartCapture();
     return ptr;
 }
 
@@ -85,7 +21,17 @@ LibcameraCapturer::LibcameraCapturer(Args args)
       format_(args.format),
       config_(args) {}
 
-void LibcameraCapturer::Init(int cameraId) {
+LibcameraCapturer::~LibcameraCapturer() {
+    camera_->stop();
+    allocator_->free(stream_);
+    allocator_.reset();
+    camera_config_.reset();
+    camera_->release();
+    camera_.reset();
+    cm_->stop();
+}
+
+void LibcameraCapturer::InitCamera(int cameraId) {
     cm_ = std::make_unique<libcamera::CameraManager>();
     int ret = cm_->start();
     if (ret) {
@@ -108,14 +54,82 @@ void LibcameraCapturer::Init(int cameraId) {
     camera_config_ = camera_->generateConfiguration({libcamera::StreamRole::VideoRecording});
 }
 
-LibcameraCapturer::~LibcameraCapturer() {
-    camera_->stop();
-    allocator_->free(stream_);
-    allocator_.reset();
-    camera_config_.reset();
-    camera_->release();
-    camera_.reset();
-    cm_->stop();
+void LibcameraCapturer::InitControls(Args args) {
+    if (args.gain) {
+        SetControls(libcamera::controls::ANALOGUE_GAIN_MODE,
+                    libcamera::controls::AnalogueGainModeManual);
+        controls_.set(libcamera::controls::ANALOGUE_GAIN, args.gain);
+    }
+
+    SetControls(libcamera::controls::SHARPNESS, args.sharpness);
+    SetControls(libcamera::controls::CONTRAST, args.contrast);
+    SetControls(libcamera::controls::BRIGHTNESS, args.brightness);
+    SetControls(libcamera::controls::SATURATION, args.saturation);
+    SetControls(libcamera::controls::EXPOSURE_VALUE, args.ev);
+
+    if (controls_.contains(libcamera::controls::EXPOSURE_TIME)) {
+        controls_.set(libcamera::controls::EXPOSURE_TIME,
+                      args.shutter.get<std::chrono::microseconds>());
+    }
+
+    SetControls(libcamera::controls::AE_METERING_MODE, args.ae_metering_mode);
+    SetControls(libcamera::controls::AE_EXPOSURE_MODE, args.ae_mode);
+    SetControls(libcamera::controls::AWB_MODE, args.awb_mode);
+    SetControls(libcamera::controls::draft::NOISE_REDUCTION_MODE, args.denoise_mode);
+
+    if (!controls_.get(libcamera::controls::ColourGains)) {
+        controls_.set(libcamera::controls::ColourGains,
+                      libcamera::Span<const float, 2>({args.awb_gain_r, args.awb_gain_b}));
+    }
+
+    if (args.af_mode == -1) {
+        if (args.lens_position || args.set_default_lens_position) {
+            args.af_mode = libcamera::controls::AfModeManual;
+        } else {
+            if (camera_->controls().find(libcamera::controls::AF_MODE) !=
+                    camera_->controls().end() &&
+                camera_->controls().count(&libcamera::controls::AfMode) > 0) {
+                args.af_mode =
+                    camera_->controls().at(&libcamera::controls::AfMode).max().get<int>();
+            }
+        }
+    }
+    SetControls(libcamera::controls::AF_MODE, args.af_mode);
+    SetControls(libcamera::controls::AF_RANGE, args.af_range_mode);
+    SetControls(libcamera::controls::AF_SPEED, args.af_speed_mode);
+
+    if (args.af_window_width != 0 && args.af_window_height != 0) {
+        libcamera::Rectangle sensor_area = camera_->controls()
+                                               .at(&libcamera::controls::ScalerCrop)
+                                               .max()
+                                               .get<libcamera::Rectangle>();
+        int x = args.af_window_x * sensor_area.width;
+        int y = args.af_window_y * sensor_area.height;
+        int w = args.af_window_width * sensor_area.width;
+        int h = args.af_window_height * sensor_area.height;
+        libcamera::Rectangle afwindows_rectangle[1];
+        afwindows_rectangle[0] = libcamera::Rectangle(x, y, w, h);
+        afwindows_rectangle[0].translateBy(sensor_area.topLeft());
+
+        SetControls(libcamera::controls::AF_METERING, libcamera::controls::AfMeteringWindows);
+
+        if (controls_.contains(libcamera::controls::AF_WINDOWS)) {
+            controls_.set(libcamera::controls::AF_WINDOWS,
+                          libcamera::Span<const libcamera::Rectangle>(afwindows_rectangle));
+        }
+    }
+
+    if (args.af_mode == libcamera::controls::AfModeEnum::AfModeAuto) {
+        SetControls(libcamera::controls::AF_TRIGGER, libcamera::controls::AfTriggerStart);
+    } else if (args.lens_position || args.set_default_lens_position) {
+        float f;
+        if (args.lens_position) {
+            f = args.lens_position.value();
+        } else {
+            f = camera_->controls().at(&libcamera::controls::LensPosition).def().get<float>();
+        }
+        SetControls(libcamera::controls::LENS_POSITION, f);
+    }
 }
 
 int LibcameraCapturer::fps() const { return fps_; }
@@ -175,15 +189,11 @@ LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     return *this;
 }
 
-LibcameraCapturer &LibcameraCapturer::SetControls(int key, ControlValue value) {
+LibcameraCapturer &LibcameraCapturer::SetControls(int key, int value) {
     std::lock_guard<std::mutex> lock(control_mutex_);
 
     if (controls_.contains(key) && camera_->controls().count(key) > 0) {
-        std::visit(
-            [&](auto &&v) {
-                controls_.set(key, v);
-            },
-            value);
+        controls_.set(key, value);
     }
 
     return *this;

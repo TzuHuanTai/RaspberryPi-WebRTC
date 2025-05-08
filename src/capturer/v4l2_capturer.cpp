@@ -152,15 +152,8 @@ void V4L2Capturer::CaptureImage() {
     }
 }
 
-V4L2Capturer &V4L2Capturer::SetControls(int key, ControlValue value) {
-    std::visit(overloaded{[&](int v) {
-                              V4L2Util::SetExtCtrl(fd_, key, v);
-                          },
-                          [&](auto &&v) {
-                              std::cerr << "Unsupported control value type: " << typeid(v).name()
-                                        << "\n";
-                          }},
-               value);
+V4L2Capturer &V4L2Capturer::SetControls(int key, int value) {
+    V4L2Util::SetExtCtrl(fd_, key, value);
     return *this;
 }
 
