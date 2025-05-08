@@ -44,8 +44,13 @@ jobs:
           wget -q https://downloads.raspberrypi.org/raspios_lite_arm64_latest -O rpi-os.img.xz
           xz -d rpi-os.img.xz
 
+          SECTOR_SIZE=512
+          START_SECTOR=$(fdisk -l rpi-os.img | awk '/^rpi-os.img2/ { print $2 }')
+          OFFSET=$((START_SECTOR * SECTOR_SIZE))
+          echo "OFFSET=$OFFSET" >> $GITHUB_ENV
+
           sudo mkdir boot
-          sudo mount -o loop,offset=4194304 rpi-os.img boot
+          sudo mount -o loop,offset=${{ env.OFFSET }} rpi-os.img boot
 
           cp boot/kernel8.img kernel8.img
           cp boot/bcm2710-rpi-3-b-plus.dtb custom.dtb
