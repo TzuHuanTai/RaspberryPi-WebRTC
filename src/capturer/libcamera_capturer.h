@@ -26,7 +26,7 @@ class LibcameraCapturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
 
-    LibcameraCapturer &SetControls(int key, ControlValue value) override;
+    LibcameraCapturer &SetControls(int key, int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
     void StartCapture() override;
 
@@ -56,7 +56,8 @@ class LibcameraCapturer : public VideoCapturer {
     LibcameraCapturer &SetFps(int fps) override;
     LibcameraCapturer &SetRotation(int angle) override;
 
-    void Init(int deviceId);
+    void InitCamera(int deviceId);
+    void InitControls(Args arg);
     void AllocateBuffer();
     void RequestComplete(libcamera::Request *request);
 };

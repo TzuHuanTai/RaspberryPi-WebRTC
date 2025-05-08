@@ -13,10 +13,6 @@
 
 class VideoCapturer {
   public:
-    using ControlValue =
-        std::variant<int, signed long, float, bool, libcamera::Span<const float, 2UL>,
-                     libcamera::Span<const libcamera::Rectangle>>;
-
     VideoCapturer() = default;
     ~VideoCapturer() {
         raw_buffer_subject_.UnSubscribe();
@@ -35,7 +31,7 @@ class VideoCapturer {
     virtual VideoCapturer &SetResolution(int width, int height) = 0;
     virtual VideoCapturer &SetFps(int fps) = 0;
     virtual VideoCapturer &SetRotation(int angle) = 0;
-    virtual VideoCapturer &SetControls(int key, ControlValue value) = 0;
+    virtual VideoCapturer &SetControls(int key, int value) = 0;
 
     std::shared_ptr<Observable<V4L2Buffer>> AsRawBufferObservable() {
         return raw_buffer_subject_.AsObservable();

@@ -13,9 +13,6 @@
 
 class V4L2Capturer : public VideoCapturer {
   public:
-    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
     static std::shared_ptr<V4L2Capturer> Create(Args args);
 
     V4L2Capturer(Args args);
@@ -28,7 +25,7 @@ class V4L2Capturer : public VideoCapturer {
     Args config() const override;
     void StartCapture() override;
 
-    V4L2Capturer &SetControls(int key, ControlValue value) override;
+    V4L2Capturer &SetControls(int key, int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
   private:

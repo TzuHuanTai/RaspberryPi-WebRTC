@@ -66,7 +66,7 @@ struct Args {
     float sharpness = 1.0f;
     float contrast = 1.0f;
     float brightness = 0.0f;
-    float saturation = 0.0f;
+    float saturation = 1.0f;
     float ev = 0.0f;
     std::string shutter_ = "0";
     TimeVal<std::chrono::microseconds> shutter;
