@@ -47,10 +47,10 @@ jobs:
           SECTOR_SIZE=512
           START_SECTOR=$(fdisk -l rpi-os.img | awk '/^rpi-os.img2/ { print $2 }')
           OFFSET=$((START_SECTOR * SECTOR_SIZE))
-          echo "OFFSET=$OFFSET" >> $GITHUB_ENV
+          echo "Mounting with offset=$OFFSET"
 
           sudo mkdir boot
-          sudo mount -o loop,offset=${{ env.OFFSET }} rpi-os.img boot
+          sudo mount -o loop,offset=$OFFSET rpi-os.img boot
 
           cp boot/kernel8.img kernel8.img
           cp boot/bcm2710-rpi-3-b-plus.dtb custom.dtb

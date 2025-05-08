@@ -33,10 +33,11 @@ jobs:
           SECTOR_SIZE=512
           START_SECTOR=$(fdisk -l rpi-os.img | awk '/^rpi-os.img2/ { print $2 }')
           OFFSET=$((START_SECTOR * SECTOR_SIZE))
-          echo "OFFSET=$OFFSET" >> $GITHUB_ENV
+          OFFSET=$((START_SECTOR * SECTOR_SIZE))
+          echo "Mounting with offset=$OFFSET"
 
           sudo mkdir boot
-          sudo mount -o loop,offset=${{ env.OFFSET }} rpi-os.img boot
+          sudo mount -o loop,offset=$OFFSET rpi-os.img boot
           sudo tar -C boot -cf rpi-rootfs.tar .
           docker import rpi-rootfs.tar rpi-docker-image
           sudo umount boot
