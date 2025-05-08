@@ -54,11 +54,11 @@ jobs:
       run: |
         cd build
         if [ "${{ matrix.build_type }}" == "Release" ]; then
-          FILENAME="pi_webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64.tar.gz"
+          FILENAME="pi-webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64.tar.gz"
         else
-          FILENAME="pi_webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64_debug.tar.gz"
+          FILENAME="pi-webrtc-${{ github.ref_name }}_ubuntu-24.04-arm64_debug.tar.gz"
         fi
-        tar -czvf $FILENAME pi_webrtc
+        tar -czvf $FILENAME pi-webrtc
         echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
     - name: Upload to GitHub

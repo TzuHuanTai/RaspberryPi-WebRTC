@@ -168,17 +168,17 @@ jobs:
             cmake .. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} && \
             make -j$(nproc)
           "
-          sshpass -p "raspberry" scp -P 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null pi@localhost:~/project/build/pi_webrtc .
+          sshpass -p "raspberry" scp -P 5555 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null pi@localhost:~/project/build/pi-webrtc .
 
       - name: Zip binary
         id: zip-binary
         run: |
           if [ "${{ matrix.build_type }}" == "Release" ]; then
-            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}.tar.gz"
+            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}.tar.gz"
           else
-            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}_debug.tar.gz"
+            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}_debug.tar.gz"
           fi
-          sudo tar -czvf $FILENAME pi_webrtc
+          sudo tar -czvf $FILENAME pi-webrtc
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Upload to GitHub

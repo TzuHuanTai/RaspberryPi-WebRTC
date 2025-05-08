@@ -73,8 +73,8 @@ sudo apt install libcamera0.5 libmosquitto1 pulseaudio libavformat59 libswscale6
 
 Prepare the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases).
 ```bash
-wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/latest/download/pi_webrtc-v1.0.6_raspios-bookworm-arm64.tar.gz
-tar -xzf pi_webrtc-v1.0.6_raspios-bookworm-arm64.tar.gz
+wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.0.7_raspios-bookworm-arm64.tar.gz
+tar -xzf pi-webrtc-v1.0.7_raspios-bookworm-arm64.tar.gz
 ```
 
 ### 4. Set Up MQTT
@@ -97,7 +97,7 @@ You can use a free cloud MQTT service like  [HiveMQ](https://www.hivemq.com) or 
 * Set up the MQTT settings on the [picamera-web](https://app.picamera.live), and create a new device with a `UID`.
 * Run the command based on your network settings and `UID` on the Raspberry Pi:
     ```bash
-    ./pi_webrtc \
+    ./pi-webrtc \
         --camera=libcamera:0 \
         --fps=30 \
         --width=1280 \

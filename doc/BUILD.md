@@ -23,7 +23,7 @@
 | -DBUILD_TEST |  | (http_server, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler). Build the test codes |
 | -DCMAKE_BUILD_TYPE | Debug | (Debug, Release) |
 
-Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
+Build on raspberry pi and it'll output a `pi-webrtc` file in `/build`.
 ```bash
 mkdir build
 cd build
@@ -31,7 +31,7 @@ cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
 make -j
 ```
 
-Run `pi_webrtc` to start the service.
+Run `pi-webrtc` to start the service.
 ```bash
-./pi_webrtc --camera=libcamera:0 --fps=30 --width=1280 --height=720 --use-mqtt --mqtt-host=<hostname> --mqtt-port=1883 --mqtt-username=<username> --mqtt-password=<password> --hw-accel
+./pi-webrtc --camera=libcamera:0 --fps=30 --width=1280 --height=720 --use-mqtt --mqtt-host=<hostname> --mqtt-port=1883 --mqtt-username=<username> --mqtt-password=<password> --hw-accel
 ```

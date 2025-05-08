@@ -113,11 +113,11 @@ jobs:
         run: |
           cd build
           if [ "${{ matrix.build_type }}" == "Release" ]; then
-            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}.tar.gz"
+            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}.tar.gz"
           else
-            FILENAME="pi_webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}_debug.tar.gz"
+            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}_debug.tar.gz"
           fi
-          sudo tar -czvf $FILENAME pi_webrtc
+          sudo tar -czvf $FILENAME pi-webrtc
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Upload to GitHub

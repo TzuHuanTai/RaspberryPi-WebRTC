@@ -21,8 +21,8 @@ Usage:
         python yolo_cam.py
 
     5. Test the video output:
-        /path/to/pi_webrtc --camera=v4l2:16 --width=1920 --height=1080 ...   # View original camera feed
-        /path/to/pi_webrtc --camera=v4l2:17 --width=1920 --height=1080 ...   # View YOLO-processed feed
+        /path/to/pi-webrtc --camera=v4l2:16 --width=1920 --height=1080 ...   # View original camera feed
+        /path/to/pi-webrtc --camera=v4l2:17 --width=1920 --height=1080 ...   # View YOLO-processed feed
 
 Requirements:
     - Raspberry Pi with Camera Module
