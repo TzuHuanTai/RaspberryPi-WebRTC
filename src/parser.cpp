@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "rtc/rtc_peer.h"
 
 #include <algorithm>
 #include <boost/program_options.hpp>
@@ -12,6 +13,12 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"mjpeg", V4L2_PIX_FMT_MJPEG},
     {"h264", V4L2_PIX_FMT_H264},
     {"i420", V4L2_PIX_FMT_YUV420},
+};
+
+static const std::unordered_map<std::string, int> ipc_mode_table = {
+    {"none", 0},
+    {"lossy", ChannelMode::Lossy},
+    {"reliable", ChannelMode::Reliable},
 };
 
 static const std::unordered_map<std::string, int> ae_metering_table = {
@@ -140,6 +147,11 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("no-adaptive", bpo::bool_switch(&args.no_adaptive)->default_value(args.no_adaptive),
             "Disable WebRTC's adaptive resolution scaling. When enabled, "
             "the output resolution will remain fixed regardless of network or device conditions.")
+        ("ipc-channel-mode", bpo::value<std::string>(&args.ipc_channel)->default_value(args.ipc_channel),
+            "Set the WebRTC DataChannel mode for IPC relay: none, lossy, reliable.")
+        ("socket-path", bpo::value<std::string>(&args.socket_path)->default_value(args.socket_path),
+            "Specifies the Unix domain socket path used to bridge messages between "
+            "the WebRTC DataChannel and local IPC applications.")
         ("stun-url", bpo::value<std::string>(&args.stun_url)->default_value(args.stun_url),
             "Set the STUN server URL for WebRTC. e.g. `stun:xxx.xxx.xxx`.")
         ("turn-url", bpo::value<std::string>(&args.turn_url)->default_value(args.turn_url),
@@ -230,6 +242,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     args.af_mode = ParseEnum(afMode_table, args.autofocus_mode);
     args.af_range_mode = ParseEnum(afRange_table, args.af_range);
     args.af_speed_mode = ParseEnum(afSpeed_table, args.af_speed);
+    args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);
 
     if (sscanf(args.af_window.c_str(), "%f,%f,%f,%f", &args.af_window_x, &args.af_window_y,
                &args.af_window_width, &args.af_window_height) != 4) {

@@ -33,12 +33,14 @@ class Conductor {
 
     void InitializePeerConnectionFactory();
     void InitializeTracks();
+    void InitializeIpcServer();
+
+    void SetupIpcDataChannel(rtc::scoped_refptr<RtcPeer> peer, ChannelMode mode);
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
-    void OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
-    void OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
-    void SendMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
-    void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string &path);
-    void OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg);
+    void OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg);
+    void OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, const std::string &path);
+    void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, const std::string &path);
+    void OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
@@ -50,6 +52,8 @@ class Conductor {
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
     rtc::scoped_refptr<ScaleTrackSource> video_track_source_;
+
+    std::shared_ptr<UnixSocketServer> ipc_server_;
 };
 
 #endif // CONDUCTOR_H_

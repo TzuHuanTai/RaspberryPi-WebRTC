@@ -102,6 +102,11 @@ struct Args {
     std::string record_path = "";
     int file_duration = 60;
 
+    // ipc
+    std::string ipc_channel = "none";
+    int ipc_channel_mode = 0;
+    std::string socket_path = "/tmp/pi-webrtc-ipc.sock";
+
     // webrtc
     int jpeg_quality = 30;
     int peer_timeout = 10;

@@ -20,7 +20,7 @@
 
 | <div style="width:200px">Command line</div> | Default | Valid values |
 | --------------------------------------------| ----------- | ------------ |
-| -DBUILD_TEST |  | (http_server, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler). Build the test codes |
+| -DBUILD_TEST |  | (http_server, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler, unix-socket). Build the test codes |
 | -DCMAKE_BUILD_TYPE | Debug | (Debug, Release) |
 
 Build on raspberry pi and it'll output a `pi-webrtc` file in `/build`.
