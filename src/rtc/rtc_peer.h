@@ -12,11 +12,24 @@
 #include "common/logging.h"
 #include "rtc/data_channel_subject.h"
 
-enum ChannelLabel {
+enum ChannelMode {
     Command,
     Lossy,
     Reliable
 };
+
+static inline std::string ChannelModeToString(ChannelMode id) {
+    switch (id) {
+        case Command:
+            return "cmd_channel";
+        case Lossy:
+            return "_lossy";
+        case Reliable:
+            return "_reliable";
+        default:
+            return "unknown";
+    }
+}
 
 struct PeerConfig : public webrtc::PeerConnectionInterface::RTCConfiguration {
     int timeout = 10;
@@ -84,8 +97,6 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
                 public webrtc::CreateSessionDescriptionObserver,
                 public SignalingMessageObserver {
   public:
-    using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>, std::string)>;
-
     static rtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
 
     RtcPeer(PeerConfig config);
@@ -97,34 +108,15 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    void CreateDataChannel(ChannelLabel label = ChannelLabel::Command);
+    std::shared_ptr<DataChannelSubject> CreateDataChannel(ChannelMode mode);
     std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
-    void OnSnapshot(OnCommand func);
-    void OnMetadata(OnCommand func);
-    void OnRecord(OnCommand func);
-    void OnCameraOption(OnCommand func);
 
     // SignalingMessageObserver implementation.
     void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
     void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
                       const std::string &candidate) override;
 
-    static std::string LabelToString(ChannelLabel label) {
-        switch (label) {
-            case Command:
-                return "cmd_channel";
-            case Lossy:
-                return "_lossy";
-            case Reliable:
-                return "_reliable";
-            default:
-                return "unknown";
-        }
-    }
-
   private:
-    void SubscribeCommandChannel(CommandType type, OnCommand func);
-
     // PeerConnectionObserver implementation.
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
@@ -154,7 +146,9 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;
     std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
 
-    std::shared_ptr<DataChannelSubject> data_channel_subject_;
+    std::shared_ptr<DataChannelSubject> cmd_channel_;
+    std::shared_ptr<DataChannelSubject> lossy_channel_;
+    std::shared_ptr<DataChannelSubject> reliable_channel_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };

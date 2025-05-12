@@ -60,6 +60,7 @@ add_subdirectory(src/codecs/v4l2)
 add_subdirectory(src/common)
 add_subdirectory(src/recorder)
 add_subdirectory(src/rtc)
+add_subdirectory(src/ipc)
 add_subdirectory(src/signaling)
 add_subdirectory(src/track)
 
@@ -78,6 +79,9 @@ elseif(BUILD_TEST STREQUAL "recorder")
     target_link_libraries(test-recorder
         recorder
     )
+elseif(BUILD_TEST STREQUAL "unix-socket")
+    add_executable(test_unix_socket test/test_unix_socket_server.cpp)
+    target_link_libraries(test_unix_socket ipc)
 elseif(BUILD_TEST STREQUAL "mqtt")
     add_executable(test-mqtt test/test_mqtt.cpp)
     target_link_libraries(test-mqtt

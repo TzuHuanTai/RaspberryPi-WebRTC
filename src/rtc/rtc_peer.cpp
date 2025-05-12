@@ -44,7 +44,16 @@ void RtcPeer::Terminate() {
         peer_connection_ = nullptr;
     }
     modified_desc_.release();
-    data_channel_subject_.reset();
+
+    if (cmd_channel_) {
+        cmd_channel_->Terminate();
+    }
+    if (lossy_channel_) {
+        lossy_channel_->Terminate();
+    }
+    if (reliable_channel_) {
+        reliable_channel_->Terminate();
+    }
 }
 
 std::string RtcPeer::GetId() const { return id_; }
@@ -61,35 +70,44 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
 
-void RtcPeer::CreateDataChannel(ChannelLabel label) {
+std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel(ChannelMode mode) {
     struct webrtc::DataChannelInit init;
     init.ordered = true;
-    init.reliable = true;
-    init.id = static_cast<int>(label);
+    init.negotiated = true;
+    init.id = static_cast<int>(mode);
+    auto label = id_ + ChannelModeToString(mode);
 
-    if (label == ChannelLabel::Lossy) {
+    if (mode == ChannelMode::Lossy) {
         init.maxRetransmits = 0;
     }
 
-    auto result = peer_connection_->CreateDataChannelOrError(RtcPeer::LabelToString(label), &init);
+    auto result = peer_connection_->CreateDataChannelOrError(label, &init);
 
     if (!result.ok()) {
         ERROR_PRINT("Failed to create data channel.");
-        return;
+        return nullptr;
     }
 
-    if (label == ChannelLabel::Command) {
-        DEBUG_PRINT("The data channel is established successfully.");
-        data_channel_subject_ = std::make_shared<DataChannelSubject>();
-        data_channel_subject_->SetDataChannel(result.MoveValue());
+    auto channel = DataChannelSubject::Create(result.MoveValue());
 
-        auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-        conn_observer->Subscribe([this](std::string message) {
+    if (mode == ChannelMode::Command) {
+        DEBUG_PRINT("The Command data channel is established successfully.");
+        cmd_channel_ = channel;
+
+        cmd_channel_->RegisterHandler(CommandType::CONNECT, [this](std::string message) {
             if (message == "false") { // todo: use enum or so.
                 peer_connection_->Close();
             }
         });
+    } else if (mode == ChannelMode::Lossy) {
+        DEBUG_PRINT("The Lossy data channel is established successfully.");
+        lossy_channel_ = channel;
+    } else if (mode == ChannelMode::Reliable) {
+        DEBUG_PRINT("The Reliable data channel is established successfully.");
+        reliable_channel_ = channel;
     }
+
+    return channel;
 }
 
 std::string RtcPeer::RestartIce(std::string ice_ufrag, std::string ice_pwd) {
@@ -107,29 +125,6 @@ std::string RtcPeer::RestartIce(std::string ice_ufrag, std::string ice_pwd) {
     peer_connection_->local_description()->ToString(&local_sdp);
 
     return local_sdp;
-}
-
-void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::SNAPSHOT, func); }
-
-void RtcPeer::OnMetadata(OnCommand func) { SubscribeCommandChannel(CommandType::METADATA, func); }
-
-void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORDING, func); }
-
-void RtcPeer::OnCameraOption(OnCommand func) {
-    SubscribeCommandChannel(CommandType::CAMERA_OPTION, func);
-}
-
-void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
-    if (!data_channel_subject_) {
-        ERROR_PRINT("Data channel is not created!");
-        return;
-    }
-    auto observer = data_channel_subject_->AsObservable(type);
-    observer->Subscribe([this, func](std::string message) {
-        if (!message.empty()) {
-            func(data_channel_subject_, message);
-        }
-    });
 }
 
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
@@ -169,7 +164,6 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         is_connected_.store(false);
         is_complete_.store(true);
-        data_channel_subject_.reset();
     }
 }
 

@@ -31,11 +31,23 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
     auto ptr = std::make_shared<Conductor>(args);
     ptr->InitializePeerConnectionFactory();
     ptr->InitializeTracks();
+    ptr->InitializeIpcServer();
     return ptr;
 }
 
 Conductor::Conductor(Args args)
     : args(args) {}
+
+Conductor::~Conductor() {
+    if (args.ipc_channel_mode > 0) {
+        ipc_server_->Stop();
+    }
+    audio_track_ = nullptr;
+    video_track_ = nullptr;
+    video_capture_source_ = nullptr;
+    peer_connection_factory_ = nullptr;
+    rtc::CleanupSSL();
+}
 
 Args Conductor::config() const { return args; }
 
@@ -125,31 +137,38 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     peer->SetPeer(result.MoveValue());
 
-    if (config.is_sfu_peer) {
-        if (!config.is_publisher) {
-            return peer;
-        }
-
-        peer->CreateDataChannel(ChannelLabel::Lossy);
-        peer->CreateDataChannel(ChannelLabel::Reliable);
+    if (config.is_sfu_peer && !config.is_publisher) {
+        return peer;
     }
 
-    peer->CreateDataChannel();
-    peer->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        OnSnapshot(datachannel, msg);
-    });
+    if (config.is_sfu_peer || args.ipc_channel_mode == ChannelMode::Lossy) {
+        SetupIpcDataChannel(peer, ChannelMode::Lossy);
+    }
+    if (config.is_sfu_peer || args.ipc_channel_mode == ChannelMode::Reliable) {
+        SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    }
 
-    peer->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        OnMetadata(datachannel, msg);
-    });
-
-    peer->OnRecord([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        OnRecord(datachannel, msg);
-    });
-
-    peer->OnCameraOption([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        OnCameraOption(datachannel, msg);
-    });
+    auto cmd_channel = peer->CreateDataChannel(ChannelMode::Command);
+    cmd_channel->RegisterHandler(
+        CommandType::SNAPSHOT,
+        [this](std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg) {
+            OnSnapshot(datachannel, msg);
+        });
+    cmd_channel->RegisterHandler(
+        CommandType::METADATA,
+        [this](std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg) {
+            OnMetadata(datachannel, msg);
+        });
+    cmd_channel->RegisterHandler(
+        CommandType::RECORDING,
+        [this](std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg) {
+            OnRecord(datachannel, msg);
+        });
+    cmd_channel->RegisterHandler(
+        CommandType::CAMERA_OPTION,
+        [this](std::shared_ptr<DataChannelSubject> datachannel, const std::string &msg) {
+            OnCameraOption(datachannel, msg);
+        });
 
     AddTracks(peer->GetPeer());
 
@@ -157,7 +176,8 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
     return peer;
 }
 
-void Conductor::OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+void Conductor::OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel,
+                           const std::string &msg) {
     try {
         std::stringstream ss(msg);
         int num;
@@ -173,7 +193,8 @@ void Conductor::OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std:
     }
 }
 
-void Conductor::OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+void Conductor::OnMetadata(std::shared_ptr<DataChannelSubject> datachannel,
+                           const std::string &msg) {
     DEBUG_PRINT("OnMetadata msg: %s", msg.c_str());
     json jsonObj = json::parse(msg.c_str());
 
@@ -188,32 +209,23 @@ void Conductor::OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std:
     if ((cmd == MetadataCommand::LATEST) || (cmd == MetadataCommand::OLDER && message.empty())) {
         auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
         DEBUG_PRINT("LATEST: %s", latest_mp4_path.c_str());
-        SendMetadata(datachannel, latest_mp4_path);
+        MetaMessage metadata(latest_mp4_path);
+        datachannel->Send(metadata);
     } else if (cmd == MetadataCommand::OLDER) {
         auto paths = Utils::FindOlderFiles(message, 8);
         for (auto &path : paths) {
             DEBUG_PRINT("OLDER: %s", path.c_str());
-            SendMetadata(datachannel, path);
+            MetaMessage metadata(path);
+            datachannel->Send(metadata);
         }
     } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
         auto path = Utils::FindFilesFromDatetime(args.record_path, message);
-        SendMetadata(datachannel, path);
-    }
-}
-
-void Conductor::SendMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &path) {
-    if (path.empty()) {
-        return;
-    }
-    try {
         MetaMessage metadata(path);
         datachannel->Send(metadata);
-    } catch (const std::exception &e) {
-        ERROR_PRINT("%s", e.what());
     }
 }
 
-void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string &path) {
+void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, const std::string &path) {
     if (args.record_path.empty()) {
         return;
     }
@@ -230,7 +242,8 @@ void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::s
     }
 }
 
-void Conductor::OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+void Conductor::OnCameraOption(std::shared_ptr<DataChannelSubject> datachannel,
+                               const std::string &msg) {
     DEBUG_PRINT("OnCameraControl msg: %s", msg.c_str());
     json jsonObj = json::parse(msg.c_str());
 
@@ -298,10 +311,26 @@ void Conductor::InitializePeerConnectionFactory() {
     peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
 }
 
-Conductor::~Conductor() {
-    audio_track_ = nullptr;
-    video_track_ = nullptr;
-    video_capture_source_ = nullptr;
-    peer_connection_factory_ = nullptr;
-    rtc::CleanupSSL();
+void Conductor::InitializeIpcServer() {
+    if (args.ipc_channel_mode > 0) {
+        ipc_server_ = UnixSocketServer::Create(args.socket_path);
+        ipc_server_->Start();
+    }
+}
+
+void Conductor::SetupIpcDataChannel(rtc::scoped_refptr<RtcPeer> peer, ChannelMode mode) {
+    auto channel = peer->CreateDataChannel(mode);
+    if (channel && ipc_server_) {
+        ipc_server_->RegisterPeerCallback(channel->label(), [channel](const std::string &msg) {
+            channel->Send(msg);
+        });
+
+        channel->OnClosed([this](const std::string &label) {
+            ipc_server_->UnregisterPeerCallback(label);
+        });
+
+        channel->RegisterHandler(CommandType::CUSTOM, [this](const std::string &msg) {
+            ipc_server_->Write(msg);
+        });
+    }
 }
