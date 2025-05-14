@@ -103,8 +103,7 @@ struct Args {
     int file_duration = 60;
 
     // ipc
-    std::string ipc_channel = "none";
-    int ipc_channel_mode = -1;
+    bool enable_ipc = false;
     std::string socket_path = "/tmp/pi-webrtc-ipc.sock";
 
     // webrtc
