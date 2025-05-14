@@ -39,7 +39,7 @@ Conductor::Conductor(Args args)
     : args(args) {}
 
 Conductor::~Conductor() {
-    if (args.ipc_channel_mode > 0) {
+    if (ipc_server_) {
         ipc_server_->Stop();
     }
     audio_track_ = nullptr;
@@ -143,9 +143,8 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
         }
         peer->CreateDataChannel(ChannelMode::Lossy);
         peer->CreateDataChannel(ChannelMode::Reliable);
-    } else if (args.ipc_channel_mode == ChannelMode::Lossy) {
+    } else if (args.enable_ipc) {
         SetupIpcDataChannel(peer, ChannelMode::Lossy);
-    } else if (args.ipc_channel_mode == ChannelMode::Reliable) {
         SetupIpcDataChannel(peer, ChannelMode::Reliable);
     }
 
@@ -313,7 +312,7 @@ void Conductor::InitializePeerConnectionFactory() {
 }
 
 void Conductor::InitializeIpcServer() {
-    if (args.ipc_channel_mode > 0) {
+    if (args.enable_ipc) {
         ipc_server_ = UnixSocketServer::Create(args.socket_path);
         ipc_server_->Start();
     }
