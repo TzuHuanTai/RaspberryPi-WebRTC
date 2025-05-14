@@ -104,7 +104,7 @@ struct Args {
 
     // ipc
     std::string ipc_channel = "none";
-    int ipc_channel_mode = 0;
+    int ipc_channel_mode = -1;
     std::string socket_path = "/tmp/pi-webrtc-ipc.sock";
 
     // webrtc

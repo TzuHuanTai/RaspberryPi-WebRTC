@@ -16,7 +16,7 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
 };
 
 static const std::unordered_map<std::string, int> ipc_mode_table = {
-    {"none", 0},
+    {"none", -1},
     {"lossy", ChannelMode::Lossy},
     {"reliable", ChannelMode::Reliable},
 };

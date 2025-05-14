@@ -73,14 +73,15 @@ rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return 
 std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel(ChannelMode mode) {
     struct webrtc::DataChannelInit init;
     init.ordered = true;
-    init.negotiated = true;
     init.id = static_cast<int>(mode);
-    auto label = id_ + ChannelModeToString(mode);
-
+    if (!config_.is_sfu_peer) {
+        init.negotiated = true;
+    }
     if (mode == ChannelMode::Lossy) {
         init.maxRetransmits = 0;
     }
 
+    auto label = ChannelModeToString(mode);
     auto result = peer_connection_->CreateDataChannelOrError(label, &init);
 
     if (!result.ok()) {
