@@ -137,14 +137,15 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     peer->SetPeer(result.MoveValue());
 
-    if (config.is_sfu_peer && !config.is_publisher) {
-        return peer;
-    }
-
-    if (config.is_sfu_peer || args.ipc_channel_mode == ChannelMode::Lossy) {
+    if (config.is_sfu_peer) {
+        if (!config.is_publisher) {
+            return peer;
+        }
+        peer->CreateDataChannel(ChannelMode::Lossy);
+        peer->CreateDataChannel(ChannelMode::Reliable);
+    } else if (args.ipc_channel_mode == ChannelMode::Lossy) {
         SetupIpcDataChannel(peer, ChannelMode::Lossy);
-    }
-    if (config.is_sfu_peer || args.ipc_channel_mode == ChannelMode::Reliable) {
+    } else if (args.ipc_channel_mode == ChannelMode::Reliable) {
         SetupIpcDataChannel(peer, ChannelMode::Reliable);
     }
 

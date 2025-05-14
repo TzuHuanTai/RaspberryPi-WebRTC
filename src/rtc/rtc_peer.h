@@ -21,7 +21,7 @@ enum ChannelMode {
 static inline std::string ChannelModeToString(ChannelMode id) {
     switch (id) {
         case Command:
-            return "cmd_channel";
+            return "command";
         case Lossy:
             return "_lossy";
         case Reliable:

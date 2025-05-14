@@ -26,9 +26,6 @@ void DataChannelSubject::OnStateChange() {
     webrtc::DataChannelInterface::DataState state = data_channel_->state();
     DEBUG_PRINT("[%s] OnStateChange => %s", data_channel_->label().c_str(),
                 webrtc::DataChannelInterface::DataStateString(state));
-    if (state == webrtc::DataChannelInterface::DataState::kClosed) {
-        on_closed_func_(label());
-    }
 }
 
 void DataChannelSubject::Terminate() {
