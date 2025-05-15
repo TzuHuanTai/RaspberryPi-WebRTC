@@ -297,6 +297,13 @@ void Conductor::InitializePeerConnectionFactory() {
     }
     media_dependencies.adm =
         webrtc::AudioDeviceModule::Create(audio_layer, dependencies.task_queue_factory.get());
+    if (media_dependencies.adm->Init() != 0) {
+        ERROR_PRINT("Failed to initialize AudioDeviceModule.\n"
+                    "If your system does not have PulseAudio installed, please either:\n"
+                    "   - Install PulseAudio, or\n"
+                    "   - Run with `--no-audio` to disable audio support.\n");
+        std::exit(EXIT_FAILURE);
+    }
     media_dependencies.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
