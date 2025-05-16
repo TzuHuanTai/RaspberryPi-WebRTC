@@ -5,6 +5,7 @@
 
 V4L2Codec::V4L2Codec()
     : fd_(0),
+      dst_fmt_(0),
       abort_(false) {}
 
 V4L2Codec::~V4L2Codec() {
@@ -48,6 +49,7 @@ bool V4L2Codec::PrepareBuffer(V4L2BufferGroup *gbuffer, int width, int height, u
             output_buffer_index_.push(i);
         }
     } else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+        dst_fmt_ = pix_fmt;
         if (!V4L2Util::QueueBuffers(fd_, gbuffer)) {
             return false;
         }
@@ -57,6 +59,11 @@ bool V4L2Codec::PrepareBuffer(V4L2BufferGroup *gbuffer, int width, int height, u
 }
 
 void V4L2Codec::Start() {
+    if (dst_fmt_ == 0) {
+        ERROR_PRINT("The target format is not set.");
+        exit(EXIT_FAILURE);
+    }
+
     abort_ = false;
     worker_ = std::make_unique<Worker>(file_name_ + std::to_string(pthread_self()), [this]() {
         CaptureBuffer();
@@ -137,11 +144,9 @@ bool V4L2Codec::CaptureBuffer() {
             return false;
         }
 
-        V4L2Buffer buffer;
-        buffer.start = capture_.buffers[buf.index].start;
-        buffer.length = buf.m.planes[0].bytesused;
-        buffer.dmafd = capture_.buffers[buf.index].dmafd;
-        buffer.flags = buf.flags;
+        auto buffer = V4L2Buffer::FromCapturedPlane(
+            capture_.buffers[buf.index].start, buf.m.planes[0].bytesused,
+            capture_.buffers[buf.index].dmafd, buf.flags, dst_fmt_);
 
         if (abort_) {
             return false;

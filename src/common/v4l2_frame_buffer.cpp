@@ -12,14 +12,14 @@ rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int heigh
 }
 
 rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int height,
-                                                            V4L2Buffer buffer, uint32_t format) {
-    return rtc::make_ref_counted<V4L2FrameBuffer>(width, height, buffer, format);
+                                                            V4L2Buffer buffer) {
+    return rtc::make_ref_counted<V4L2FrameBuffer>(width, height, buffer);
 }
 
-V4L2FrameBuffer::V4L2FrameBuffer(int width, int height, V4L2Buffer buffer, uint32_t format)
+V4L2FrameBuffer::V4L2FrameBuffer(int width, int height, V4L2Buffer buffer)
     : width_(width),
       height_(height),
-      format_(format),
+      format_(buffer.pix_fmt),
       size_(buffer.length),
       flags_(buffer.flags),
       timestamp_(buffer.timestamp),
@@ -57,20 +57,20 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2FrameBuffer::ToI420() {
     rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
     i420_buffer->InitializeData();
 
-    if (format_ == V4L2_PIX_FMT_MJPEG) {
+    if (format_ == V4L2_PIX_FMT_YUV420) {
+        memcpy(i420_buffer->MutableDataY(),
+               is_buffer_copied ? data_.get() : (uint8_t *)buffer_.start, size_);
+    } else if (format_ == V4L2_PIX_FMT_H264) {
+        // use hw decoded frame from track.
+    } else {
         if (libyuv::ConvertToI420(is_buffer_copied ? data_.get() : (uint8_t *)buffer_.start, size_,
                                   i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
                                   i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
                                   i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
                                   0, 0, width_, height_, width_, height_, libyuv::kRotate0,
-                                  libyuv::FOURCC_MJPG) < 0) {
+                                  format_) < 0) {
             ERROR_PRINT("Mjpeg ConvertToI420 Failed");
         }
-    } else if (format_ == V4L2_PIX_FMT_YUV420) {
-        memcpy(i420_buffer->MutableDataY(),
-               is_buffer_copied ? data_.get() : (uint8_t *)buffer_.start, size_);
-    } else if (format_ == V4L2_PIX_FMT_H264) {
-        // use hw decoded frame from track.
     }
 
     return i420_buffer;

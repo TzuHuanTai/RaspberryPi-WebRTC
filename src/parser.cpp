@@ -13,6 +13,7 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"mjpeg", V4L2_PIX_FMT_MJPEG},
     {"h264", V4L2_PIX_FMT_H264},
     {"i420", V4L2_PIX_FMT_YUV420},
+    {"yuyv", V4L2_PIX_FMT_YUYV},
 };
 
 static const std::unordered_map<std::string, int> ae_metering_table = {
@@ -79,7 +80,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Specify the camera using V4L2 or Libcamera. "
             "e.g. \"libcamera:0\" for Libcamera, \"v4l2:0\" for V4L2 at `/dev/video0`.")
         ("v4l2-format", bpo::value<std::string>(&args.v4l2_format)->default_value(args.v4l2_format),
-            "The input format (`i420`, `mjpeg`, `h264`) of the V4L2 camera.")
+            "The input format (`i420`, `yuyv`, `mjpeg`, `h264`) of the V4L2 camera.")
         ("uid", bpo::value<std::string>(&args.uid)->default_value(args.uid),
             "The unique id to identify the device.")
         ("fps", bpo::value<int>(&args.fps)->default_value(args.fps), "Specify the camera frames per second.")
@@ -278,6 +279,7 @@ void Parser::ParseDevice(Args &args) {
     } else if (prefix == "v4l2") {
         args.format = ParseEnum(v4l2_fmt_table, args.v4l2_format);
         std::cout << "Using V4L2, ID: " << args.cameraId << std::endl;
+        std::cout << "Using V4L2, format: " << args.v4l2_format << std::endl;
     } else {
         throw std::runtime_error("Unknown device format: " + prefix);
     }

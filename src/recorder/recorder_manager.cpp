@@ -108,26 +108,26 @@ RecorderManager::RecorderManager(Args config)
       elapsed_time_(0.0) {}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
-    video_observer = video_src->AsRawBufferObservable();
-    video_observer->Subscribe([this](V4L2Buffer buffer) {
+    video_observer = video_src->AsFrameBufferObservable();
+    video_observer->Subscribe([this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
         // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && ((buffer.flags & V4L2_BUF_FLAG_KEYFRAME) ||
+        if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
                                     video_src_->format() != V4L2_PIX_FMT_H264)) {
             Start();
-            last_created_time_ = buffer.timestamp;
+            last_created_time_ = buffer->timestamp();
         }
 
         // restart to write in the new file.
-        if (elapsed_time_ >= config.file_duration && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-            last_created_time_ = buffer.timestamp;
+        if (elapsed_time_ >= config.file_duration) {
+            last_created_time_ = buffer->timestamp();
             Stop();
             Start();
         }
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
-            elapsed_time_ = (buffer.timestamp.tv_sec - last_created_time_.tv_sec) +
-                            (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
+            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
+                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
 

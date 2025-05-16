@@ -42,7 +42,7 @@ void V4L2Decoder::HandleEvent() {
                 DEBUG_PRINT("Source changed!");
                 V4L2Util::StreamOff(fd_, capture_.type);
                 V4L2Util::DeallocateBuffer(fd_, &capture_);
-                V4L2Util::SetFormat(fd_, &capture_, 0, 0, 0);
+                V4L2Util::SetFormat(fd_, &capture_, 0, 0, capture_format_);
                 V4L2Util::AllocateBuffer(fd_, &capture_, BUFFER_NUM);
                 V4L2Util::StreamOn(fd_, capture_.type);
                 break;

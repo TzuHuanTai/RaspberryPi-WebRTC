@@ -50,7 +50,6 @@ class LibcameraCapturer : public VideoCapturer {
     std::map<int, std::pair<void *, unsigned int>> mapped_buffers_;
 
     rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
-    void NextBuffer(V4L2Buffer &raw_buffer);
 
     LibcameraCapturer &SetResolution(int width, int height) override;
     LibcameraCapturer &SetFps(int fps) override;

@@ -84,7 +84,7 @@ void AudioRecorder::Encode() {
     av_packet_free(&pkt);
 }
 
-void AudioRecorder::OnBuffer(PaBuffer &buffer) {
+void AudioRecorder::OnBuffer(PaBuffer buffer) {
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 
@@ -124,7 +124,7 @@ bool AudioRecorder::ConsumeBuffer() {
     return true;
 }
 
-void AudioRecorder::PreStart() {
+void AudioRecorder::OnStart() {
     frame_count = 0;
     fifo_buffer.reset();
 }
