@@ -140,7 +140,7 @@ bool V4L2Util::SetFps(int fd, v4l2_buf_type type, int fps) {
 }
 
 bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height,
-                         uint32_t pixel_format) {
+                         uint32_t &pixel_format) {
     v4l2_format fmt = {};
     fmt.type = gbuffer->type;
     ioctl(fd, VIDIOC_G_FMT, &fmt);
@@ -164,6 +164,8 @@ bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height
     DEBUG_PRINT("fd(%d) latest format: %s(%dx%d)", gbuffer->fd,
                 V4L2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(), fmt.fmt.pix_mp.width,
                 fmt.fmt.pix_mp.height);
+    // use the  return format
+    pixel_format = fmt.fmt.pix_mp.pixelformat;
 
     if (fmt.fmt.pix_mp.width != width || fmt.fmt.pix_mp.height != height) {
         ERROR_PRINT("fd(%d) input size (%dx%d) doesn't match driver's output size (%dx%d): %s", fd,

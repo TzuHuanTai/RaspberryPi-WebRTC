@@ -56,8 +56,8 @@ class AudioRecorder : public Recorder<PaBuffer> {
     static std::unique_ptr<AudioRecorder> Create(Args config);
     AudioRecorder(Args config);
     ~AudioRecorder();
-    void OnBuffer(PaBuffer &buffer) override;
-    void PreStart() override;
+    void OnBuffer(PaBuffer buffer) override;
+    void OnStart() override;
 
   private:
     int sample_rate;

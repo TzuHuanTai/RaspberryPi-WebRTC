@@ -41,9 +41,7 @@ class V4L2Capturer : public VideoCapturer {
     V4L2BufferGroup capture_;
     std::unique_ptr<Worker> worker_;
     std::unique_ptr<V4L2Decoder> decoder_;
-
     rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
-    void NextBuffer(V4L2Buffer &raw_buffer);
 
     V4L2Capturer &SetResolution(int width, int height) override;
     V4L2Capturer &SetFps(int fps) override;
@@ -54,6 +52,8 @@ class V4L2Capturer : public VideoCapturer {
     void CaptureImage();
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
+    void NextBuffer(V4L2Buffer &buffer);
+    void HandleDecodedBuffer(V4L2Buffer &buffer);
 };
 
 #endif

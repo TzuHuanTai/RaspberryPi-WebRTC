@@ -10,7 +10,7 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      abort(true) {}
+      abort_(true) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     frame_rate = {.num = (int)config.fps, .den = 1};
@@ -25,27 +25,39 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(V4L2Buffer &buffer) {
+void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     if (frame_buffer_queue.size() < 8) {
-        rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer(
-            V4L2FrameBuffer::Create(config.width, config.height, buffer, config.format));
         frame_buffer->CopyBufferData();
         frame_buffer_queue.push(frame_buffer);
     }
 }
 
-void VideoRecorder::PostStop() { abort = true; }
+void VideoRecorder::OnStop() {
+    // Wait P-frames are all consumed until I-frame appear while the video is h264.
+    auto frame = frame_buffer_queue.front();
+    while (frame.has_value() && (frame.value()->format() == V4L2_PIX_FMT_H264 &&
+                                 (frame.value()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0)) {
+        ConsumeBuffer();
+    }
+
+    abort_ = true;
+
+    {
+        std::lock_guard<std::mutex> lock(encoder_mtx_);
+        ReleaseEncoder();
+    }
+}
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
-void VideoRecorder::OnEncoded(V4L2Buffer &buffer) {
+void VideoRecorder::OnEncoded(uint8_t *start, unsigned int length, timeval timestamp) {
     AVPacket *pkt = av_packet_alloc();
-    pkt->data = static_cast<uint8_t *>(buffer.start);
-    pkt->size = buffer.length;
+    pkt->data = start;
+    pkt->size = length;
     pkt->stream_index = st->index;
 
-    double elapsed_time = (buffer.timestamp.tv_sec - base_time_.tv_sec) +
-                          (buffer.timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
+    double elapsed_time = (timestamp.tv_sec - base_time_.tv_sec) +
+                          (timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
     pkt->pts = pkt->dts =
         static_cast<int64_t>(elapsed_time * st->time_base.den / st->time_base.num);
 
@@ -64,12 +76,13 @@ bool VideoRecorder::ConsumeBuffer() {
 
     auto frame_buffer = item.value();
 
-    if (abort.load() && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
-        abort.store(false);
+    if (abort_) {
+        abort_ = false;
         SetBaseTimestamp(frame_buffer->timestamp());
     }
 
-    if (!abort.load()) {
+    if (!abort_) {
+        std::lock_guard<std::mutex> lock(encoder_mtx_);
         Encode(frame_buffer);
     }
 

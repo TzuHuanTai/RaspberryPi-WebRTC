@@ -17,12 +17,18 @@ int main(int argc, char *argv[]) {
     int images_nb = 0;
     int record_sec = 10;
     Args args{
-        .fps = 30, .width = 1280, .height = 960, .hw_accel = true, .format = V4L2_PIX_FMT_MJPEG};
+        .cameraId = 0,
+        .fps = 30,
+        .width = 1280,
+        .height = 960,
+        .format = V4L2_PIX_FMT_YUYV,
+        .hw_accel = true,
+    };
 
     auto capturer = V4L2Capturer::Create(args);
     auto observer = capturer->AsFrameBufferObservable();
 
-    auto encoder = V4L2Encoder::Create(args.width, args.height, true);
+    auto encoder = V4L2Encoder::Create(args.width, args.height, V4L2_PIX_FMT_YUYV, false);
 
     int cam_frame_count = 0;
     auto cam_start_time = std::chrono::steady_clock::now();
@@ -31,14 +37,6 @@ int main(int argc, char *argv[]) {
 
     observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
         auto buffer = frame_buffer->GetRawBuffer();
-
-        if (frame_buffer->format() == V4L2_PIX_FMT_H264 && !has_first_keyframe_) {
-            if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-                has_first_keyframe_ = true;
-            } else {
-                return;
-            }
-        }
 
         auto cam_current_time = std::chrono::steady_clock::now();
         cam_frame_count++;

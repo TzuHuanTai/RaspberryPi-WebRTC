@@ -2,12 +2,13 @@
 #include "common/logging.h"
 
 const char *ENCODER_FILE = "/dev/video11";
-const int BUFFER_NUM = 4;
+const int BUFFER_NUM = 2;
 const int KEY_FRAME_INTERVAL = 600;
 
-std::unique_ptr<V4L2Encoder> V4L2Encoder::Create(int width, int height, bool is_dma_src) {
+std::unique_ptr<V4L2Encoder> V4L2Encoder::Create(int width, int height, uint32_t src_pix_fmt,
+                                                 bool is_dma_src) {
     auto encoder = std::make_unique<V4L2Encoder>();
-    encoder->Configure(width, height, is_dma_src);
+    encoder->Configure(width, height, src_pix_fmt, is_dma_src);
     encoder->Start();
     return encoder;
 }
@@ -17,7 +18,7 @@ V4L2Encoder::V4L2Encoder()
       framerate_(30),
       bitrate_bps_(10000000) {}
 
-bool V4L2Encoder::Configure(int width, int height, bool is_dma_src) {
+bool V4L2Encoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_src) {
     if (!Open(ENCODER_FILE)) {
         DEBUG_PRINT("Failed to turn on encoder: %s", ENCODER_FILE);
         return false;
@@ -30,7 +31,7 @@ bool V4L2Encoder::Configure(int width, int height, bool is_dma_src) {
     V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, KEY_FRAME_INTERVAL);
 
     auto src_memory = is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
-    PrepareBuffer(&output_, width, height, V4L2_PIX_FMT_YUV420, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
+    PrepareBuffer(&output_, width, height, src_pix_fmt, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
                   src_memory, BUFFER_NUM);
     PrepareBuffer(&capture_, width, height, V4L2_PIX_FMT_H264, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
                   V4L2_MEMORY_MMAP, BUFFER_NUM);
