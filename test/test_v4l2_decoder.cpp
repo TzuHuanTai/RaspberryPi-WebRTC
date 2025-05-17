@@ -25,15 +25,21 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int images_nb = 0;
     int record_sec = 1;
-    Args args{
-        .fps = 15, .width = 640, .height = 480, .hw_accel = false, .format = V4L2_PIX_FMT_MJPEG};
+    Args args{.cameraId = 0,
+              .fps = 15,
+              .width = 640,
+              .height = 480,
+              .format = V4L2_PIX_FMT_MJPEG,
+              .hw_accel = false};
 
     auto capturer = V4L2Capturer::Create(args);
-    auto decoder = V4L2Decoder::Create(args.width, args.height, capturer->format(), false);
+    auto decoder = V4L2Decoder::Create(args.width, args.height, capturer->format(), true);
 
-    auto observer = capturer->AsRawBufferObservable();
-    observer->Subscribe([&](V4L2Buffer buffer) {
-        printf("Camera buffer: %u\n", buffer.length);
+    auto observer = capturer->AsFrameBufferObservable();
+    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+        printf("Camera buffer: %u\n", frame_buffer->size());
+
+        auto buffer = frame_buffer->GetRawBuffer();
         decoder->EmplaceBuffer(buffer, [&](V4L2Buffer decoded_buffer) {
             if (is_finished) {
                 return;

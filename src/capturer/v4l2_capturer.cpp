@@ -143,8 +143,7 @@ void V4L2Capturer::CaptureImage() {
         return;
     }
 
-    V4L2Buffer buffer((uint8_t *)capture_.buffers[buf.index].start, buf.bytesused, buf.flags,
-                      buf.timestamp);
+    auto buffer = V4L2Buffer::FromV4L2((uint8_t *)capture_.buffers[buf.index].start, buf, format_);
     NextBuffer(buffer);
 
     if (!V4L2Util::QueueBuffer(fd_, &buf)) {
@@ -162,35 +161,32 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame() {
 }
 
 void V4L2Capturer::NextBuffer(V4L2Buffer &buffer) {
-    if (hw_accel_) {
-        // hardware encoding
+    if (hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
+        has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
         if (!has_first_keyframe_) {
-            has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
-        }
-
-        if (IsCompressedFormat()) {
-            decoder_->EmplaceBuffer(buffer, [this](V4L2Buffer decoded_buffer) {
-                frame_buffer_ =
-                    V4L2FrameBuffer::Create(width_, height_, decoded_buffer, V4L2_PIX_FMT_YUV420);
-                NextFrameBuffer(frame_buffer_);
-            });
-        } else {
-            frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer, format_);
-            NextFrameBuffer(frame_buffer_);
-        }
-    } else {
-        // software decoding
-        if (format_ != V4L2_PIX_FMT_H264) {
-            frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer, format_);
-            NextFrameBuffer(frame_buffer_);
-        } else {
-            // todo: h264 decoding
-            INFO_PRINT("Software decoding h264 camera source is not support now.");
-            exit(1);
+            return;
         }
     }
 
-    NextRawBuffer(buffer);
+    if (!hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
+        INFO_PRINT("Software decoding H264 camera source is not supported.");
+        exit(EXIT_FAILURE);
+    }
+
+    if (hw_accel_ && IsCompressedFormat()) {
+        decoder_->EmplaceBuffer(buffer, [this, buffer](V4L2Buffer &decoded_buffer) {
+            // hw decoder doesn't output timestamps.
+            decoded_buffer.timestamp = buffer.timestamp;
+            HandleDecodedBuffer(decoded_buffer);
+        });
+    } else {
+        HandleDecodedBuffer(buffer);
+    }
+}
+
+void V4L2Capturer::HandleDecodedBuffer(V4L2Buffer &buffer) {
+    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer);
+    NextFrameBuffer(frame_buffer_);
 }
 
 void V4L2Capturer::StartCapture() {

@@ -9,6 +9,7 @@
 
 struct V4L2Buffer {
     void *start = nullptr;
+    uint32_t pix_fmt;
     unsigned int length;
     unsigned int flags = 0;
     int dmafd = 0;
@@ -17,15 +18,44 @@ struct V4L2Buffer {
     struct v4l2_plane plane;
 
     V4L2Buffer() = default;
-    V4L2Buffer(void *start, unsigned int length)
-        : start(start),
-          length(length) {}
-    V4L2Buffer(void *start, unsigned int length, unsigned int flags, struct timeval timestamp)
-        : start(start),
-          length(length),
-          flags(flags),
-          timestamp(timestamp) {}
-    ~V4L2Buffer() = default;
+
+    static V4L2Buffer FromRaw(void *start, unsigned int length) {
+        V4L2Buffer buf;
+        buf.start = start;
+        buf.length = length;
+        return buf;
+    }
+
+    static V4L2Buffer FromV4L2(void *start, const v4l2_buffer &v4l2, uint32_t fmt) {
+        V4L2Buffer buf;
+        buf.start = start;
+        buf.pix_fmt = fmt;
+        buf.flags = v4l2.flags;
+        buf.length = v4l2.bytesused;
+        buf.timestamp = v4l2.timestamp;
+        buf.inner = v4l2;
+        return buf;
+    }
+
+    static V4L2Buffer FromLibcamera(void *start, int length, timeval timestamp, uint32_t fmt) {
+        V4L2Buffer buf;
+        buf.start = start;
+        buf.pix_fmt = fmt;
+        buf.length = length;
+        buf.timestamp = timestamp;
+        return buf;
+    }
+
+    static V4L2Buffer FromCapturedPlane(void *start, unsigned int bytesused, int dmafd,
+                                        unsigned int flags, uint32_t pix_fmt) {
+        V4L2Buffer buf;
+        buf.start = start;
+        buf.dmafd = dmafd;
+        buf.pix_fmt = pix_fmt;
+        buf.length = bytesused;
+        buf.flags = flags;
+        return buf;
+    }
 };
 
 struct V4L2BufferGroup {
@@ -55,7 +85,7 @@ class V4L2Util {
     static bool SubscribeEvent(int fd, uint32_t type);
     static bool SetFps(int fd, v4l2_buf_type type, int fps);
     static bool SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height,
-                          uint32_t pixel_format);
+                          uint32_t &pixel_format);
     static bool SetCtrl(int fd, uint32_t id, int32_t value);
     static bool SetExtCtrl(int fd, uint32_t id, int32_t value);
     static bool StreamOn(int fd, v4l2_buf_type type);

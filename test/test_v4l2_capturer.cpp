@@ -27,13 +27,18 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int i = 0;
     int images_nb = 10;
-    Args args{.fps = 15, .width = 1280, .height = 720, .cameraId = 0, .format = V4L2_PIX_FMT_MJPEG};
+    Args args{.cameraId = 0,
+              .fps = 15,
+              .width = 1280,
+              .height = 720,
+              .format = V4L2_PIX_FMT_MJPEG,
+              .hw_accel = true};
 
     auto capturer = V4L2Capturer::Create(args);
-    auto observer = capturer->AsRawBufferObservable();
-    observer->Subscribe([&](V4L2Buffer buffer) {
+    auto observer = capturer->AsFrameBufferObservable();
+    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
         if (i < images_nb) {
-            WriteImage(buffer, ++i);
+            WriteImage(frame_buffer->GetRawBuffer(), ++i);
         } else {
             is_finished = true;
             cond_var.notify_all();

@@ -19,10 +19,9 @@ template <typename T> class Recorder {
     Recorder() = default;
     ~Recorder() { Stop(); };
 
-    virtual void OnBuffer(T &buffer) = 0;
-
-    virtual void PostStop(){};
-    virtual void PreStart(){};
+    virtual void OnBuffer(T buffer) = 0;
+    virtual void OnStop(){};
+    virtual void OnStart(){};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         avcodec_free_context(&encoder);
@@ -38,14 +37,14 @@ template <typename T> class Recorder {
     void Stop() {
         worker.reset();
         avcodec_free_context(&encoder);
-        PostStop();
+        OnStop();
     }
 
     void Start() {
         worker = std::make_unique<Worker>("Recorder", [this]() {
             ConsumeBuffer();
         });
-        PreStart();
+        OnStart();
         worker->Run();
     }
 

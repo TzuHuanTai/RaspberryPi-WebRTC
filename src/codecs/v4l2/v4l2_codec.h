@@ -24,6 +24,7 @@ class V4L2Codec {
     void Start();
 
   private:
+    uint32_t dst_fmt_;
     std::atomic<bool> abort_;
     std::unique_ptr<Worker> worker_;
     ThreadSafeQueue<int> output_buffer_index_;

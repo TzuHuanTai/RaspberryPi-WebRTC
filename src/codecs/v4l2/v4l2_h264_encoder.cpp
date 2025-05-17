@@ -26,7 +26,7 @@ int32_t V4L2H264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    encoder_ = V4L2Encoder::Create(width_, height_, is_dma_);
+    encoder_ = V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420, is_dma_);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -67,7 +67,7 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
         src_buffer.length = i420_buffer_size;
     }
 
-    encoder_->EmplaceBuffer(src_buffer, [this, frame](V4L2Buffer encoded_buffer) {
+    encoder_->EmplaceBuffer(src_buffer, [this, frame](V4L2Buffer &encoded_buffer) {
         SendFrame(frame, encoded_buffer);
     });
 

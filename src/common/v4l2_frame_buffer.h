@@ -15,8 +15,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
   public:
     static rtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, int size,
                                                       uint32_t format);
-    static rtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, V4L2Buffer buffer,
-                                                      uint32_t format);
+    static rtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, V4L2Buffer buffer);
 
     Type type() const override;
     int width() const override;
@@ -34,7 +33,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
 
   protected:
     V4L2FrameBuffer(int width, int height, int size, uint32_t format);
-    V4L2FrameBuffer(int width, int height, V4L2Buffer buffer, uint32_t format);
+    V4L2FrameBuffer(int width, int height, V4L2Buffer buffer);
     ~V4L2FrameBuffer() override;
 
   private:
