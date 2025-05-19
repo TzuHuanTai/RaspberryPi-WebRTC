@@ -29,6 +29,7 @@ bool V4L2Encoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is
                          V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, KEY_FRAME_INTERVAL);
+    V4L2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_);
 
     auto src_memory = is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
     PrepareBuffer(&output_, width, height, src_pix_fmt, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
