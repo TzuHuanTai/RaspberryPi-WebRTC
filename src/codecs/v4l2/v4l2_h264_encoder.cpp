@@ -8,7 +8,6 @@ std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
 
 V4L2H264Encoder::V4L2H264Encoder(Args args)
     : fps_adjuster_(args.fps),
-      is_dma_(!args.no_adaptive),
       bitrate_adjuster_(.85, 1),
       callback_(nullptr) {}
 
@@ -26,8 +25,6 @@ int32_t V4L2H264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    encoder_ = V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420, is_dma_);
-
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -43,14 +40,13 @@ int32_t V4L2H264Encoder::Release() {
 
 int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
                                 const std::vector<webrtc::VideoFrameType> *frame_types) {
-    if (frame_types) {
-        if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
-            V4L2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
-        } else if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
-            return WEBRTC_VIDEO_CODEC_OK;
-        }
+    if (!frame_types) {
+        return WEBRTC_VIDEO_CODEC_NO_OUTPUT;
     }
 
+    if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
+        return WEBRTC_VIDEO_CODEC_OK;
+    }
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
 
     V4L2Buffer src_buffer;
@@ -67,6 +63,14 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
         src_buffer.length = i420_buffer_size;
     }
 
+    if (!encoder_) {
+        encoder_ = V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420, src_buffer.dmafd > 0);
+    }
+
+    if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
+        V4L2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+    }
+
     encoder_->EmplaceBuffer(src_buffer, [this, frame](V4L2Buffer &encoded_buffer) {
         SendFrame(frame, encoded_buffer);
     });
@@ -81,6 +85,9 @@ void V4L2H264Encoder::SetRates(const RateControlParameters &parameters) {
     bitrate_adjuster_.SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
     fps_adjuster_ = parameters.framerate_fps;
 
+    if (!encoder_) {
+        return;
+    }
     encoder_->SetFps(fps_adjuster_);
     encoder_->SetBitrate(bitrate_adjuster_.GetAdjustedBitrateBps());
 }
@@ -89,8 +96,7 @@ webrtc::VideoEncoder::EncoderInfo V4L2H264Encoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
-    info.implementation_name =
-        std::string("V4L2 H264 Hardware Encoder") + (is_dma_ ? "(DMA)" : "(M2M)");
+    info.implementation_name = "Raspberry Pi V4L2 H264 Hardware Encoder";
     return info;
 }
 
