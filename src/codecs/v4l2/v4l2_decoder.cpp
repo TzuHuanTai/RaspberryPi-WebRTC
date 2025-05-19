@@ -48,6 +48,7 @@ void V4L2Decoder::HandleEvent() {
                 break;
             case V4L2_EVENT_EOS:
                 DEBUG_PRINT("EOS!");
+                exit(EXIT_FAILURE);
                 break;
         }
     }
