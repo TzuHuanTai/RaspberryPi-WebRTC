@@ -70,7 +70,7 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
 
-std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel(ChannelMode mode) {
+std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
     struct webrtc::DataChannelInit init;
     init.ordered = true;
     init.id = static_cast<int>(mode);
@@ -89,7 +89,7 @@ std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel(ChannelMode mode)
         return nullptr;
     }
 
-    auto channel = DataChannelSubject::Create(result.MoveValue());
+    auto channel = RtcChannel::Create(result.MoveValue());
 
     if (mode == ChannelMode::Command) {
         DEBUG_PRINT("The Command data channel is established successfully.");
