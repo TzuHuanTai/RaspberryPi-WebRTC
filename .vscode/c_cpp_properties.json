@@ -3,17 +3,19 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/proto",
+                "${workspaceFolder}/external/livekit-protocol/protobufs",
                 "/usr/include",
                 "/usr/local/include",
-                "/usr/include/libcamera/**",
-                "/usr/local/include/webrtc/*",
-                "/usr/local/include/webrtc/third_party/abseil-cpp/*",
-                "/usr/local/include/webrtc/third_party/libyuv/include/*",
-                "/usr/local/include/webrtc/tools/json_schema_compiler/*",
-                "/usr/local/include/webrtc/third_party/boringssl/src/include/*",
-                "/usr/include/boost/program_options/*",
-                "${workspaceFolder}/src"
+                "/usr/include/libcamera",
+                "/usr/local/include/webrtc",
+                "/usr/local/include/webrtc/third_party/abseil-cpp",
+                "/usr/local/include/webrtc/third_party/libyuv/include",
+                "/usr/local/include/webrtc/tools/json_schema_compiler",
+                "/usr/local/include/webrtc/third_party/boringssl/src/include",
+                "/usr/include/boost/program_options",
+                "${workspaceFolder}"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
