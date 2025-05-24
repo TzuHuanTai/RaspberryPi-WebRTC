@@ -20,6 +20,22 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
+# # protobuf for sfu
+# find_package(Protobuf REQUIRED)
+
+# # .proto from submodule
+# file(GLOB PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/external/livekit-protocol/protobufs/*.proto")
+
+# # create proto path
+# set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proto")
+# file(MAKE_DIRECTORY ${GENERATED_PROTO_DIR})
+
+# # generate protobuf
+# protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+# set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES
+#     GENERATED TRUE
+# )
+
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY
     /usr/local/lib/libwebrtc.a
@@ -44,6 +60,11 @@ add_compile_options(
     -pipe
     -fdeclspec
 )
+
+
+
+
+message(STATUS "Current: ${CMAKE_CURRENT_SOURCE_DIR}")
 
 include_directories(
     ./src

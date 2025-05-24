@@ -137,15 +137,36 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     peer->SetPeer(result.MoveValue());
 
-    if (config.is_sfu_peer) {
-        if (!config.is_publisher) {
-            return peer;
-        }
-        peer->CreateDataChannel(ChannelMode::Lossy);
-        peer->CreateDataChannel(ChannelMode::Reliable);
-    } else if (args.enable_ipc) {
+    if (config.is_sfu_peer && !config.is_publisher) {
+        DEBUG_PRINT("Sub-Peer connection(%s) is created! ", peer->GetId().c_str());
+        return peer;
+    }
+
+    // if (args.enable_ipc) {
+    //     SetupIpcDataChannel(peer, ChannelMode::Lossy);
+    //     SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    // } else if (config.is_sfu_peer) {
+    //     INFO_PRINT("create sfu publisher datachannel");
+    //     peer->CreateDataChannel(ChannelMode::Lossy);
+    //     peer->CreateDataChannel(ChannelMode::Reliable);
+    // }
+
+    // if (args.enable_ipc) {
+    //     SetupIpcDataChannel(peer, ChannelMode::Lossy);
+    //     SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    // } else if (config.is_sfu_peer) {
+    //     INFO_PRINT("create sfu publisher datachannel");
+    //     peer->CreateDataChannel(ChannelMode::Lossy);
+    //     peer->CreateDataChannel(ChannelMode::Reliable);
+    // }
+
+    if (args.enable_ipc) {
         SetupIpcDataChannel(peer, ChannelMode::Lossy);
         SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    } else if (config.is_sfu_peer) {
+        INFO_PRINT("create sfu publisher datachannel");
+        peer->CreateDataChannel(ChannelMode::Lossy);
+        peer->CreateDataChannel(ChannelMode::Reliable);
     }
 
     auto cmd_channel = peer->CreateDataChannel(ChannelMode::Command);
@@ -322,6 +343,16 @@ void Conductor::InitializeIpcServer() {
     if (args.enable_ipc) {
         ipc_server_ = UnixSocketServer::Create(args.socket_path);
         ipc_server_->Start();
+    }
+}
+
+void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer, bool use_ipc) {
+    if (use_ipc) {
+        SetupIpcDataChannel(peer, ChannelMode::Lossy);
+        SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    } else {
+        peer->CreateDataChannel(ChannelMode::Lossy);
+        peer->CreateDataChannel(ChannelMode::Reliable);
     }
 }
 

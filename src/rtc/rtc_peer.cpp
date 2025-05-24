@@ -3,6 +3,8 @@
 #include <chrono>
 #include <regex>
 
+#include "rtc/sfu_channel.h"
+
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
     return rtc::make_ref_counted<RtcPeer>(std::move(config));
 }
@@ -85,11 +87,37 @@ std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
     auto result = peer_connection_->CreateDataChannelOrError(label, &init);
 
     if (!result.ok()) {
-        ERROR_PRINT("Failed to create data channel.");
+        ERROR_PRINT("Failed to create data channel: %s", label.c_str());
         return nullptr;
     }
 
     auto channel = RtcChannel::Create(result.MoveValue());
+
+    //=================
+    // std::shared_ptr<DataChannel> channel;
+
+    // if (config_.is_sfu_peer) {
+    //     channel = SfuDataChannel::Create(result.MoveValue());
+    // } else {
+    //     channel = DataChannel::Create(result.MoveValue());
+    // }
+
+    //=================
+    // auto channel = ([this, &init, mode]() -> std::shared_ptr<DataChannel> {
+    //     auto label = ChannelModeToString(mode);
+    //     auto result = peer_connection_->CreateDataChannelOrError(label, &init);
+
+    //     if (!result.ok()) {
+    //         ERROR_PRINT("Failed to create data channel: %s", label.c_str());
+    //         return nullptr;
+    //     }
+
+    //     if (config_.is_sfu_peer) {
+    //         return SfuDataChannel::Create(result.MoveValue());
+    //     } else {
+    //         return DataChannel::Create(result.MoveValue());
+    //     }
+    // })();
 
     if (mode == ChannelMode::Command) {
         DEBUG_PRINT("The Command data channel is established successfully.");
@@ -144,7 +172,18 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
 }
 
 void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
-    DEBUG_PRINT("Connected to data channel => %s", channel->label().c_str());
+    DEBUG_PRINT("On remote DataChannel => %s", channel->label().c_str());
+
+    if (channel->label() == ChannelModeToString(ChannelMode::Command)) {
+        cmd_channel_ = RtcChannel::Create(channel);
+        DEBUG_PRINT("Command data channel is established successfully.");
+    } else if (channel->label() == ChannelModeToString(ChannelMode::Lossy)) {
+        lossy_channel_ = SfuChannel::Create(channel);
+        DEBUG_PRINT("Lossy data channel is established successfully.");
+    } else if (channel->label() == ChannelModeToString(ChannelMode::Reliable)) {
+        reliable_channel_ = SfuChannel::Create(channel);
+        DEBUG_PRINT("Reliable data channel is established successfully.");
+    }
 }
 
 void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {

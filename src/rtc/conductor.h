@@ -34,6 +34,7 @@ class Conductor {
     void InitializePeerConnectionFactory();
     void InitializeTracks();
     void InitializeIpcServer();
+    void InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer, bool use_ipc);
 
     void SetupIpcDataChannel(rtc::scoped_refptr<RtcPeer> peer, ChannelMode mode);
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);

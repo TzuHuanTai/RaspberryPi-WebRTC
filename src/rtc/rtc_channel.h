@@ -100,6 +100,9 @@ class RtcChannel : public webrtc::DataChannelObserver,
     void Send(std::ifstream &file);
     void Send(const std::string &message);
 
+  protected:
+    virtual void Send(const uint8_t *data, size_t size);
+    
   private:
     std::string label_;
     std::function<void(const std::string &)> on_closed_func_;
@@ -112,7 +115,6 @@ class RtcChannel : public webrtc::DataChannelObserver,
     std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;
 
-    void Send(const uint8_t *data, size_t size);
     void Send(CommandType type, const uint8_t *data, size_t size);
 };
 
