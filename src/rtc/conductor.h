@@ -34,8 +34,13 @@ class Conductor {
     void InitializePeerConnectionFactory();
     void InitializeTracks();
     void InitializeIpcServer();
+    void InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer);
+    void InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer);
 
-    void SetupIpcDataChannel(rtc::scoped_refptr<RtcPeer> peer, ChannelMode mode);
+    void BindIpcToDataChannel(std::shared_ptr<RtcChannel> channel);
+    void BindIpcToDataChannelSender(std::shared_ptr<RtcChannel> channel);
+    void BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel);
+
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::string &msg);
     void OnMetadata(std::shared_ptr<RtcChannel> datachannel, const std::string &path);

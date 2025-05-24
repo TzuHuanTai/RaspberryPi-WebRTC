@@ -9,37 +9,34 @@ RtcChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel
     return std::make_shared<RtcChannel>(std::move(data_channel));
 }
 
-RtcChannel::RtcChannel(
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
-    data_channel_ = std::move(data_channel);
-    label_ = data_channel_->label();
-    data_channel_->RegisterObserver(this);
+RtcChannel::RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
+    : data_channel(data_channel),
+      id_(Utils::GenerateUuid()),
+      label_(data_channel->label()) {
+    data_channel->RegisterObserver(this);
 }
+RtcChannel::~RtcChannel() { DEBUG_PRINT("datachannel (%s) is released!", label_.c_str()); }
 
-RtcChannel::~RtcChannel() {
-    DEBUG_PRINT("datachannel (%s) is released!", label_.c_str());
-}
+std::string RtcChannel::id() const { return id_; }
 
 std::string RtcChannel::label() const { return label_; }
 
 void RtcChannel::OnStateChange() {
-    webrtc::DataChannelInterface::DataState state = data_channel_->state();
-    DEBUG_PRINT("[%s] OnStateChange => %s", data_channel_->label().c_str(),
+    webrtc::DataChannelInterface::DataState state = data_channel->state();
+    DEBUG_PRINT("[%s] OnStateChange => %s", data_channel->label().c_str(),
                 webrtc::DataChannelInterface::DataStateString(state));
 }
 
 void RtcChannel::Terminate() {
     UnSubscribe();
-    data_channel_->UnregisterObserver();
-    data_channel_->Close();
+    data_channel->UnregisterObserver();
+    data_channel->Close();
     if (on_closed_func_) {
-        on_closed_func_(label());
+        on_closed_func_();
     }
 }
 
-void RtcChannel::OnClosed(std::function<void(const std::string &)> func) {
-    on_closed_func_ = std::move(func);
-}
+void RtcChannel::OnClosed(std::function<void()> func) { on_closed_func_ = std::move(func); }
 
 void RtcChannel::OnMessage(const webrtc::DataBuffer &buffer) {
     const uint8_t *data = buffer.data.data<uint8_t>();
@@ -124,7 +121,7 @@ void RtcChannel::Send(CommandType type, const uint8_t *data, size_t size) {
     }
 
     while (bytes_read < size) {
-        if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
+        if (data_channel->buffered_amount() + CHUNK_SIZE > data_channel->MaxSendQueueSize()) {
             usleep(100);
             DEBUG_PRINT("Sleeping for 100 microsecond due to MaxSendQueueSize reached.");
             continue;
@@ -140,12 +137,13 @@ void RtcChannel::Send(CommandType type, const uint8_t *data, size_t size) {
 }
 
 void RtcChannel::Send(const uint8_t *data, size_t size) {
-    if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
+    if (data_channel->state() != webrtc::DataChannelInterface::kOpen) {
         return;
     }
+
     rtc::CopyOnWriteBuffer buffer(data, size);
     webrtc::DataBuffer data_buffer(buffer, true);
-    data_channel_->Send(data_buffer);
+    data_channel->Send(data_buffer);
 }
 
 void RtcChannel::Send(MetaMessage metadata) {
@@ -189,7 +187,7 @@ void RtcChannel::Send(std::ifstream &file) {
     Send(type, (uint8_t *)size_str.c_str(), size_str.length());
 
     while (bytes_read < file_size) {
-        if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
+        if (data_channel->buffered_amount() + CHUNK_SIZE > data_channel->MaxSendQueueSize()) {
             sleep(1);
             DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
             continue;

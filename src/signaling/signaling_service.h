@@ -27,7 +27,7 @@ class SignalingService {
 
         auto peer = conductor->CreatePeerConnection(config);
         if (!config.is_sfu_peer) {
-            peer_map_[peer->GetId()] = peer;
+            peer_map_[peer->id()] = peer;
         }
         return peer;
     }
@@ -48,9 +48,9 @@ class SignalingService {
     virtual void RefreshPeerMap() {
         auto pm_it = peer_map_.begin();
         while (pm_it != peer_map_.end()) {
-            auto peer_id = pm_it->second->GetId();
+            auto peer_id = pm_it->second->id();
 
-            if (pm_it->second && !pm_it->second->IsConnected()) {
+            if (pm_it->second && !pm_it->second->isConnected()) {
                 pm_it = peer_map_.erase(pm_it);
                 DEBUG_PRINT("peer_map (%s) was erased.", peer_id.c_str());
             } else {

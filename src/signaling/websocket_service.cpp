@@ -132,10 +132,11 @@ void WebsocketService::OnConnect(beast::error_code ec) {
 }
 
 void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
-    std::string target = BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
-                                                       {"roomId", args_.ws_room},
-                                                       {"userId", args_.uid},
-                                                       {"canSubscribe", "0"}});
+    std::string target =
+        BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
+                                      {"roomId", args_.ws_room},
+                                      {"userId", args_.uid},
+                                      {"canSubscribe", args_.enable_ipc ? "1" : "0"}});
     ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
         OnHandshake(ec);
     });
@@ -147,10 +148,11 @@ void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &
             if (ec) {
                 ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
             }
-            std::string target = BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
-                                                               {"roomId", args_.ws_room},
-                                                               {"userId", args_.uid},
-                                                               {"canSubscribe", "0"}});
+            std::string target =
+                BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
+                                              {"roomId", args_.ws_room},
+                                              {"userId", args_.uid},
+                                              {"canSubscribe", args_.enable_ipc ? "1" : "0"}});
             ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
                 OnHandshake(ec);
             });
@@ -246,9 +248,9 @@ void WebsocketService::OnMessage(const std::string &req) {
 
         pub_peer_->CreateOffer();
 
-    } else if (action == "offer" && sub_peer_ && !sub_peer_->IsConnected()) {
+    } else if (action == "offer" && sub_peer_ && !sub_peer_->isConnected()) {
         sub_peer_->SetRemoteSdp(message, "offer");
-    } else if (action == "answer" && pub_peer_ && !pub_peer_->IsConnected()) {
+    } else if (action == "answer" && pub_peer_ && !pub_peer_->isConnected()) {
         pub_peer_->SetRemoteSdp(message, "answer");
     } else if (action == "trickle") {
         OnRemoteIce(message);

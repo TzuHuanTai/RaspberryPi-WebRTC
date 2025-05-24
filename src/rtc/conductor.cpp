@@ -137,17 +137,49 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     peer->SetPeer(result.MoveValue());
 
-    if (config.is_sfu_peer) {
-        if (!config.is_publisher) {
-            return peer;
-        }
-        peer->CreateDataChannel(ChannelMode::Lossy);
-        peer->CreateDataChannel(ChannelMode::Reliable);
-    } else if (args.enable_ipc) {
-        SetupIpcDataChannel(peer, ChannelMode::Lossy);
-        SetupIpcDataChannel(peer, ChannelMode::Reliable);
+    InitializeDataChannels(peer);
+
+    AddTracks(peer->GetPeer());
+
+    DEBUG_PRINT("Peer connection(%s) is created! ", peer->GetId().c_str());
+    return peer;
+}
+
+void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer) {
+    if (peer->isSfuPeer() && !peer->isPublisher()) {
+        peer->SetOnDataChannelCallback([this](std::shared_ptr<RtcChannel> channel) {
+            DEBUG_PRINT("Remote channel (%s) from sfu subscriber peer [%s]",
+                        channel->label().c_str(), channel->id().c_str());
+            BindDataChannelToIpcReceiver(channel);
+        });
+        return;
     }
 
+    // Essential data channels（Lossy / Reliable / Command）
+    auto lossy_channel = peer->CreateDataChannel(ChannelMode::Lossy);
+    auto reliable_channel = peer->CreateDataChannel(ChannelMode::Reliable);
+
+    if (args.enable_ipc) {
+        switch (args.ipc_channel_mode) {
+            case ChannelMode::Lossy:
+                BindIpcToDataChannel(lossy_channel);
+                break;
+            case ChannelMode::Reliable:
+                BindIpcToDataChannel(reliable_channel);
+                break;
+            default:
+                BindIpcToDataChannel(lossy_channel);
+                BindIpcToDataChannel(reliable_channel);
+                break;
+        }
+    }
+
+    if (!peer->isSfuPeer()) {
+        InitializeCommandChannel(peer);
+    }
+}
+
+void Conductor::InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer) {
     auto cmd_channel = peer->CreateDataChannel(ChannelMode::Command);
     cmd_channel->RegisterHandler(
         CommandType::SNAPSHOT,
@@ -169,15 +201,9 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
         [this](std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
             OnCameraOption(datachannel, msg);
         });
-
-    AddTracks(peer->GetPeer());
-
-    DEBUG_PRINT("Peer connection(%s) is created! ", peer->GetId().c_str());
-    return peer;
 }
 
-void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel,
-                           const std::string &msg) {
+void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
     try {
         std::stringstream ss(msg);
         int num;
@@ -193,8 +219,7 @@ void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel,
     }
 }
 
-void Conductor::OnMetadata(std::shared_ptr<RtcChannel> datachannel,
-                           const std::string &msg) {
+void Conductor::OnMetadata(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
     DEBUG_PRINT("OnMetadata msg: %s", msg.c_str());
     json jsonObj = json::parse(msg.c_str());
 
@@ -242,8 +267,7 @@ void Conductor::OnRecord(std::shared_ptr<RtcChannel> datachannel, const std::str
     }
 }
 
-void Conductor::OnCameraOption(std::shared_ptr<RtcChannel> datachannel,
-                               const std::string &msg) {
+void Conductor::OnCameraOption(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
     DEBUG_PRINT("OnCameraControl msg: %s", msg.c_str());
     json jsonObj = json::parse(msg.c_str());
 
@@ -325,19 +349,40 @@ void Conductor::InitializeIpcServer() {
     }
 }
 
-void Conductor::SetupIpcDataChannel(rtc::scoped_refptr<RtcPeer> peer, ChannelMode mode) {
-    auto channel = peer->CreateDataChannel(mode);
-    if (channel && ipc_server_) {
-        ipc_server_->RegisterPeerCallback(channel->label(), [channel](const std::string &msg) {
-            channel->Send(msg);
-        });
+void Conductor::BindIpcToDataChannel(std::shared_ptr<RtcChannel> channel) {
+    BindIpcToDataChannelSender(channel);
+    BindDataChannelToIpcReceiver(channel);
+}
 
-        channel->OnClosed([this](const std::string &label) {
-            ipc_server_->UnregisterPeerCallback(label);
-        });
-
-        channel->RegisterHandler(CommandType::CUSTOM, [this](const std::string &msg) {
-            ipc_server_->Write(msg);
-        });
+void Conductor::BindIpcToDataChannelSender(std::shared_ptr<RtcChannel> channel) {
+    if (!channel || !ipc_server_) {
+        ERROR_PRINT("IPC or DataChannel is not found!");
+        return;
     }
+
+    const auto id = channel->id();
+    const auto label = channel->label();
+
+    ipc_server_->RegisterPeerCallback(id, [channel](const std::string &msg) {
+        channel->Send(msg);
+    });
+    DEBUG_PRINT("[%s] DataChannel (%s) registered to IPC server for sending.", id.c_str(),
+                label.c_str());
+
+    channel->OnClosed([this, id, label]() {
+        ipc_server_->UnregisterPeerCallback(id);
+        DEBUG_PRINT("[%s] DataChannel (%s) unregistered from IPC server.", id.c_str(),
+                    label.c_str());
+    });
+}
+
+void Conductor::BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel) {
+    if (!channel || !ipc_server_)
+        return;
+
+    channel->RegisterHandler(CommandType::CUSTOM, [this](const std::string &msg) {
+        ipc_server_->Write(msg);
+    });
+    DEBUG_PRINT("DataChannel (%s) connected to IPC server for receiving.",
+                channel->label().c_str());
 }
