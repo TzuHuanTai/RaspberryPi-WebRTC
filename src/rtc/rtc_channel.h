@@ -71,8 +71,8 @@ struct MetaMessage {
 };
 
 class RtcChannel : public webrtc::DataChannelObserver,
-                           public Subject<std::string>,
-                           public std::enable_shared_from_this<RtcChannel> {
+                   public Subject<std::string>,
+                   public std::enable_shared_from_this<RtcChannel> {
   public:
     using ChannelCommandHandler =
         std::function<void(std::shared_ptr<RtcChannel>, const std::string &)>;
@@ -84,12 +84,13 @@ class RtcChannel : public webrtc::DataChannelObserver,
     RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
     ~RtcChannel();
 
+    std::string id() const;
     std::string label() const;
 
     // webrtc::DataChannelObserver
     void OnStateChange() override;
     void OnMessage(const webrtc::DataBuffer &buffer) override;
-    void OnClosed(std::function<void(const std::string &)> func);
+    void OnClosed(std::function<void()> func);
 
     void Terminate();
     void RegisterHandler(CommandType type, ChannelCommandHandler func);
@@ -100,19 +101,23 @@ class RtcChannel : public webrtc::DataChannelObserver,
     void Send(std::ifstream &file);
     void Send(const std::string &message);
 
+  protected:
+    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
+
+    virtual void Send(const uint8_t *data, size_t size);
+    void Next(std::string message) override final;
+
   private:
+    std::string id_;
     std::string label_;
-    std::function<void(const std::string &)> on_closed_func_;
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
+    std::function<void()> on_closed_func_;
     std::map<CommandType, std::vector<std::shared_ptr<Observable<std::string>>>> observers_map_;
 
     // Subject
-    void Next(std::string message) override;
     std::shared_ptr<Observable<std::string>> AsObservable() override;
     std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;
 
-    void Send(const uint8_t *data, size_t size);
     void Send(CommandType type, const uint8_t *data, size_t size);
 };
 

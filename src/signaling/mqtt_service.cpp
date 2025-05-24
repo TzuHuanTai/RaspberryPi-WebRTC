@@ -166,8 +166,8 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
             AnswerLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
         });
 
-        client_id_to_peer_id_[client_id] = peer->GetId();
-        peer_id_to_client_id_[peer->GetId()] = client_id;
+        client_id_to_peer_id_[client_id] = peer->id();
+        peer_id_to_client_id_[peer->id()] = client_id;
 
         OnRemoteSdp(client_id_to_peer_id_[client_id], payload);
     } else if (topic.starts_with(ice_base_topic_)) {
@@ -203,9 +203,9 @@ void MqttService::RefreshPeerMap() {
         auto peer = GetPeer(peer_id);
 
         DEBUG_PRINT("Found peer_id key: %s, connected value: %d", peer_id.c_str(),
-                    peer->IsConnected());
+                    peer->isConnected());
 
-        if (!peer->IsConnected()) {
+        if (!peer->isConnected()) {
             auto client_id = peer_id_to_client_id_[peer_id];
             peer_id_to_client_id_.erase(peer_id);
             pm_it = map.erase(pm_it);

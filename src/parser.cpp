@@ -16,6 +16,12 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"yuyv", V4L2_PIX_FMT_YUYV},
 };
 
+static const std::unordered_map<std::string, int> ipc_mode_table = {
+    {"both", -1},
+    {"lossy", ChannelMode::Lossy},
+    {"reliable", ChannelMode::Reliable},
+};
+
 static const std::unordered_map<std::string, int> ae_metering_table = {
     {"centre", libcamera::controls::MeteringCentreWeighted},
     {"spot", libcamera::controls::MeteringSpot},
@@ -144,6 +150,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "the output resolution will remain fixed regardless of network or device conditions.")
         ("enable-ipc", bpo::bool_switch(&args.enable_ipc)->default_value(args.enable_ipc),
             "Enable IPC relay using a WebRTC DataChannel, lossy (UDP-like) or reliable (TCP-like) based on client preference.")
+        ("ipc-channel",  bpo::value<std::string>(&args.ipc_channel)->default_value(args.ipc_channel),
+            "IPC channel mode: both, lossy, reliable")
         ("socket-path", bpo::value<std::string>(&args.socket_path)->default_value(args.socket_path),
             "Specifies the Unix domain socket path used to bridge messages between "
             "the WebRTC DataChannel and local IPC applications.")
@@ -253,6 +261,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
+
+    args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);
 
     ParseDevice(args);
 }

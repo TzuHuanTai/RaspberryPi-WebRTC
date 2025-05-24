@@ -1,4 +1,3 @@
-node_modules/
 *.o
 *.tmp
 *.jpg
@@ -13,5 +12,6 @@ Makefile
 
 # folder
 build
+proto
 
 !/doc/*.jpg

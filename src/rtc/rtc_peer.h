@@ -97,19 +97,26 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
                 public webrtc::CreateSessionDescriptionObserver,
                 public SignalingMessageObserver {
   public:
+    using OnRtcChannelCallback = std::function<void(std::shared_ptr<RtcChannel>)>;
+
     static rtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
 
     RtcPeer(PeerConfig config);
     ~RtcPeer();
     void CreateOffer();
     void Terminate();
-    bool IsConnected() const;
-    std::string GetId() const;
+
+    bool isSfuPeer() const;
+    bool isPublisher() const;
+    bool isConnected() const;
+    std::string id() const;
+
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     std::shared_ptr<RtcChannel> CreateDataChannel(ChannelMode mode);
     std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
+    void SetOnDataChannelCallback(OnRtcChannelCallback callback);
 
     // SignalingMessageObserver implementation.
     void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
@@ -134,8 +141,11 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     std::string ModifySetupAttribute(const std::string &sdp, const std::string &new_setup);
     void EmitLocalSdp(int delay_sec = 0);
 
+    int timeout_;
     std::string id_;
-    PeerConfig config_;
+    bool is_sfu_peer_;
+    bool is_publisher_;
+    bool has_candidates_in_sdp_;
     std::atomic<bool> is_connected_;
     std::atomic<bool> is_complete_;
     std::thread peer_timeout_;
@@ -146,6 +156,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;
     std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
 
+    OnRtcChannelCallback on_data_channel_;
     std::shared_ptr<RtcChannel> cmd_channel_;
     std::shared_ptr<RtcChannel> lossy_channel_;
     std::shared_ptr<RtcChannel> reliable_channel_;
