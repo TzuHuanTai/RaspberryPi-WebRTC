@@ -70,19 +70,19 @@ struct MetaMessage {
     }
 };
 
-class DataChannelSubject : public webrtc::DataChannelObserver,
+class RtcChannel : public webrtc::DataChannelObserver,
                            public Subject<std::string>,
-                           public std::enable_shared_from_this<DataChannelSubject> {
+                           public std::enable_shared_from_this<RtcChannel> {
   public:
     using ChannelCommandHandler =
-        std::function<void(std::shared_ptr<DataChannelSubject>, const std::string &)>;
+        std::function<void(std::shared_ptr<RtcChannel>, const std::string &)>;
     using PayloadHandler = std::function<void(const std::string &)>;
 
-    static std::shared_ptr<DataChannelSubject>
+    static std::shared_ptr<RtcChannel>
     Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
-    DataChannelSubject(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
-    ~DataChannelSubject();
+    RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+    ~RtcChannel();
 
     std::string label() const;
 

@@ -10,7 +10,7 @@
 
 #include "args.h"
 #include "common/logging.h"
-#include "rtc/data_channel_subject.h"
+#include "rtc/rtc_channel.h"
 
 enum ChannelMode {
     Command,
@@ -108,7 +108,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    std::shared_ptr<DataChannelSubject> CreateDataChannel(ChannelMode mode);
+    std::shared_ptr<RtcChannel> CreateDataChannel(ChannelMode mode);
     std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
 
     // SignalingMessageObserver implementation.
@@ -146,9 +146,9 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;
     std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
 
-    std::shared_ptr<DataChannelSubject> cmd_channel_;
-    std::shared_ptr<DataChannelSubject> lossy_channel_;
-    std::shared_ptr<DataChannelSubject> reliable_channel_;
+    std::shared_ptr<RtcChannel> cmd_channel_;
+    std::shared_ptr<RtcChannel> lossy_channel_;
+    std::shared_ptr<RtcChannel> reliable_channel_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };

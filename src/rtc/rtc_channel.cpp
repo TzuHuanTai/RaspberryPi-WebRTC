@@ -1,34 +1,34 @@
-#include "rtc/data_channel_subject.h"
+#include "rtc/rtc_channel.h"
 
 #include "common/logging.h"
 
 const int CHUNK_SIZE = 65536;
 
-std::shared_ptr<DataChannelSubject>
-DataChannelSubject::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
-    return std::make_shared<DataChannelSubject>(std::move(data_channel));
+std::shared_ptr<RtcChannel>
+RtcChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
+    return std::make_shared<RtcChannel>(std::move(data_channel));
 }
 
-DataChannelSubject::DataChannelSubject(
+RtcChannel::RtcChannel(
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
     data_channel_ = std::move(data_channel);
     label_ = data_channel_->label();
     data_channel_->RegisterObserver(this);
 }
 
-DataChannelSubject::~DataChannelSubject() {
+RtcChannel::~RtcChannel() {
     DEBUG_PRINT("datachannel (%s) is released!", label_.c_str());
 }
 
-std::string DataChannelSubject::label() const { return label_; }
+std::string RtcChannel::label() const { return label_; }
 
-void DataChannelSubject::OnStateChange() {
+void RtcChannel::OnStateChange() {
     webrtc::DataChannelInterface::DataState state = data_channel_->state();
     DEBUG_PRINT("[%s] OnStateChange => %s", data_channel_->label().c_str(),
                 webrtc::DataChannelInterface::DataStateString(state));
 }
 
-void DataChannelSubject::Terminate() {
+void RtcChannel::Terminate() {
     UnSubscribe();
     data_channel_->UnregisterObserver();
     data_channel_->Close();
@@ -37,11 +37,11 @@ void DataChannelSubject::Terminate() {
     }
 }
 
-void DataChannelSubject::OnClosed(std::function<void(const std::string &)> func) {
+void RtcChannel::OnClosed(std::function<void(const std::string &)> func) {
     on_closed_func_ = std::move(func);
 }
 
-void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
+void RtcChannel::OnMessage(const webrtc::DataBuffer &buffer) {
     const uint8_t *data = buffer.data.data<uint8_t>();
     size_t length = buffer.data.size();
     std::string message(reinterpret_cast<const char *>(data), length);
@@ -49,7 +49,7 @@ void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     Next(message);
 }
 
-void DataChannelSubject::RegisterHandler(CommandType type, ChannelCommandHandler func) {
+void RtcChannel::RegisterHandler(CommandType type, ChannelCommandHandler func) {
     auto observer = AsObservable(type);
     observer->Subscribe([self = shared_from_this(), func](std::string message) {
         if (!message.empty()) {
@@ -58,7 +58,7 @@ void DataChannelSubject::RegisterHandler(CommandType type, ChannelCommandHandler
     });
 }
 
-void DataChannelSubject::RegisterHandler(CommandType type, PayloadHandler func) {
+void RtcChannel::RegisterHandler(CommandType type, PayloadHandler func) {
     auto observer = AsObservable(type);
     observer->Subscribe([func](std::string message) {
         if (!message.empty()) {
@@ -67,7 +67,7 @@ void DataChannelSubject::RegisterHandler(CommandType type, PayloadHandler func) 
     });
 }
 
-void DataChannelSubject::Next(std::string message) {
+void RtcChannel::Next(std::string message) {
     try {
         json jsonObj = json::parse(message.c_str());
 
@@ -92,26 +92,26 @@ void DataChannelSubject::Next(std::string message) {
     }
 }
 
-std::shared_ptr<Observable<std::string>> DataChannelSubject::AsObservable() {
+std::shared_ptr<Observable<std::string>> RtcChannel::AsObservable() {
     auto observer = std::make_shared<Observable<std::string>>();
     observers_map_[CommandType::CUSTOM].push_back(observer);
     return observer;
 }
 
-std::shared_ptr<Observable<std::string>> DataChannelSubject::AsObservable(CommandType type) {
+std::shared_ptr<Observable<std::string>> RtcChannel::AsObservable(CommandType type) {
     auto observer = std::make_shared<Observable<std::string>>();
     observers_map_[type].push_back(observer);
     return observer;
 }
 
-void DataChannelSubject::UnSubscribe() {
+void RtcChannel::UnSubscribe() {
     for (auto &[type, observers] : observers_map_) {
         observers.clear();
     }
     observers_map_.clear();
 }
 
-void DataChannelSubject::Send(CommandType type, const uint8_t *data, size_t size) {
+void RtcChannel::Send(CommandType type, const uint8_t *data, size_t size) {
     int bytes_read = 0;
     const size_t header_size = sizeof(CommandType);
 
@@ -139,7 +139,7 @@ void DataChannelSubject::Send(CommandType type, const uint8_t *data, size_t size
     }
 }
 
-void DataChannelSubject::Send(const uint8_t *data, size_t size) {
+void RtcChannel::Send(const uint8_t *data, size_t size) {
     if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
         return;
     }
@@ -148,7 +148,7 @@ void DataChannelSubject::Send(const uint8_t *data, size_t size) {
     data_channel_->Send(data_buffer);
 }
 
-void DataChannelSubject::Send(MetaMessage metadata) {
+void RtcChannel::Send(MetaMessage metadata) {
     if (metadata.path.empty()) {
         return;
     }
@@ -164,7 +164,7 @@ void DataChannelSubject::Send(MetaMessage metadata) {
     Send(type, nullptr, 0);
 }
 
-void DataChannelSubject::Send(Buffer image) {
+void RtcChannel::Send(Buffer image) {
     auto type = CommandType::SNAPSHOT;
     const int file_size = image.length;
     std::string size_str = std::to_string(file_size);
@@ -175,7 +175,7 @@ void DataChannelSubject::Send(Buffer image) {
     DEBUG_PRINT("Image sent: %d bytes", file_size);
 }
 
-void DataChannelSubject::Send(std::ifstream &file) {
+void RtcChannel::Send(std::ifstream &file) {
     std::vector<char> buffer(CHUNK_SIZE);
     int bytes_read = 0;
     int count = 0;
@@ -205,7 +205,7 @@ void DataChannelSubject::Send(std::ifstream &file) {
     Send(type, nullptr, 0);
 }
 
-void DataChannelSubject::Send(const std::string &message) {
+void RtcChannel::Send(const std::string &message) {
     auto type = CommandType::CUSTOM;
     auto body = message;
     int body_size = message.length();
