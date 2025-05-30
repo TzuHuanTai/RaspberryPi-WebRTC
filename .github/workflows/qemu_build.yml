@@ -112,7 +112,9 @@ jobs:
             libasound2-dev \
             libjpeg-dev \
             libcamera-dev \
-            libmosquitto-dev && \
+            libmosquitto-dev \
+            protobuf-compiler \
+            libprotobuf-dev && \
             wget -q https://github.com/TzuHuanTai/Native-WebRTC-Builder/releases/download/5790/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             sudo mkdir -p /usr/local/include/webrtc &&
@@ -168,6 +170,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build project inside Raspberry Pi OS
         run: |

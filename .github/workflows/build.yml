@@ -44,10 +44,14 @@ jobs:
           libasound2-dev \
           libjpeg-dev \
           libcamera-dev \
-          libmosquitto-dev
+          libmosquitto-dev \
+          protobuf-compiler \
+          libprotobuf-dev
 
     - name: Check out code
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Build project
       run: |
