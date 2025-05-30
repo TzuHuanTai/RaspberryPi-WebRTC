@@ -62,7 +62,9 @@ jobs:
               libasound2-dev \
               libjpeg-dev \
               libcamera-dev \
-              libmosquitto-dev &&
+              libmosquitto-dev \
+              protobuf-compiler \
+              libprotobuf-dev &&
             cd /app &&
             wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
@@ -99,6 +101,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Restore Docker Image from Cache
         uses: actions/cache@v4
