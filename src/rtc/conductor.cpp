@@ -141,7 +141,7 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
 
     AddTracks(peer->GetPeer());
 
-    DEBUG_PRINT("Peer connection(%s) is created! ", peer->GetId().c_str());
+    DEBUG_PRINT("Peer connection(%s) is created! ", peer->id().c_str());
     return peer;
 }
 
