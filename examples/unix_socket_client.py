@@ -1,6 +1,4 @@
 import asyncio
-import socket
-import os
 
 class AsyncUnixSocketClient:
     def __init__(self, socket_path):
