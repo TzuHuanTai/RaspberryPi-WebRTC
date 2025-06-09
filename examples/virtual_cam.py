@@ -1,22 +1,22 @@
 """
 Camera Stream to Virtual V4L2 Device
 ------------------------------------
-This script captures images from the Raspberry Pi camera and streams them 
+This script captures images from the Raspberry Pi camera and streams them
 to a virtual V4L2 loopback device using OpenCV.
 
 Usage:
     1. Install required dependencies:
         pip install opencv-python picamera2
-    
+
     2. Load v4l2loopback module (if not already loaded):
-        sudo modprobe v4l2loopback devices=1 video_nr=16 card_label=ProcessedCam max_buffers=4 exclusive_caps=1
-    
+        sudo modprobe v4l2loopback devices=1 video_nr=8 card_label=ProcessedCam max_buffers=4 exclusive_caps=1
+
     3. Run the script:
         python virtual_cam.py
 
     4. Test the video output:
-        /path/to/pi-webrtc --camera=v4l2:16 --width=1920 --height=1080 ...   # View the processed feed by WebRTC
-        ffplay /dev/video16                                                  # View the processed feed by ffplay
+        /path/to/pi-webrtc --camera=v4l2:8 --width=1920 --height=1080 ...   # View the processed feed by WebRTC
+        ffplay /dev/video8                                                  # View the processed feed by ffplay
 
 Requirements:
     - Raspberry Pi with Camera Module
@@ -29,6 +29,7 @@ import time
 import fcntl
 import v4l2
 import logging
+import argparse
 from picamera2 import Picamera2, MappedArray
 
 logging.basicConfig(
@@ -37,11 +38,11 @@ logging.basicConfig(
 
 
 class VirtualCameraStreamer:
-    def __init__(self, video_nr, camera_id=0, width=1920, height=1080):
+    def __init__(self, width, height, camera_id, virtual_camera):
         self.width = width
         self.height = height
         self.camera_id = camera_id
-        self.virtual_camera = f"/dev/video{video_nr}"
+        self.virtual_camera = virtual_camera
         self.fd = None
         self.picam2 = None
 
@@ -88,13 +89,17 @@ class VirtualCameraStreamer:
                 self.stop()
 
     def start(self):
+        logging.info(f"Starting streamer with:")
+        logging.info(f"  Resolution: {self.width}x{self.height}")
+        logging.info(f"  Camera ID: {self.camera_id}")
+        logging.info(f"  Output To Virtual Device: {self.virtual_camera}")
+
         if not self.fd:
             logging.error("Cannot start streaming without virtual device.")
             return
 
         self.picam2.pre_callback = self._process_frame
         self.picam2.start()
-        logging.info(f"Start streaming to {self.virtual_camera}...")
 
         try:
             while True:
@@ -113,5 +118,23 @@ class VirtualCameraStreamer:
 
 
 if __name__ == "__main__":
-    streamer = VirtualCameraStreamer(16, camera_id=1)
+    parser = argparse.ArgumentParser(description="Start virtual camera streamer")
+    parser.add_argument("--width", type=int, default=1920, help="Frame width")
+    parser.add_argument("--height", type=int, default=1080, help="Frame height")
+    parser.add_argument("--camera-id", type=int, default=0, help="Camera input ID")
+    parser.add_argument(
+        "--virtual-device",
+        type=str,
+        default="/dev/video8",
+        help="Virtual video device path",
+    )
+    args = parser.parse_args()
+
+    streamer = VirtualCameraStreamer(
+        width=args.width,
+        height=args.height,
+        camera_id=args.camera_id,
+        virtual_camera=args.virtual_device,
+    )
+
     streamer.start()

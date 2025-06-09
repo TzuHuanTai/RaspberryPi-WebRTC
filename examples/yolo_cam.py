@@ -1,28 +1,29 @@
 """
 Camera Stream to Virtual V4L2 Device
 ------------------------------------
-This script captures images from the Raspberry Pi camera and streams them 
-to a virtual V4L2 loopback device using OpenCV. 
+This script captures images from the Raspberry Pi camera and streams them
+to a virtual V4L2 loopback device using OpenCV.
 
-It allows real-time object detection using YOLO while keeping the original 
+It allows real-time object detection using YOLO while keeping the original
 camera feed accessible without delay.
 
 Usage:
     1. Install required dependencies:
         pip install opencv-python ultralytics
-    
-    2. Load v4l2loopback module:
-        sudo modprobe v4l2loopback devices=2 video_nr=16,17 card_label=RelayCam,YoloCam max_buffers=4 exclusive_caps=1,1
-    
+
+    2. Reload v4l2loopback module:
+        sudo modprobe -r v4l2loopback
+        sudo modprobe v4l2loopback devices=2 video_nr=8,9 card_label=RelayCam,YoloCam max_buffers=4 exclusive_caps=1,1
+
     3. Start `virtual_cam.py` first:
-        python virtual_cam.py
-    
+        python ./examples/virtual_cam.py --width 1920 --height 1080  --camera-id 0 --virtual-device /dev/video8
+
     4. Run `yolo_cam.py` to apply YOLO detection:
-        python yolo_cam.py
+        python ./examples/yolo_cam.py --input-device /dev/video8 --output-device /dev/video9 --width 1920 --height 1080
 
     5. Test the video output:
-        /path/to/pi-webrtc --camera=v4l2:16 --width=1920 --height=1080 ...   # View original camera feed
-        /path/to/pi-webrtc --camera=v4l2:17 --width=1920 --height=1080 ...   # View YOLO-processed feed
+        /path/to/pi-webrtc --camera=v4l2:8 --width=1920 --height=1080 ...   # View original camera feed
+        /path/to/pi-webrtc --camera=v4l2:9 --width=1920 --height=1080 ...   # View YOLO-processed feed
 
 Requirements:
     - Raspberry Pi with Camera Module
@@ -36,6 +37,7 @@ import time
 import fcntl
 import v4l2
 import logging
+import argparse
 from ultralytics import YOLO
 
 model = YOLO("/home/pi/yolo11n.pt")
@@ -155,5 +157,31 @@ class VirtualCameraStreamer:
 
 
 if __name__ == "__main__":
-    streamer = VirtualCameraStreamer("/dev/video16", "/dev/video17")
+    logging.basicConfig(level=logging.INFO)
+
+    parser = argparse.ArgumentParser(description="Virtual camera streamer")
+    parser.add_argument(
+        "--input-device",
+        type=str,
+        default="/dev/video8",
+        help="Input camera device path",
+    )
+    parser.add_argument(
+        "--output-device",
+        type=str,
+        default="/dev/video",
+        help="Output virtual camera path",
+    )
+    parser.add_argument("--width", type=int, default=1920, help="Frame width")
+    parser.add_argument("--height", type=int, default=1080, help="Frame height")
+
+    args = parser.parse_args()
+
+    streamer = VirtualCameraStreamer(
+        input_device=args.input_device,
+        output_device=args.output_device,
+        width=args.width,
+        height=args.height,
+    )
+
     streamer.start()
