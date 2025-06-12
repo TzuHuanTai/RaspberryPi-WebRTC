@@ -85,8 +85,10 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capture
     fps = capturer->fps();
     width = capturer->width();
     height = capturer->height();
-    video_recorder = ([capturer]() -> std::unique_ptr<VideoRecorder> {
-        if (capturer->format() == V4L2_PIX_FMT_H264) {
+    video_recorder = ([this, capturer]() -> std::unique_ptr<VideoRecorder> {
+        if (config.record_mode == RecordMode::Snapshot) {
+            return nullptr;
+        } else if (capturer->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(capturer->config());
         } else {
             return H264Recorder::Create(capturer->config());
@@ -95,8 +97,12 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capture
 }
 
 void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) {
-    audio_recorder = ([capturer]() -> std::unique_ptr<AudioRecorder> {
-        return AudioRecorder::Create(capturer->config());
+    audio_recorder = ([this, capturer]() -> std::unique_ptr<AudioRecorder> {
+        if (config.record_mode == RecordMode::Snapshot) {
+            return nullptr;
+        } else {
+            return AudioRecorder::Create(capturer->config());
+        }
     })();
 }
 
@@ -126,20 +132,27 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
-            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
-                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
+
+        elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
+                        (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
     });
 
-    video_recorder->OnPacketed([this](AVPacket *pkt) {
-        this->WriteIntoFile(pkt);
-    });
+    if (video_recorder) {
+        video_recorder->OnPacketed([this](AVPacket *pkt) {
+            this->WriteIntoFile(pkt);
+        });
+    }
 }
 
 void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src) {
+    if (!audio_recorder) {
+        return;
+    }
+
     audio_observer = audio_src->AsObservable();
     audio_observer->Subscribe([this](PaBuffer buffer) {
-        if (has_first_keyframe && audio_recorder) {
+        if (has_first_keyframe) {
             audio_recorder->OnBuffer(buffer);
         }
     });
@@ -171,7 +184,7 @@ void RecorderManager::Start() {
     auto folder = new_file.GetFolderPath();
     Utils::CreateFolder(folder);
 
-    {
+    if (config.record_mode != RecordMode::Snapshot) {
         std::lock_guard<std::mutex> lock(ctx_mux);
         fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
         if (fmt_ctx == nullptr) {
@@ -198,7 +211,10 @@ void RecorderManager::Start() {
         audio_recorder->Start();
     }
 
-    MakePreviewImage();
+    if (config.record_mode != RecordMode::Video) {
+        auto image_path = ReplaceExtension(new_file.GetFullPath(), PREVIEW_IMAGE_EXTENSION);
+        MakePreviewImage(image_path);
+    }
 
     has_first_keyframe = true;
 }
@@ -228,15 +244,14 @@ RecorderManager::~RecorderManager() {
     audio_observer.reset();
 }
 
-void RecorderManager::MakePreviewImage() {
-    std::thread([this]() {
+void RecorderManager::MakePreviewImage(std::string path) {
+    std::thread([this, path]() {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         if (video_src_ == nullptr) {
             return;
         }
         auto i420buff = video_src_->GetI420Frame();
-        Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                               ReplaceExtension(fmt_ctx->url, PREVIEW_IMAGE_EXTENSION),
+        Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(), path,
                                config.jpeg_quality);
     }).detach();
 }
