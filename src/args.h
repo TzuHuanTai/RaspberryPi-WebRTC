@@ -99,6 +99,8 @@ struct Args {
     bool set_default_lens_position = false;
 
     // recording
+    std::string record = "both";
+    int record_mode = -1;
     std::string record_path = "";
     int file_duration = 60;
 

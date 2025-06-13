@@ -16,6 +16,11 @@ extern "C" {
 #include "recorder/audio_recorder.h"
 #include "recorder/video_recorder.h"
 
+enum RecordMode {
+    Video,
+    Snapshot
+};
+
 class RecUtil {
   public:
     static AVFormatContext *CreateContainer(const std::string &full_path);
@@ -60,7 +65,7 @@ class RecorderManager {
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
 
-    void MakePreviewImage();
+    void MakePreviewImage(std::string path);
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 

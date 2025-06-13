@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "recorder/recorder_manager.h"
 #include "rtc/rtc_peer.h"
 
 #include <algorithm>
@@ -14,6 +15,12 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"h264", V4L2_PIX_FMT_H264},
     {"i420", V4L2_PIX_FMT_YUV420},
     {"yuyv", V4L2_PIX_FMT_YUYV},
+};
+
+static const std::unordered_map<std::string, int> record_mode_table = {
+    {"both", -1},
+    {"video", RecordMode::Video},
+    {"snapshot", RecordMode::Snapshot},
 };
 
 static const std::unordered_map<std::string, int> ipc_mode_table = {
@@ -133,11 +140,14 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Autofocus window as x,y,width,height. e.g. '0.3,0.3,0.4,0.4'")
         ("lens-position", bpo::value<std::string>(&args.lens_position_)->default_value(args.lens_position_),
             "Set the lens to a particular focus position, \"0\" moves the lens to infinity, or \"default\" for the hyperfocal distance")
+        ("record-mode", bpo::value<std::string>(&args.record)->default_value(args.record),
+            "Recording mode: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
+            "or 'both' to do both simultaneously.")
         ("record-path", bpo::value<std::string>(&args.record_path)->default_value(args.record_path),
             "Set the path where recording video files will be saved. "
             "If the value is empty or unavailable, the recorder will not start.")
         ("file-duration", bpo::value<int>(&args.file_duration)->default_value(args.file_duration),
-            "The length (in seconds) of each MP4 recording.")
+            "The duration (in seconds) of each video file, or the interval between snapshots.")
         ("jpeg-quality", bpo::value<int>(&args.jpeg_quality)->default_value(args.jpeg_quality),
             "Set the quality of the snapshot and thumbnail images in range 0 to 100.")
         ("peer-timeout", bpo::value<int>(&args.peer_timeout)->default_value(args.peer_timeout),
@@ -262,6 +272,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
 
+    args.record_mode = ParseEnum(record_mode_table, args.record);
     args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);
 
     ParseDevice(args);
