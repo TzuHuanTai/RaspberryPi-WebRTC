@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdexcept>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -37,7 +38,7 @@ int V4L2Util::OpenDevice(const char *file) {
     int fd = open(file, O_RDWR);
     if (fd < 0) {
         ERROR_PRINT("v4l2 open(%s): %s", file, strerror(errno));
-        exit(-1);
+        throw std::runtime_error("failed to open v4l2 device");
     }
     DEBUG_PRINT("Open file %s fd(%d) success!", file, fd);
     return fd;
@@ -170,7 +171,7 @@ bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height
     if (fmt.fmt.pix_mp.width != width || fmt.fmt.pix_mp.height != height) {
         ERROR_PRINT("fd(%d) input size (%dx%d) doesn't match driver's output size (%dx%d): %s", fd,
                     width, height, fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height, strerror(EINVAL));
-        exit(0);
+        throw std::runtime_error("the frame size doesn't match");
     }
 
     return true;
