@@ -37,9 +37,11 @@ struct V4L2Buffer {
         return buf;
     }
 
-    static V4L2Buffer FromLibcamera(void *start, int length, timeval timestamp, uint32_t fmt) {
+    static V4L2Buffer FromLibcamera(void *start, int length, int dmafd, timeval timestamp,
+                                    uint32_t fmt) {
         V4L2Buffer buf;
         buf.start = start;
+        buf.dmafd = dmafd;
         buf.pix_fmt = fmt;
         buf.length = length;
         buf.timestamp = timestamp;

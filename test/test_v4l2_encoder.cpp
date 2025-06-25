@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/v4l2_capturer.h"
+#include "capturer/libcamera_capturer.h"
 #include "codecs/v4l2/v4l2_encoder.h"
 
 #include <chrono>
@@ -15,20 +15,20 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     bool has_first_keyframe_ = false;
     int images_nb = 0;
-    int record_sec = 10;
+    int record_sec = 100;
     Args args{
         .cameraId = 0,
         .fps = 30,
-        .width = 1280,
-        .height = 960,
-        .format = V4L2_PIX_FMT_YUYV,
+        .width = 1920,
+        .height = 1080,
+        .format = V4L2_PIX_FMT_YUV420,
         .hw_accel = true,
     };
 
-    auto capturer = V4L2Capturer::Create(args);
+    auto capturer = LibcameraCapturer::Create(args);
     auto observer = capturer->AsFrameBufferObservable();
 
-    auto encoder = V4L2Encoder::Create(args.width, args.height, V4L2_PIX_FMT_YUYV, false);
+    auto encoder = V4L2Encoder::Create(args.width, args.height, V4L2_PIX_FMT_YUV420, true);
 
     int cam_frame_count = 0;
     auto cam_start_time = std::chrono::steady_clock::now();
