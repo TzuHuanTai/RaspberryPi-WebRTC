@@ -66,8 +66,8 @@ sudo apt install libcamera0.5 libmosquitto1 pulseaudio libavformat59 libswscale6
 
 Get the latest [release binary](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases) .
 ```bash
-wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.1.1_raspios-bookworm-arm64.tar.gz
-tar -xzf pi-webrtc-v1.1.1_raspios-bookworm-arm64.tar.gz
+wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.1.2_raspios-bookworm-arm64.tar.gz
+tar -xzf pi-webrtc-v1.1.2_raspios-bookworm-arm64.tar.gz
 ```
 
 ### 4. MQTT Signaling
