@@ -171,7 +171,7 @@ int LibcameraCapturer::width() const { return width_; }
 
 int LibcameraCapturer::height() const { return height_; }
 
-bool LibcameraCapturer::is_dma_capture() const { return false; }
+bool LibcameraCapturer::is_dma_capture() const { return true; }
 
 uint32_t LibcameraCapturer::format() const { return format_; }
 
@@ -187,6 +187,12 @@ LibcameraCapturer &LibcameraCapturer::SetResolution(int width, int height) {
 
     camera_config_->at(0).pixelFormat = libcamera::formats::YUV420;
     camera_config_->at(0).bufferCount = buffer_count_;
+
+    if (width >= 1280 || height >= 720) {
+        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Rec709;
+    } else {
+        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Smpte170m;
+    }
 
     auto validation = camera_config_->validate();
     if (validation == libcamera::CameraConfiguration::Status::Valid) {
@@ -292,15 +298,14 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     auto &buffers = request->buffers();
     auto *buffer = buffers.begin()->second;
 
-    auto &plane = buffer->planes()[0];
-    int fd = plane.fd.get();
+    int fd = buffer->planes()[0].fd.get();
     void *data = mapped_buffers_[fd].first;
     int length = mapped_buffers_[fd].second;
     timeval tv = {};
     tv.tv_sec = buffer->metadata().timestamp / 1000000000;
     tv.tv_usec = (buffer->metadata().timestamp % 1000000000) / 1000;
 
-    auto v4l2_buffer = V4L2Buffer::FromLibcamera((uint8_t *)data, length, tv, format_);
+    auto v4l2_buffer = V4L2Buffer::FromLibcamera((uint8_t *)data, length, fd, tv, format_);
     frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, v4l2_buffer);
     NextFrameBuffer(frame_buffer_);
 
