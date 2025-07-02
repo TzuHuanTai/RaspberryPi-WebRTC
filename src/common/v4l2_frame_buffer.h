@@ -29,6 +29,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
 
     void CopyBufferData();
     const void *Data() const;
+    uint8_t *MutableData();
     V4L2Buffer GetRawBuffer();
 
   protected:

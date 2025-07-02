@@ -2,6 +2,23 @@ project(rtc)
 
 find_package(Protobuf REQUIRED)
 
+# enable proto3 optional or not
+set(PROTO_OPTIONAL_FLAG "")
+if(Protobuf_PROTOC_EXECUTABLE)
+  execute_process(
+    COMMAND ${Protobuf_PROTOC_EXECUTABLE} --version
+    OUTPUT_VARIABLE PROTOC_VERSION_RAW
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" PROTOC_VERSION ${PROTOC_VERSION_RAW})
+  message(STATUS "Found protoc version: ${PROTOC_VERSION}")
+
+  if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.12.0")
+    set(PROTO_OPTIONAL_FLAG "--experimental_allow_proto3_optional")
+    message(STATUS "Enabled proto3 optional support.")
+  endif()
+endif()
+
 # path of the proto files
 set(PROTO_SRC_DIR "${CMAKE_SOURCE_DIR}/external/livekit-protocol/protobufs")
 set(PROTO_OUT_DIR "${CMAKE_SOURCE_DIR}/proto")
@@ -21,7 +38,8 @@ foreach(proto_file ${PROTO_FILES})
   add_custom_command(
     OUTPUT ${proto_cc} ${proto_h}
     COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-    ARGS --cpp_out=${PROTO_OUT_DIR}
+    ARGS ${PROTO_OPTIONAL_FLAG}
+    --cpp_out=${PROTO_OUT_DIR}
     -I ${PROTO_SRC_DIR}
     ${proto_file}
     DEPENDS ${proto_file}

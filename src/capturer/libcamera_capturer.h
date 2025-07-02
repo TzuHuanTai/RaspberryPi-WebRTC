@@ -51,9 +51,9 @@ class LibcameraCapturer : public VideoCapturer {
 
     rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
 
-    LibcameraCapturer &SetResolution(int width, int height) override;
-    LibcameraCapturer &SetFps(int fps) override;
-    LibcameraCapturer &SetRotation(int angle) override;
+    LibcameraCapturer &SetResolution(int width, int height);
+    LibcameraCapturer &SetFps(int fps);
+    LibcameraCapturer &SetRotation(int angle);
 
     void InitCamera(int deviceId);
     void InitControls(Args arg);

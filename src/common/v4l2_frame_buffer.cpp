@@ -84,3 +84,8 @@ void V4L2FrameBuffer::CopyBufferData() {
 V4L2Buffer V4L2FrameBuffer::GetRawBuffer() { return buffer_; }
 
 const void *V4L2FrameBuffer::Data() const { return data_.get(); }
+
+uint8_t *V4L2FrameBuffer::MutableData() {
+    is_buffer_copied = true;
+    return data_.get();
+}

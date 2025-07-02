@@ -5,8 +5,11 @@
 #include <algorithm>
 #include <boost/program_options.hpp>
 #include <iostream>
-#include <libcamera/libcamera.h>
 #include <string>
+
+#if defined(USE_LIBCAMERA_CAPTURE)
+#include <libcamera/libcamera.h>
+#endif
 
 namespace bpo = boost::program_options;
 
@@ -29,6 +32,7 @@ static const std::unordered_map<std::string, int> ipc_mode_table = {
     {"reliable", ChannelMode::Reliable},
 };
 
+#if defined(USE_LIBCAMERA_CAPTURE)
 static const std::unordered_map<std::string, int> ae_metering_table = {
     {"centre", libcamera::controls::MeteringCentreWeighted},
     {"spot", libcamera::controls::MeteringSpot},
@@ -74,6 +78,7 @@ static const std::unordered_map<std::string, int> afRange_table = {
 
 static const std::unordered_map<std::string, int> afSpeed_table = {
     {"normal", libcamera::controls::AfSpeedNormal}, {"fast", libcamera::controls::AfSpeedFast}};
+#endif
 
 inline int ParseEnum(const std::unordered_map<std::string, int> table, const std::string &str) {
     auto it = table.find(str);
@@ -104,6 +109,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
+#if defined(USE_LIBCAMERA_CAPTURE)
         ("sharpness", bpo::value<float>(&args.sharpness)->default_value(args.sharpness),
             "Adjust the sharpness of the libcamera output in range 0.0 to 15.99")
         ("contrast", bpo::value<float>(&args.contrast)->default_value(args.contrast),
@@ -140,6 +146,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Autofocus window as x,y,width,height. e.g. '0.3,0.3,0.4,0.4'")
         ("lens-position", bpo::value<std::string>(&args.lens_position_)->default_value(args.lens_position_),
             "Set the lens to a particular focus position, \"0\" moves the lens to infinity, or \"default\" for the hyperfocal distance")
+#endif
         ("record-mode", bpo::value<std::string>(&args.record)->default_value(args.record),
             "Recording mode: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
             "or 'both' to do both simultaneously.")
@@ -232,6 +239,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     }
 
+#if defined(USE_LIBCAMERA_CAPTURE)
     args.sharpness = std::clamp(args.sharpness, 0.0f, 15.99f);
     args.contrast = std::clamp(args.contrast, 0.0f, 15.99f);
     args.brightness = std::clamp(args.brightness, -1.0f, 1.0f);
@@ -269,6 +277,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     } else if (!args.lens_position_.empty()) {
         throw std::runtime_error("Invalid lens position: " + args.lens_position_);
     }
+#endif
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
 
@@ -281,7 +290,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 void Parser::ParseDevice(Args &args) {
     size_t pos = args.camera.find(':');
     if (pos == std::string::npos) {
-        throw std::runtime_error("Unknown device format: " + args.camera);
+        throw std::runtime_error("Invalid camera string: " + args.camera +
+                                 ". Expected format: libcamera:<id> or v4l2:<id>");
     }
 
     std::string prefix = args.camera.substr(0, pos);
@@ -294,14 +304,32 @@ void Parser::ParseDevice(Args &args) {
     }
 
     if (prefix == "libcamera") {
+#if defined(USE_LIBCAMERA_CAPTURE)
         args.use_libcamera = true;
         args.format = V4L2_PIX_FMT_YUV420;
-        std::cout << "Using Libcamera, ID: " << args.cameraId << std::endl;
+        std::cout << "Using libcamera, ID: " << args.cameraId << std::endl;
+#elif defined(JETSON_PLATFORM)
+        throw std::runtime_error("Jetson does not support libcamera. Use v4l2:<id> instead.");
+#else
+        throw std::runtime_error("libcamera is not supported on this platform.");
+#endif
+
+    } else if (prefix == "libargus") {
+#if defined(USE_LIBARGUS_CAPTURE)
+        args.use_libargus = true;
+        args.format = V4L2_PIX_FMT_YUV420;
+#elif defined(RPI_PLATFORM)
+        throw std::runtime_error("Raspberry Pi does not support libargus. Use v4l2:<id> instead.");
+#else
+        throw std::runtime_error("libargus is not supported on this platform.");
+#endif
     } else if (prefix == "v4l2") {
         args.format = ParseEnum(v4l2_fmt_table, args.v4l2_format);
         std::cout << "Using V4L2, ID: " << args.cameraId << std::endl;
-        std::cout << "Using V4L2, format: " << args.v4l2_format << std::endl;
+        std::cout << "V4L2 format: " << args.v4l2_format << std::endl;
+
     } else {
-        throw std::runtime_error("Unknown device format: " + prefix);
+        throw std::runtime_error("Unknown camera type: " + prefix +
+                                 ". Expected 'libcamera', 'libargus' or 'v4l2'");
     }
 }

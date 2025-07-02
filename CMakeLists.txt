@@ -20,6 +20,32 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
+# Detect platform if not provided
+if(NOT DEFINED PLATFORM)
+    if(EXISTS "/etc/nv_tegra_release")
+        set(PLATFORM "jetson")
+    elseif(EXISTS "/usr/bin/raspi-config")
+        set(PLATFORM "raspberrypi")
+    endif()
+endif()
+message(STATUS "Target platform: ${PLATFORM}")
+
+if(${PLATFORM} STREQUAL "jetson")
+    add_definitions(
+        -DJETSON_PLATFORM
+        -DUSE_LIBARGUS_CAPTURE
+        -DUSE_JETSON_HW_ENCODER
+    )
+elseif(${PLATFORM} STREQUAL "raspberrypi")
+    add_definitions(
+        -DRPI_PLATFORM
+        -DUSE_LIBCAMERA_CAPTURE
+        -DUSE_RPI_HW_ENCODER
+    )
+else()
+    message(FATAL_ERROR "Unknown PLATFORM: ${PLATFORM}")
+endif()
+
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY
     /usr/local/lib/libwebrtc.a
@@ -115,6 +141,11 @@ elseif(BUILD_TEST STREQUAL "v4l2_decoder")
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
     add_executable(test-v4l2-scaler test/test_v4l2_scaler.cpp)
     target_link_libraries(test-v4l2-scaler
+        capturer
+    )
+elseif(BUILD_TEST STREQUAL "libargus")
+    add_executable(test-libargus test/test_libargus.cpp)
+    target_link_libraries(test-libargus
         capturer
     )
 elseif(BUILD_TEST STREQUAL "libcamera")

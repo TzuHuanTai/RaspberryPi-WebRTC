@@ -20,7 +20,11 @@
 #include <pc/video_track_source_proxy.h>
 #include <rtc_base/ssl_adapter.h>
 
+#if defined(USE_LIBCAMERA_CAPTURE)
 #include "capturer/libcamera_capturer.h"
+#elif defined(USE_LIBARGUS_CAPTURE)
+#include "capturer/libargus_capturer.h"
+#endif
 #include "capturer/v4l2_capturer.h"
 #include "common/logging.h"
 #include "common/utils.h"
@@ -64,19 +68,37 @@ void Conductor::InitializeTracks() {
 
     if (video_track_ == nullptr && !args.camera.empty()) {
         video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
+#if defined(USE_LIBCAMERA_CAPTURE)
             if (args.use_libcamera) {
                 return LibcameraCapturer::Create(args);
             } else {
                 return V4L2Capturer::Create(args);
             }
+#elif defined(USE_LIBARGUS_CAPTURE)
+            if (args.use_libargus) {
+                printf("Use libargus capturer.\n");
+                return LibargusCapturer::Create(args);
+            } else {
+                printf("Use v4l2 capturer.\n");
+                return V4L2Capturer::Create(args);
+            }
+#endif
+            printf("Capturer is undefined.\n");
+            return nullptr;
         })();
 
         video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
+#if defined(USE_LIBCAMERA_CAPTURE)
             if (args.hw_accel) {
                 return V4L2DmaTrackSource::Create(video_capture_source_);
             } else {
                 return ScaleTrackSource::Create(video_capture_source_);
             }
+#else
+            // Jetson always uses DMA hardware path, but test on sw mode now.
+            // return V4L2DmaTrackSource::Create(video_capture_source_);
+            return ScaleTrackSource::Create(video_capture_source_);
+#endif
         })();
 
         auto video_source = webrtc::VideoTrackSourceProxy::Create(
