@@ -15,9 +15,13 @@
                 "/usr/local/include/webrtc/tools/json_schema_compiler",
                 "/usr/local/include/webrtc/third_party/boringssl/src/include",
                 "/usr/include/boost/program_options",
-                "${workspaceFolder}"
+                "/usr/src/jetson_multimedia_api/include",
+                "/usr/src/jetson_multimedia_api/samples/common/classes"
             ],
-            "defines": [],
+            "defines": [
+                "JETSON_PLATFORM",
+                "USE_JETSON_HW_ENCODER"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++20",

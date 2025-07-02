@@ -7,8 +7,6 @@
 #include "common/v4l2_utils.h"
 #include <modules/video_capture/video_capture.h>
 
-#include <libcamera/libcamera.h>
-
 #include <variant>
 
 class VideoCapturer {
@@ -25,10 +23,7 @@ class VideoCapturer {
     virtual void StartCapture() = 0;
     virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() = 0;
 
-    virtual VideoCapturer &SetResolution(int width, int height) = 0;
-    virtual VideoCapturer &SetFps(int fps) = 0;
-    virtual VideoCapturer &SetRotation(int angle) = 0;
-    virtual VideoCapturer &SetControls(int key, int value) = 0;
+    virtual VideoCapturer &SetControls(int key, int value) { return *this; };
 
     std::shared_ptr<Observable<rtc::scoped_refptr<V4L2FrameBuffer>>> AsFrameBufferObservable() {
         return frame_buffer_subject_.AsObservable();

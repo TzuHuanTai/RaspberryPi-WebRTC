@@ -25,7 +25,7 @@ class V4L2Capturer : public VideoCapturer {
     Args config() const override;
     void StartCapture() override;
 
-    V4L2Capturer &SetControls(int key, int value) override;
+    V4L2Capturer &SetControls(int key, int value);
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
   private:
@@ -43,9 +43,9 @@ class V4L2Capturer : public VideoCapturer {
     std::unique_ptr<V4L2Decoder> decoder_;
     rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
 
-    V4L2Capturer &SetResolution(int width, int height) override;
-    V4L2Capturer &SetFps(int fps) override;
-    V4L2Capturer &SetRotation(int angle) override;
+    V4L2Capturer &SetResolution(int width, int height);
+    V4L2Capturer &SetFps(int fps);
+    V4L2Capturer &SetRotation(int angle);
 
     void Init(int deviceId);
     bool IsCompressedFormat() const;

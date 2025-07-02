@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -53,6 +54,7 @@ struct Args {
     int width = 640;
     int height = 480;
     int rotation = 0;
+    bool use_libargus = false;
     bool use_libcamera = false;
     uint32_t format = V4L2_PIX_FMT_MJPEG;
     std::string camera = "libcamera:0";
