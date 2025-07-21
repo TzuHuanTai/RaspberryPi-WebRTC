@@ -68,7 +68,6 @@ add_compile_definitions(
 
 add_compile_options(
     -pipe
-    -fdeclspec
 )
 
 include_directories(

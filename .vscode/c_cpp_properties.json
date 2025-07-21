@@ -16,7 +16,8 @@
                 "/usr/local/include/webrtc/third_party/boringssl/src/include",
                 "/usr/include/boost/program_options",
                 "/usr/src/jetson_multimedia_api/include",
-                "/usr/src/jetson_multimedia_api/samples/common/classes"
+                "/usr/src/jetson_multimedia_api/samples/common/classes",
+                "/usr/src/jetson_multimedia_api/argus/samples/utils"
             ],
             "defines": [
                 "JETSON_PLATFORM",

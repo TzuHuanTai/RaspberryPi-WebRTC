@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/libargus_capturer.h"
+#include "capturer/libargus_buffer_capturer.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -34,7 +34,7 @@ int main() {
     Args args{.fps = 60, .width = 1280, .height = 720};
     auto start_time = std::chrono::steady_clock::now();
 
-    auto capturer = LibargusCapturer::Create(args);
+    auto capturer = LibargusBufferCapturer::Create(args);
 
     auto observer = capturer->AsFrameBufferObservable();
     observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {

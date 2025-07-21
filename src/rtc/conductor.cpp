@@ -23,7 +23,7 @@
 #if defined(USE_LIBCAMERA_CAPTURE)
 #include "capturer/libcamera_capturer.h"
 #elif defined(USE_LIBARGUS_CAPTURE)
-#include "capturer/libargus_capturer.h"
+#include "capturer/libargus_buffer_capturer.h"
 #endif
 #include "capturer/v4l2_capturer.h"
 #include "common/logging.h"
@@ -77,7 +77,7 @@ void Conductor::InitializeTracks() {
 #elif defined(USE_LIBARGUS_CAPTURE)
             if (args.use_libargus) {
                 printf("Use libargus capturer.\n");
-                return LibargusCapturer::Create(args);
+                return LibargusBufferCapturer::Create(args);
             } else {
                 printf("Use v4l2 capturer.\n");
                 return V4L2Capturer::Create(args);
