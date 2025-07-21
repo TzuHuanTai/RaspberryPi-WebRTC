@@ -1,5 +1,5 @@
-#ifndef LIBARGUS_CAPTURER_H_
-#define LIBARGUS_CAPTURER_H_
+#ifndef LIBARGUS_EGL_CAPTURER_H_
+#define LIBARGUS_EGL_CAPTURER_H_
 
 #include <vector>
 
@@ -16,12 +16,12 @@
 #include <EGLStream/NV/ImageNativeBuffer.h>
 #include <nvbufsurface.h>
 
-class LibargusCapturer : public VideoCapturer {
+class LibargusEglCapturer : public VideoCapturer {
   public:
-    static std::shared_ptr<LibargusCapturer> Create(Args args);
+    static std::shared_ptr<LibargusEglCapturer> Create(Args args);
 
-    LibargusCapturer(Args args);
-    ~LibargusCapturer();
+    LibargusEglCapturer(Args args);
+    ~LibargusEglCapturer();
     int fps() const override;
     int width() const override;
     int height() const override;

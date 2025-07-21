@@ -1,4 +1,4 @@
-#include "libargus_capturer.h"
+#include "libargus_egl_capturer.h"
 
 #include <iostream>
 #include <sys/mman.h>
@@ -7,14 +7,14 @@
 
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
 
-std::shared_ptr<LibargusCapturer> LibargusCapturer::Create(Args args) {
-    auto ptr = std::make_shared<LibargusCapturer>(args);
+std::shared_ptr<LibargusEglCapturer> LibargusEglCapturer::Create(Args args) {
+    auto ptr = std::make_shared<LibargusEglCapturer>(args);
     ptr->InitCamera();
     ptr->StartCapture();
     return ptr;
 }
 
-LibargusCapturer::LibargusCapturer(Args args)
+LibargusEglCapturer::LibargusEglCapturer(Args args)
     : cameraId_(args.cameraId),
       dma_fd_(-1),
       fps_(args.fps),
@@ -24,7 +24,7 @@ LibargusCapturer::LibargusCapturer(Args args)
       config_(args),
       camera_provider_(Argus::CameraProvider::create()) {}
 
-LibargusCapturer::~LibargusCapturer() {
+LibargusEglCapturer::~LibargusEglCapturer() {
     DestroyNvBufferFromFd(dma_fd_);
 
     if (icapture_session_) {
@@ -34,7 +34,7 @@ LibargusCapturer::~LibargusCapturer() {
     camera_provider_.reset();
 }
 
-void LibargusCapturer::DestroyNvBufferFromFd(int &fd) {
+void LibargusEglCapturer::DestroyNvBufferFromFd(int &fd) {
     if (fd >= 0) {
         NvBufSurface *nvbuf = nullptr;
         if (NvBufSurfaceFromFd(fd, (void **)(&nvbuf)) == 0 && nvbuf) {
@@ -44,7 +44,7 @@ void LibargusCapturer::DestroyNvBufferFromFd(int &fd) {
     }
 }
 
-void LibargusCapturer::PrintSensorModeInfo(Argus::SensorMode *sensorMode, const char *indent) {
+void LibargusEglCapturer::PrintSensorModeInfo(Argus::SensorMode *sensorMode, const char *indent) {
     Argus::ISensorMode *iSensorMode = Argus::interface_cast<Argus::ISensorMode>(sensorMode);
     if (iSensorMode) {
         Argus::Size2D<uint32_t> resolution = iSensorMode->getResolution();
@@ -120,8 +120,8 @@ void LibargusCapturer::PrintSensorModeInfo(Argus::SensorMode *sensorMode, const 
     }
 }
 
-void LibargusCapturer::PrintCameraDeviceInfo(Argus::CameraDevice *cameraDevice,
-                                             const char *indent) {
+void LibargusEglCapturer::PrintCameraDeviceInfo(Argus::CameraDevice *cameraDevice,
+                                                const char *indent) {
     Argus::ICameraProperties *iCameraProperties =
         Argus::interface_cast<Argus::ICameraProperties>(cameraDevice);
     if (iCameraProperties) {
@@ -156,7 +156,7 @@ void LibargusCapturer::PrintCameraDeviceInfo(Argus::CameraDevice *cameraDevice,
     }
 }
 
-void LibargusCapturer::InitCamera() {
+void LibargusEglCapturer::InitCamera() {
     if (!camera_provider_) {
         throw std::runtime_error("Failed to create CameraProvider");
     }
@@ -221,19 +221,19 @@ void LibargusCapturer::InitCamera() {
     }
 }
 
-int LibargusCapturer::fps() const { return fps_; }
+int LibargusEglCapturer::fps() const { return fps_; }
 
-int LibargusCapturer::width() const { return width_; }
+int LibargusEglCapturer::width() const { return width_; }
 
-int LibargusCapturer::height() const { return height_; }
+int LibargusEglCapturer::height() const { return height_; }
 
-bool LibargusCapturer::is_dma_capture() const { return false; }
+bool LibargusEglCapturer::is_dma_capture() const { return false; }
 
-uint32_t LibargusCapturer::format() const { return format_; }
+uint32_t LibargusEglCapturer::format() const { return format_; }
 
-Args LibargusCapturer::config() const { return config_; }
+Args LibargusEglCapturer::config() const { return config_; }
 
-void LibargusCapturer::CaptureImage() {
+void LibargusEglCapturer::CaptureImage() {
     Argus::Status status;
     Argus::UniqueObj<EGLStream::Frame> frame(
         iframe_consumer_->acquireFrame(kAcquireFrameTimeoutNs, &status));
@@ -288,11 +288,11 @@ void LibargusCapturer::CaptureImage() {
     NextFrameBuffer(frame_buffer_);
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusCapturer::GetI420Frame() {
+rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusEglCapturer::GetI420Frame() {
     return frame_buffer_->ToI420();
 }
 
-void LibargusCapturer::StartCapture() {
+void LibargusEglCapturer::StartCapture() {
     framesize_ = width_ * height_ + ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
     frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, framesize_, V4L2_PIX_FMT_YUV420);
 
@@ -307,8 +307,8 @@ void LibargusCapturer::StartCapture() {
     worker_->Run();
 }
 
-Argus::SensorMode *LibargusCapturer::FindBestSensorMode(int req_width, int req_height,
-                                                        int req_fps) {
+Argus::SensorMode *LibargusEglCapturer::FindBestSensorMode(int req_width, int req_height,
+                                                           int req_fps) {
     auto icamera_properties = interface_cast<Argus::ICameraProperties>(camera_device_);
     std::vector<Argus::SensorMode *> sensor_modes;
     icamera_properties->getAllSensorModes(&sensor_modes);
