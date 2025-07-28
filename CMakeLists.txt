@@ -31,12 +31,18 @@ endif()
 message(STATUS "Target platform: ${PLATFORM}")
 
 if(${PLATFORM} STREQUAL "jetson")
+    set(JETSON_PLATFORM ON)
+    set(USE_LIBARGUS_CAPTURE ON)
+    set(USE_JETSON_HW_ENCODER ON)
     add_definitions(
         -DJETSON_PLATFORM
         -DUSE_LIBARGUS_CAPTURE
         -DUSE_JETSON_HW_ENCODER
     )
 elseif(${PLATFORM} STREQUAL "raspberrypi")
+    set(RPI_PLATFORM ON)
+    set(USE_LIBCAMERA_CAPTURE ON)
+    set(USE_RPI_HW_ENCODER ON)
     add_definitions(
         -DRPI_PLATFORM
         -DUSE_LIBCAMERA_CAPTURE
@@ -82,6 +88,7 @@ include_directories(
 add_subdirectory(src/capturer)
 add_subdirectory(src/codecs/h264)
 add_subdirectory(src/codecs/v4l2)
+add_subdirectory(src/codecs/jetson)
 add_subdirectory(src/common)
 add_subdirectory(src/recorder)
 add_subdirectory(src/rtc)
@@ -131,16 +138,25 @@ elseif(BUILD_TEST STREQUAL "v4l2_encoder")
     add_executable(test-v4l2-encoder test/test_v4l2_encoder.cpp)
     target_link_libraries(test-v4l2-encoder
         capturer
+        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "v4l2_decoder")
     add_executable(test-v4l2-decoder test/test_v4l2_decoder.cpp)
     target_link_libraries(test-v4l2-decoder
         capturer
+        v4l2_codecs
     )
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
     add_executable(test-v4l2-scaler test/test_v4l2_scaler.cpp)
     target_link_libraries(test-v4l2-scaler
         capturer
+        v4l2_codecs
+    )
+elseif(BUILD_TEST STREQUAL "jetson_encoder")
+    add_executable(test-jetson-encoder test/test_jetson_encoder.cpp)
+    target_link_libraries(test-jetson-encoder
+        capturer
+        jetson_codecs
     )
 elseif(BUILD_TEST STREQUAL "libargus")
     add_executable(test-libargus test/test_libargus.cpp)

@@ -1,5 +1,10 @@
 #include "rtc/customized_video_encoder_factory.h"
+
+#if defined(USE_RPI_HW_ENCODER)
 #include "codecs/v4l2/v4l2_h264_encoder.h"
+#elif defined(USE_JETSON_HW_ENCODER)
+#include "codecs/jetson/jetson_h264_encoder.h"
+#endif
 
 #include <modules/video_coding/codecs/av1/av1_svc_config.h>
 #include <modules/video_coding/codecs/av1/libaom_av1_encoder.h>
@@ -15,6 +20,7 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
     std::vector<webrtc::SdpVideoFormat> supported_codecs;
 
     if (args_.hw_accel) {
+#if defined(USE_RPI_HW_ENCODER)
         // hw h264
         supported_codecs.push_back(CreateH264Format(
             webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel4, "1"));
@@ -24,6 +30,18 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
                                                     webrtc::H264Level::kLevel4, "1"));
         supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
                                                     webrtc::H264Level::kLevel4, "0"));
+#elif defined(USE_JETSON_HW_ENCODER)
+        // hw h264
+        // It's tricky that react-native-webrtc not supports level 5.0 or higher.
+        supported_codecs.push_back(CreateH264Format(
+            webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel4, "1"));
+        supported_codecs.push_back(CreateH264Format(
+            webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel4, "0"));
+        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
+                                                    webrtc::H264Level::kLevel4, "1"));
+        supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
+                                                    webrtc::H264Level::kLevel4, "0"));
+#endif
     } else {
         // vp8
         supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
@@ -48,7 +66,11 @@ std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
     if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
         if (args_.hw_accel) {
+#if defined(USE_RPI_HW_ENCODER)
             return V4L2H264Encoder::Create(args_);
+#elif defined(USE_JETSON_HW_ENCODER)
+            return JetsonH264Encoder::Create(args_);
+#endif
         } else {
             return webrtc::H264Encoder::Create(cricket::VideoCodec(format));
         }
