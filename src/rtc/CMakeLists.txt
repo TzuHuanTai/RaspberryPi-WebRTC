@@ -65,7 +65,18 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   common
   track
   capturer
-  v4l2_codecs
   ipc
   protobuf::libprotobuf
 )
+
+if(USE_JETSON_HW_ENCODER)
+  target_link_libraries(${PROJECT_NAME} PUBLIC
+    jetson_codecs
+  )
+endif()
+
+if(USE_RPI_HW_ENCODER)
+  target_link_libraries(${PROJECT_NAME} PUBLIC
+    v4l2_codecs
+  )
+endif()

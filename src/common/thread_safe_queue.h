@@ -7,9 +7,18 @@
 
 template <typename T> class ThreadSafeQueue {
   public:
-    void push(T t) {
+    explicit ThreadSafeQueue(size_t max_size = 8)
+        : max_size_(max_size) {}
+
+    // Return false when the queue is full.
+    bool push(T t) {
         std::unique_lock<std::mutex> lock(mutex_);
+        if (queue_.size() >= max_size_) {
+            printf("ThreadSafeQueue drop item due to overloaded queue.\n");
+            return false;
+        }
         queue_.push(t);
+        return true;
     }
 
     std::optional<T> pop() {
@@ -31,6 +40,11 @@ template <typename T> class ThreadSafeQueue {
         return t;
     }
 
+    bool full() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.size() >= max_size_;
+    }
+
     bool empty() {
         std::lock_guard<std::mutex> lock(mutex_);
         return queue_.empty();
@@ -49,6 +63,7 @@ template <typename T> class ThreadSafeQueue {
   private:
     std::queue<T> queue_;
     std::mutex mutex_;
+    size_t max_size_;
 };
 
 #endif

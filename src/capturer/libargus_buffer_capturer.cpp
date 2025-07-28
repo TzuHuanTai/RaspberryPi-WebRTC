@@ -32,9 +32,6 @@ LibargusBufferCapturer::~LibargusBufferCapturer() {
 
     abort_ = true;
 
-    producer_.reset();
-    consumer_.reset();
-
     /* Stop the repeating request and wait for idle */
     icapture_session_->stopRepeat();
     ibuffer_output_stream_->endOfStream();
@@ -52,6 +49,9 @@ LibargusBufferCapturer::~LibargusBufferCapturer() {
     for (uint32_t i = 0; i < buffer_count_; i++) {
         delete native_buffers_[i];
     }
+
+    producer_.reset();
+    consumer_.reset();
 }
 
 int LibargusBufferCapturer::fps() const { return fps_; }
@@ -277,27 +277,29 @@ void LibargusBufferCapturer::CaptureImage() {
         return;
     }
 
-    if (config_.hw_accel) {
-        // todo: pass dma fd to hardware transformer and encoder.
-    } else {
-        auto &surf = nvbuf->surfaceList[0];
-        int offset = 0;
-        for (int p = 0; p < surf.planeParams.num_planes; ++p) {
-            if (NvBufSurfaceMap(nvbuf, 0, p, NVBUF_MAP_READ) != 0)
-                continue;
-            if (NvBufSurfaceSyncForCpu(nvbuf, 0, p) != 0) {
-                NvBufSurfaceUnMap(nvbuf, 0, p);
-                continue;
-            }
-            uint8_t *addr = static_cast<uint8_t *>(surf.mappedAddr.addr[p]);
-            for (uint32_t row = 0; row < surf.planeParams.height[p]; ++row) {
-                int row_size = surf.planeParams.width[p] * surf.planeParams.bytesPerPix[p];
-                memcpy(frame_buffer_->MutableData() + offset,
-                       addr + row * surf.planeParams.pitch[p], row_size);
-                offset += row_size;
-            }
+    // if (config_.hw_accel) {
+    //     // todo: pass dma fd to hardware transformer and encoder.
+    //     INFO_PRINT(" todo: pass dma fd to hardware transformer and encoder.");
+    //     exit(EXIT_FAILURE);
+    // } else {
+    auto &surf = nvbuf->surfaceList[0];
+    int offset = 0;
+    for (int p = 0; p < surf.planeParams.num_planes; ++p) {
+        if (NvBufSurfaceMap(nvbuf, 0, p, NVBUF_MAP_READ) != 0)
+            continue;
+        if (NvBufSurfaceSyncForCpu(nvbuf, 0, p) != 0) {
             NvBufSurfaceUnMap(nvbuf, 0, p);
+            continue;
         }
+        uint8_t *addr = static_cast<uint8_t *>(surf.mappedAddr.addr[p]);
+        for (uint32_t row = 0; row < surf.planeParams.height[p]; ++row) {
+            int row_size = surf.planeParams.width[p] * surf.planeParams.bytesPerPix[p];
+            memcpy(frame_buffer_->MutableData() + offset, addr + row * surf.planeParams.pitch[p],
+                   row_size);
+            offset += row_size;
+        }
+        NvBufSurfaceUnMap(nvbuf, 0, p);
+        // }
     }
 
     NextFrameBuffer(frame_buffer_);
