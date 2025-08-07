@@ -37,10 +37,9 @@ std::string V4L2Util::FourccToString(uint32_t fourcc) {
 int V4L2Util::OpenDevice(const char *file) {
     int fd = open(file, O_RDWR);
     if (fd < 0) {
-        ERROR_PRINT("v4l2 open(%s): %s", file, strerror(errno));
-        throw std::runtime_error("failed to open v4l2 device");
+        throw std::runtime_error(std::string("Failed to open v4l2 device: ") + file);
     }
-    DEBUG_PRINT("Open file %s fd(%d) success!", file, fd);
+    DEBUG_PRINT("Successfully opened file %s (fd: %d)", file, fd);
     return fd;
 }
 
@@ -128,7 +127,7 @@ bool V4L2Util::SubscribeEvent(int fd, uint32_t type) {
     return true;
 }
 
-bool V4L2Util::SetFps(int fd, v4l2_buf_type type, int fps) {
+bool V4L2Util::SetFps(int fd, v4l2_buf_type type, uint32_t fps) {
     struct v4l2_streamparm streamparms = {};
     streamparms.type = type;
     streamparms.parm.capture.timeperframe.numerator = 1;
@@ -140,7 +139,7 @@ bool V4L2Util::SetFps(int fd, v4l2_buf_type type, int fps) {
     return true;
 }
 
-bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height,
+bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, uint32_t width, uint32_t height,
                          uint32_t &pixel_format) {
     v4l2_format fmt = {};
     fmt.type = gbuffer->type;
@@ -167,6 +166,7 @@ bool V4L2Util::SetFormat(int fd, V4L2BufferGroup *gbuffer, int width, int height
                 fmt.fmt.pix_mp.height);
     // use the  return format
     pixel_format = fmt.fmt.pix_mp.pixelformat;
+    gbuffer->num_planes = fmt.fmt.pix_mp.num_planes;
 
     if (fmt.fmt.pix_mp.width != width || fmt.fmt.pix_mp.height != height) {
         ERROR_PRINT("fd(%d) input size (%dx%d) doesn't match driver's output size (%dx%d): %s", fd,
@@ -246,7 +246,7 @@ bool V4L2Util::MMap(int fd, V4L2BufferGroup *gbuffer) {
         inner->memory = V4L2_MEMORY_MMAP;
         inner->length = 1;
         inner->index = i;
-        inner->m.planes = &buffer->plane;
+        inner->m.planes = buffer->plane;
 
         if (ioctl(fd, VIDIOC_QUERYBUF, inner) < 0) {
             ERROR_PRINT("fd(%d) query buffer: %s", fd, strerror(errno));
@@ -316,7 +316,7 @@ bool V4L2Util::AllocateBuffer(int fd, V4L2BufferGroup *gbuffer, int num_buffers)
             inner->memory = V4L2_MEMORY_DMABUF;
             inner->index = i;
             inner->length = 1;
-            inner->m.planes = &buffer->plane;
+            inner->m.planes = buffer->plane;
         }
     }
 

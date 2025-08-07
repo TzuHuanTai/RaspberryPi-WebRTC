@@ -41,6 +41,11 @@ V4L2Capturer::V4L2Capturer(Args args)
       config_(args) {}
 
 void V4L2Capturer::Init(int deviceId) {
+    if (!hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
+        INFO_PRINT("Software decoding H264 camera source is not supported.");
+        exit(EXIT_FAILURE);
+    }
+
     std::string devicePath = "/dev/video" + std::to_string(deviceId);
     fd_ = V4L2Util::OpenDevice(devicePath.c_str());
 
@@ -144,7 +149,24 @@ void V4L2Capturer::CaptureImage() {
     }
 
     auto buffer = V4L2Buffer::FromV4L2((uint8_t *)capture_.buffers[buf.index].start, buf, format_);
-    NextBuffer(buffer);
+
+    if (hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
+        has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
+        if (!has_first_keyframe_) {
+            return;
+        }
+    }
+
+    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer);
+    if (hw_accel_ && IsCompressedFormat()) {
+        decoder_->EmplaceBuffer(frame_buffer_, [this, buffer](V4L2FrameBufferRef decoded_buffer) {
+            // hw decoder doesn't output timestamps.
+            decoded_buffer->GetRawBuffer().timestamp = buffer.timestamp;
+            NextFrameBuffer(decoded_buffer);
+        });
+    } else {
+        NextFrameBuffer(frame_buffer_);
+    }
 
     if (!V4L2Util::QueueBuffer(fd_, &buf)) {
         return;
@@ -158,35 +180,6 @@ V4L2Capturer &V4L2Capturer::SetControls(int key, int value) {
 
 rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame() {
     return frame_buffer_->ToI420();
-}
-
-void V4L2Capturer::NextBuffer(V4L2Buffer &buffer) {
-    if (hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
-        has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
-        if (!has_first_keyframe_) {
-            return;
-        }
-    }
-
-    if (!hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
-        INFO_PRINT("Software decoding H264 camera source is not supported.");
-        exit(EXIT_FAILURE);
-    }
-
-    if (hw_accel_ && IsCompressedFormat()) {
-        decoder_->EmplaceBuffer(buffer, [this, buffer](V4L2Buffer &decoded_buffer) {
-            // hw decoder doesn't output timestamps.
-            decoded_buffer.timestamp = buffer.timestamp;
-            HandleDecodedBuffer(decoded_buffer);
-        });
-    } else {
-        HandleDecodedBuffer(buffer);
-    }
-}
-
-void V4L2Capturer::HandleDecodedBuffer(V4L2Buffer &buffer) {
-    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer);
-    NextFrameBuffer(frame_buffer_);
 }
 
 void V4L2Capturer::StartCapture() {

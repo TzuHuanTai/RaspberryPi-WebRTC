@@ -48,20 +48,22 @@ int32_t JetsonH264Encoder::Encode(const webrtc::VideoFrame &frame,
         return WEBRTC_VIDEO_CODEC_OK;
     }
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
-    V4L2FrameBuffer *raw_buffer = static_cast<V4L2FrameBuffer *>(frame_buffer.get());
+    auto v4l2_frame_buffer = V4L2FrameBufferRef(static_cast<V4L2FrameBuffer *>(frame_buffer.get()));
 
     if (!encoder_) {
-        encoder_ = JetsonEncoder::Create(width_, height_, V4L2_PIX_FMT_H264, false);
+        encoder_ =
+            JetsonEncoder::Create(width_, height_, V4L2_PIX_FMT_H264,
+                                  frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative);
     }
 
     if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
         encoder_->ForceKeyFrame();
     }
 
-    encoder_->EmplaceBuffer(rtc::scoped_refptr<V4L2FrameBuffer>(raw_buffer),
-                            [this, frame](V4L2Buffer &encoded_buffer) {
-                                SendFrame(frame, encoded_buffer);
-                            });
+    encoder_->EmplaceBuffer(v4l2_frame_buffer, [this, frame](V4L2FrameBufferRef encoded_buffer) {
+        auto v4l2buffer = encoded_buffer->GetRawBuffer();
+        SendFrame(frame, v4l2buffer);
+    });
 
     return WEBRTC_VIDEO_CODEC_OK;
 }

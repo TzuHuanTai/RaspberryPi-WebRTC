@@ -1,7 +1,7 @@
 #ifndef V4L2DMA_TRACK_SOURCE_H_
 #define V4L2DMA_TRACK_SOURCE_H_
 
-#include "codecs/v4l2/v4l2_scaler.h"
+#include "common/interface/processor.h"
 #include "track/scale_track_source.h"
 
 class V4L2DmaTrackSource : public ScaleTrackSource {
@@ -15,9 +15,9 @@ class V4L2DmaTrackSource : public ScaleTrackSource {
     bool is_dma_src_;
     int config_width_;
     int config_height_;
-    std::unique_ptr<V4L2Scaler> scaler;
+    std::unique_ptr<IFrameProcessor> scaler;
 
-    void OnFrameCaptured(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer);
+    void OnFrameCaptured(V4L2FrameBufferRef frame_buffer);
 };
 
 #endif

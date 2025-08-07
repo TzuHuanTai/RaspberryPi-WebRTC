@@ -19,7 +19,7 @@ class RawH264Recorder : public VideoRecorder {
     bool has_pps_;
     bool has_first_keyframe_;
 
-    bool CheckNALUnits(const void *start, unsigned int length);
+    bool CheckNALUnits(const void *start, uint32_t length);
 };
 
 #endif // RAW_H264_RECORDER_H_

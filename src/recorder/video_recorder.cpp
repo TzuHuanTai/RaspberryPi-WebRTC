@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "common/logging.h"
 #include "common/utils.h"
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
@@ -26,9 +27,8 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
 }
 
 void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
-    if (frame_buffer_queue.size() < 8) {
-        frame_buffer->CopyBufferData();
-        frame_buffer_queue.push(frame_buffer);
+    if (frame_buffer_queue.push(frame_buffer->Clone())) {
+        ERROR_PRINT("frame_buffer_queue skip a frame due to overloaded queue.\n");
     }
 }
 
@@ -50,7 +50,7 @@ void VideoRecorder::OnStop() {
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
-void VideoRecorder::OnEncoded(uint8_t *start, unsigned int length, timeval timestamp) {
+void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp) {
     AVPacket *pkt = av_packet_alloc();
     pkt->data = start;
     pkt->size = length;

@@ -68,22 +68,22 @@ void Conductor::InitializeTracks() {
 
     if (video_track_ == nullptr && !args.camera.empty()) {
         video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
-#if defined(USE_LIBCAMERA_CAPTURE)
-            if (args.use_libcamera) {
-                return LibcameraCapturer::Create(args);
-            } else {
+            if (!args.use_libcamera && !args.use_libargus) {
+                INFO_PRINT("Use v4l2 capturer.");
                 return V4L2Capturer::Create(args);
+            }
+#if defined(USE_LIBCAMERA_CAPTURE)
+            else if (args.use_libcamera) {
+                INFO_PRINT("Use libcamera capturer.");
+                return LibcameraCapturer::Create(args);
             }
 #elif defined(USE_LIBARGUS_CAPTURE)
-            if (args.use_libargus) {
-                printf("Use libargus capturer.\n");
+            else if (args.use_libargus) {
+                INFO_PRINT("Use libargus capturer.");
                 return LibargusBufferCapturer::Create(args);
-            } else {
-                printf("Use v4l2 capturer.\n");
-                return V4L2Capturer::Create(args);
             }
 #endif
-            printf("Capturer is undefined.\n");
+            ERROR_PRINT("Capturer is undefined.");
             return nullptr;
         })();
 
@@ -95,9 +95,13 @@ void Conductor::InitializeTracks() {
                 return ScaleTrackSource::Create(video_capture_source_);
             }
 #else
-            // Jetson always uses DMA hardware path, but test on sw mode now.
-            // return V4L2DmaTrackSource::Create(video_capture_source_);
-            return ScaleTrackSource::Create(video_capture_source_);
+            /** Todo: Jetson DMA transformer hardware seems to slower than libyuv, it
+             * needs to check again */
+            if (args.hw_accel) {
+                return V4L2DmaTrackSource::Create(video_capture_source_);
+            } else {
+                return ScaleTrackSource::Create(video_capture_source_);
+            }
 #endif
         })();
 

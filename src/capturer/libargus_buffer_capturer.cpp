@@ -271,17 +271,13 @@ void LibargusBufferCapturer::CaptureImage() {
     /* Convert Argus::Buffer to DmaBuffer and get FD */
     auto dmabuf = DmaBuffer::fromArgusBuffer(buffer);
     int dmabuf_fd = dmabuf->getFd();
+    frame_buffer_->SetDmaFd(dmabuf_fd);
 
+    // NV12M to NV12
     NvBufSurface *nvbuf = nullptr;
     if (NvBufSurfaceFromFd(dmabuf_fd, reinterpret_cast<void **>(&nvbuf)) != 0) {
         return;
     }
-
-    // if (config_.hw_accel) {
-    //     // todo: pass dma fd to hardware transformer and encoder.
-    //     INFO_PRINT(" todo: pass dma fd to hardware transformer and encoder.");
-    //     exit(EXIT_FAILURE);
-    // } else {
     auto &surf = nvbuf->surfaceList[0];
     int offset = 0;
     for (int p = 0; p < surf.planeParams.num_planes; ++p) {
@@ -299,7 +295,6 @@ void LibargusBufferCapturer::CaptureImage() {
             offset += row_size;
         }
         NvBufSurfaceUnMap(nvbuf, 0, p);
-        // }
     }
 
     NextFrameBuffer(frame_buffer_);
@@ -321,7 +316,7 @@ Argus::SensorMode *LibargusBufferCapturer::FindBestSensorMode(Argus::CameraDevic
         }
         auto resolution = imode->getResolution();
         auto duration = imode->getFrameDurationRange();
-        Argus::Range<uint64_t> desired(static_cast<uint64_t>(1e9 / req_fps + 0.5));
+        Argus::Range<uint64_t> desired(static_cast<uint64_t>(std::ceil(1e9 / req_fps)));
         if (resolution.width() == req_width && resolution.height() == req_height &&
             desired.max() >= duration.min() && desired.min() <= duration.max()) {
             return mode;

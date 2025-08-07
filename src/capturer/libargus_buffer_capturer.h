@@ -89,6 +89,9 @@ class LibargusBufferCapturer : public VideoCapturer {
     void StartCapture() override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
+    void PrintSensorModeInfo(Argus::SensorMode *mode, const char *indent);
+    void PrintCameraDeviceInfo(Argus::CameraDevice *device, const char *indent);
+
   private:
     int cameraId_;
     int fps_;

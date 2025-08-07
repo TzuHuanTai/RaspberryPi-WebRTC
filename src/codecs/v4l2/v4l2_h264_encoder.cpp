@@ -49,30 +49,25 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
     }
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
 
-    V4L2Buffer src_buffer;
-    if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
-        V4L2FrameBuffer *raw_buffer = static_cast<V4L2FrameBuffer *>(frame_buffer.get());
-        src_buffer = raw_buffer->GetRawBuffer();
-    } else {
-        auto i420_buffer = frame_buffer->GetI420();
-        unsigned int i420_buffer_size =
-            (i420_buffer->StrideY() * height_) +
-            ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
-
-        src_buffer.start = const_cast<uint8_t *>(i420_buffer->DataY());
-        src_buffer.length = i420_buffer_size;
+    if (frame_buffer->type() != webrtc::VideoFrameBuffer::Type::kNative) {
+        return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
     }
 
+    auto v4l2_frame_buffer = V4L2FrameBufferRef(static_cast<V4L2FrameBuffer *>(frame_buffer.get()));
+
     if (!encoder_) {
-        encoder_ = V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420, src_buffer.dmafd > 0);
+        encoder_ =
+            V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420,
+                                frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative);
     }
 
     if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
-        V4L2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+        encoder_->ForceKeyFrame();
     }
 
-    encoder_->EmplaceBuffer(src_buffer, [this, frame](V4L2Buffer &encoded_buffer) {
-        SendFrame(frame, encoded_buffer);
+    encoder_->EmplaceBuffer(v4l2_frame_buffer, [this, frame](V4L2FrameBufferRef encoded_buffer) {
+        auto raw_buffer = encoded_buffer->GetRawBuffer();
+        SendFrame(frame, raw_buffer);
     });
 
     return WEBRTC_VIDEO_CODEC_OK;
