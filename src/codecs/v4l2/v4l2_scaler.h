@@ -10,7 +10,7 @@ class V4L2Scaler : public V4L2Codec {
                                               bool is_dma_dst);
 
   private:
-    bool Configure(int src_width, int src_height, uint32_t src_pix_fmt, int dst_width,
+    void Configure(int src_width, int src_height, uint32_t src_pix_fmt, int dst_width,
                    int dst_height, bool is_drm_src, bool is_drm_dst);
 };
 

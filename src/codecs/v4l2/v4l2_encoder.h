@@ -12,15 +12,19 @@ class V4L2Encoder : public V4L2Codec {
                                                bool is_dma_src);
     V4L2Encoder();
 
+    void ForceKeyFrame();
+    void SetLevel(uint32_t level);
+    void SetProfile(uint32_t profile);
+    void SetFps(uint32_t adjusted_fps);
+    void SetRateControlMode(uint32_t mode);
+    void SetIFrameInterval(uint32_t interval);
     void SetBitrate(uint32_t adjusted_bitrate_bps);
-    void SetFps(int adjusted_fps);
-    const int GetFd() const;
 
   private:
     int framerate_;
     int bitrate_bps_;
 
-    bool Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_src);
+    void Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_src);
 };
 
 #endif // V4L2_ENCODER_H_

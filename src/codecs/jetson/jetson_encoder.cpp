@@ -6,9 +6,10 @@
 #include "NvBuffer.h"
 #include <NvBufSurface.h>
 
-const int KEY_FRAME_INTERVAL = 600;
-const int BUFFER_NUM = 4;
+const int KEY_FRAME_INTERVAL = 900;
+const int BUFFER_NUM = 10;
 
+/* Only accept V4L2_PIX_FMT_YUV420M (multi-pnale yuv420) or dma source input */
 std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(int width, int height, uint32_t dst_pix_fmt,
                                                      bool is_dma_src) {
     auto ptr = std::make_unique<JetsonEncoder>(width, height, dst_pix_fmt, is_dma_src);
@@ -33,7 +34,7 @@ JetsonEncoder::~JetsonEncoder() {
 
     /* Wait till capture plane DQ Thread finishes
        i.e. all the capture plane buffers are dequeued */
-    encoder_->capture_plane.waitForDQThread(2000);
+    encoder_->capture_plane.waitForDQThread(-1);
     encoder_->capture_plane.deinitPlane();
     encoder_->output_plane.deinitPlane();
 
@@ -42,7 +43,7 @@ JetsonEncoder::~JetsonEncoder() {
         encoder_ = nullptr;
     }
 
-    INFO_PRINT("~JetsonEncoder");
+    DEBUG_PRINT("~JetsonEncoder");
 }
 
 bool JetsonEncoder::CreateVideoEncoder() {
@@ -50,7 +51,7 @@ bool JetsonEncoder::CreateVideoEncoder() {
 
     encoder_ = NvVideoEncoder::createVideoEncoder("enc0");
     if (!encoder_)
-        ORIGINATE_ERROR("Could not create encoder_oder");
+        ORIGINATE_ERROR("Could not create encoder");
 
     ret = encoder_->setCapturePlaneFormat(dst_pix_fmt_, width_, height_, 2 * 1024 * 1024);
     if (ret < 0)
@@ -68,7 +69,7 @@ bool JetsonEncoder::CreateVideoEncoder() {
         ret = encoder_->setProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
         ret = encoder_->setLevel(V4L2_MPEG_VIDEO_H264_LEVEL_4_0); // 4k60fps needs level 5.2
         if (ret < 0)
-            ORIGINATE_ERROR("Could not set encoder_oder level");
+            ORIGINATE_ERROR("Could not set encoder level");
 
         ret = encoder_->setNumBFrames(0);
         if (ret < 0)
@@ -97,17 +98,19 @@ bool JetsonEncoder::CreateVideoEncoder() {
 
     ret = encoder_->setFrameRate(framerate_, 1);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set encoder_oder framerate");
+        ORIGINATE_ERROR("Could not set encoder framerate");
 
     ret = encoder_->setHWPresetType(V4L2_ENC_HW_PRESET_ULTRAFAST);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set encoder_oder HW Preset");
+        ORIGINATE_ERROR("Could not set encoder HW Preset");
 
     /* Query, Export and Map the output plane buffers so that we can read
        raw data into the buffers */
     if (is_dma_src_) {
         INFO_PRINT("Set output dma buffer parameters");
-        PrepareOutputDmaBuffer(width_, height_);
+        ret = encoder_->output_plane.reqbufs(V4L2_MEMORY_DMABUF, BUFFER_NUM);
+        if (ret)
+            ORIGINATE_ERROR("reqbufs failed for output plane V4L2_MEMORY_DMABUF");
     } else {
         INFO_PRINT("Set output mmap parameters");
         ret = encoder_->output_plane.setupPlane(V4L2_MEMORY_MMAP, BUFFER_NUM, true, false);
@@ -121,33 +124,6 @@ bool JetsonEncoder::CreateVideoEncoder() {
     if (ret < 0)
         ORIGINATE_ERROR("Could not setup capture plane");
 
-    return true;
-}
-
-bool JetsonEncoder::PrepareOutputDmaBuffer(int width, int height) {
-    int ret = 0;
-    NvBufSurf::NvCommonAllocateParams cParams;
-    int fd;
-
-    ret = encoder_->output_plane.reqbufs(V4L2_MEMORY_DMABUF, BUFFER_NUM);
-    if (ret)
-        ORIGINATE_ERROR("reqbufs failed for output plane V4L2_MEMORY_DMABUF");
-
-    for (uint32_t i = 0; i < encoder_->output_plane.getNumBuffers(); i++) {
-        cParams.width = width;
-        cParams.height = height;
-        cParams.layout = NVBUF_LAYOUT_PITCH;
-        cParams.colorFormat = NVBUF_COLOR_FORMAT_YUV420;
-        cParams.memtag = NvBufSurfaceTag_VIDEO_ENC;
-        cParams.memType = NVBUF_MEM_SURFACE_ARRAY;
-
-        /* Create output plane fd for DMABUF io-mode */
-        ret = NvBufSurf::NvAllocate(&cParams, 1, &fd);
-        if (ret < 0)
-            ORIGINATE_ERROR("Failed to create NvBuffer for DMABUF");
-
-        output_plane_fd_[i] = fd;
-    }
     return true;
 }
 
@@ -175,7 +151,7 @@ void JetsonEncoder::SetFps(int adjusted_fps) {
         framerate_ = adjusted_fps;
         int ret = encoder_->setFrameRate(framerate_, 1);
         if (ret < 0)
-            ERROR_PRINT("Could not set encoder_oder framerate to %d", framerate_);
+            ERROR_PRINT("Could not set encoder framerate to %d", framerate_);
     }
 }
 
@@ -189,7 +165,7 @@ void JetsonEncoder::SetBitrate(int adjusted_bitrate_bps) {
 void JetsonEncoder::ForceKeyFrame() {
     int ret = encoder_->forceIDR();
     if (ret < 0)
-        ERROR_PRINT("Could not set encoder_oder framerate to %d", framerate_);
+        ERROR_PRINT("Could not force set encoder tokey frame");
 }
 
 void JetsonEncoder::Start() {
@@ -217,8 +193,8 @@ void JetsonEncoder::Start() {
     abort_ = false;
 }
 
-void JetsonEncoder::EmplaceBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer,
-                                  std::function<void(V4L2Buffer &)> on_capture) {
+void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
+                                  std::function<void(V4L2FrameBufferRef)> on_capture) {
     if (encoder_->isInError()) {
         ERROR_PRINT("ERROR in encoder");
         return;
@@ -250,10 +226,12 @@ void JetsonEncoder::EmplaceBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buff
     }
 
     if (is_dma_src_) {
-        // v4l2_buffer *buf = &output_.buffers[index].inner;
-        // buf->m.planes[0].m.fd = buffer.dmafd;
-        // buf->m.planes[0].bytesused = buffer.length;
-        // buf->m.planes[0].length = buffer.length;
+        for (int i = 0; i < nv_buffer->n_planes; i++) {
+
+            v4l2_output_buf.m.planes[i].m.fd = frame_buffer->GetDmaFd();
+            /* byteused must be non-zero for a valid buffer */
+            v4l2_output_buf.m.planes[i].bytesused = 1;
+        }
     } else {
         ConvertI420ToYUV420M(nv_buffer, frame_buffer->ToI420());
     }
@@ -277,14 +255,15 @@ bool JetsonEncoder::EncoderCapturePlaneDqCallback(struct v4l2_buffer *v4l2_buf, 
         return false;
     }
 
-    auto v4l2buffer =
-        V4L2Buffer::FromCapturedPlane(buffer->planes[0].data, buffer->planes[0].bytesused,
-                                      buffer->planes[0].fd, v4l2_buf->flags, thiz->dst_pix_fmt_);
-
     auto item = thiz->capturing_tasks_.pop();
     if (item) {
+        auto v4l2buffer = V4L2Buffer::FromCapturedPlane(
+            buffer->planes[0].data, buffer->planes[0].bytesused, buffer->planes[0].fd,
+            v4l2_buf->flags, thiz->dst_pix_fmt_);
+        auto encoded_frame_buffer =
+            V4L2FrameBuffer::Create(thiz->width_, thiz->height_, v4l2buffer);
         auto task = item.value();
-        task(v4l2buffer);
+        task(encoded_frame_buffer);
     }
 
     if (thiz->encoder_->capture_plane.qBuffer(*v4l2_buf, NULL) < 0) {
@@ -294,7 +273,7 @@ bool JetsonEncoder::EncoderCapturePlaneDqCallback(struct v4l2_buffer *v4l2_buf, 
         return false;
     }
 
-    /* GOT EOS from encoder_oder. Stop dqthread */
+    /* GOT EOS from encoder. Stop dqthread */
     if (buffer->planes[0].bytesused == 0) {
         DEBUG_PRINT("Got EOS, exiting jetson encoder.");
         return false;

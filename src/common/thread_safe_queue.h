@@ -14,7 +14,6 @@ template <typename T> class ThreadSafeQueue {
     bool push(T t) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (queue_.size() >= max_size_) {
-            printf("ThreadSafeQueue drop item due to overloaded queue.\n");
             return false;
         }
         queue_.push(t);

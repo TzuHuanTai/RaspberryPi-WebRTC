@@ -63,7 +63,7 @@ class AudioRecorder : public Recorder<PaBuffer> {
     int sample_rate;
     int channels = 2;
     int frame_size;
-    unsigned int frame_count;
+    uint64_t frame_count;
     std::string encoder_name;
     ThreadSafeAudioFifo fifo_buffer;
     AVSampleFormat sample_fmt;

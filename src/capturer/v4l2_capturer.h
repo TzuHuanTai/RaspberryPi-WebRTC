@@ -52,8 +52,7 @@ class V4L2Capturer : public VideoCapturer {
     void CaptureImage();
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
-    void NextBuffer(V4L2Buffer &buffer);
-    void HandleDecodedBuffer(V4L2Buffer &buffer);
+    void NextBuffer(V4L2FrameBufferRef buffer);
 };
 
 #endif

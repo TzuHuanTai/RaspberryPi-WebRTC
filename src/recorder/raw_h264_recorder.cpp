@@ -38,13 +38,13 @@ void RawH264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     }
 }
 
-bool RawH264Recorder::CheckNALUnits(const void *start, unsigned int length) {
+bool RawH264Recorder::CheckNALUnits(const void *start, uint32_t length) {
     if (start == nullptr || length < 4) {
         return false;
     }
 
     const uint8_t *data = static_cast<const uint8_t *>(start);
-    for (unsigned int i = 0; i < length - 4; ++i) {
+    for (uint32_t i = 0; i < length - 4; ++i) {
         if (data[i] == 0x00 && data[i + 1] == 0x00 &&
             ((data[i + 2] == 0x01) || (data[i + 2] == 0x00 && data[i + 3] == 0x01))) {
             // Found start code

@@ -23,14 +23,16 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
     uint32_t format() const;
-    unsigned int size() const;
-    unsigned int flags() const;
+    uint32_t size() const;
+    uint32_t flags() const;
     timeval timestamp() const;
 
-    void CopyBufferData();
     const void *Data() const;
     uint8_t *MutableData();
     V4L2Buffer GetRawBuffer();
+    int GetDmaFd() const;
+    bool SetDmaFd(int fd);
+    rtc::scoped_refptr<V4L2FrameBuffer> Clone() const;
 
   protected:
     V4L2FrameBuffer(int width, int height, int size, uint32_t format);
@@ -41,12 +43,14 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     const int width_;
     const int height_;
     const uint32_t format_;
-    unsigned int size_;
-    unsigned int flags_;
-    bool is_buffer_copied;
+    uint32_t size_;
+    uint32_t flags_;
+    bool has_mutable_data_;
     timeval timestamp_;
     V4L2Buffer buffer_;
     const std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;
 };
 
 #endif // V4L2_FRAME_BUFFER_H_
+
+using V4L2FrameBufferRef = rtc::scoped_refptr<V4L2FrameBuffer>;

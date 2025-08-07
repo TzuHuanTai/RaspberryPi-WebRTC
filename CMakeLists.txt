@@ -158,6 +158,12 @@ elseif(BUILD_TEST STREQUAL "jetson_encoder")
         capturer
         jetson_codecs
     )
+elseif(BUILD_TEST STREQUAL "jetson_scaler")
+    add_executable(test-jetson-scaler test/test_jetson_scaler.cpp)
+    target_link_libraries(test-jetson-scaler
+        capturer
+        jetson_codecs
+    )
 elseif(BUILD_TEST STREQUAL "libargus")
     add_executable(test-libargus test/test_libargus.cpp)
     target_link_libraries(test-libargus

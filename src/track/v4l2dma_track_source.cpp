@@ -1,13 +1,11 @@
 #include "track/v4l2dma_track_source.h"
 
-#include <future>
-
-// WebRTC
-#include <api/video/i420_buffer.h>
-#include <rtc_base/timestamp_aligner.h>
-#include <third_party/libyuv/include/libyuv.h>
-
-#include "common/v4l2_utils.h"
+#if defined(USE_RPI_HW_ENCODER)
+#include "codecs/v4l2/v4l2_scaler.h"
+#elif defined(USE_JETSON_HW_ENCODER)
+#include "codecs/jetson/jetson_scaler.h"
+#endif
+#include "common/logging.h"
 
 rtc::scoped_refptr<V4L2DmaTrackSource>
 V4L2DmaTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
@@ -26,12 +24,12 @@ V4L2DmaTrackSource::~V4L2DmaTrackSource() { scaler.reset(); }
 
 void V4L2DmaTrackSource::StartTrack() {
     auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([this](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    observer->Subscribe([this](V4L2FrameBufferRef frame_buffer) {
         OnFrameCaptured(frame_buffer);
     });
 }
 
-void V4L2DmaTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =
         timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
@@ -49,24 +47,26 @@ void V4L2DmaTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4L2FrameBuffer> fra
             return;
         }
 
-        auto decoded_buffer = frame_buffer->GetRawBuffer();
-
         if (!scaler || adapted_width != config_width_ || adapted_height != config_height_) {
             config_width_ = adapted_width;
             config_height_ = adapted_height;
-            scaler = V4L2Scaler::Create(width, height, decoded_buffer.pix_fmt, config_width_,
+#if defined(USE_RPI_HW_ENCODER)
+            scaler = V4L2Scaler::Create(width, height, frame_buffer->format(), config_width_,
                                         config_height_, is_dma_src_, true);
+#elif defined(USE_JETSON_HW_ENCODER)
+            scaler = JetsonScaler::Create(width, height, config_width_, config_height_);
+#endif
+            DEBUG_PRINT("New scaler is set: %dx%d -> %dx%d", width, height, config_width_,
+                        config_height_);
         }
 
-        scaler->EmplaceBuffer(decoded_buffer, [this,
-                                               translated_timestamp_us](V4L2Buffer scaled_buffer) {
-            auto dst_buffer = V4L2FrameBuffer::Create(config_width_, config_height_, scaled_buffer);
-
-            OnFrame(webrtc::VideoFrame::Builder()
-                        .set_video_frame_buffer(dst_buffer)
-                        .set_rotation(webrtc::kVideoRotation_0)
-                        .set_timestamp_us(translated_timestamp_us)
-                        .build());
-        });
+        scaler->EmplaceBuffer(frame_buffer,
+                              [this, translated_timestamp_us](V4L2FrameBufferRef scaled_buffer) {
+                                  OnFrame(webrtc::VideoFrame::Builder()
+                                              .set_video_frame_buffer(scaled_buffer)
+                                              .set_rotation(webrtc::kVideoRotation_0)
+                                              .set_timestamp_us(translated_timestamp_us)
+                                              .build());
+                              });
     }
 }

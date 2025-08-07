@@ -1,6 +1,7 @@
 #ifndef JETSON_CODEC_
 #define JETSON_CODEC_
 
+#include "common/interface/processor.h"
 #include "common/thread_safe_queue.h"
 #include "common/v4l2_frame_buffer.h"
 #include "common/v4l2_utils.h"
@@ -8,15 +9,15 @@
 
 #include <NvVideoEncoder.h>
 
-class JetsonEncoder {
+class JetsonEncoder : public IFrameProcessor {
   public:
     JetsonEncoder(int width, int height, uint32_t dst_pix_fmt, bool is_dma_src);
-    ~JetsonEncoder();
+    ~JetsonEncoder() override;
 
     static std::unique_ptr<JetsonEncoder> Create(int width, int height, uint32_t dst_pix_fmt,
                                                  bool is_dma_src);
-    void EmplaceBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer,
-                       std::function<void(V4L2Buffer &)> on_capture);
+    void EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
+                       std::function<void(V4L2FrameBufferRef)> on_capture);
     void ForceKeyFrame();
     void SetFps(int adjusted_fps);
     void SetBitrate(int adjusted_bitrate_bps);
@@ -28,14 +29,12 @@ class JetsonEncoder {
     int height_;
     int framerate_;
     int bitrate_bps_;
-    int output_plane_fd_[32];
     uint32_t src_pix_fmt_;
     uint32_t dst_pix_fmt_;
     bool is_dma_src_;
-    ThreadSafeQueue<std::function<void(V4L2Buffer &)>> capturing_tasks_;
+    ThreadSafeQueue<std::function<void(V4L2FrameBufferRef)>> capturing_tasks_;
 
     bool CreateVideoEncoder();
-    bool PrepareOutputDmaBuffer(int width, int height);
     bool PrepareCaptureBuffer();
     void Start();
     void SendEOS();

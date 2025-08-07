@@ -34,8 +34,6 @@ int main(int argc, char *argv[]) {
     auto start_time = std::chrono::steady_clock::now();
 
     observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
-        // auto buffer = frame_buffer->GetRawBuffer();
-
         auto cam_current_time = std::chrono::steady_clock::now();
         cam_frame_count++;
 
@@ -50,7 +48,7 @@ int main(int argc, char *argv[]) {
             cam_frame_count = 0;
         }
 
-        encoder->EmplaceBuffer(frame_buffer, [&](V4L2Buffer &encoded_buffer) {
+        encoder->EmplaceBuffer(frame_buffer, [&](V4L2FrameBufferRef encoded_buffer) {
             if (is_finished) {
                 return;
             }
