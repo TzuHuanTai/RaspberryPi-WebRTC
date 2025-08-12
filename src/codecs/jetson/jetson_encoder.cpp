@@ -6,8 +6,8 @@
 #include "NvBuffer.h"
 #include <NvBufSurface.h>
 
-const int KEY_FRAME_INTERVAL = 900;
-const int BUFFER_NUM = 10;
+const int KEY_FRAME_INTERVAL = 256;
+const int BUFFER_NUM = 4;
 
 /* Only accept V4L2_PIX_FMT_YUV420M (multi-pnale yuv420) or dma source input */
 std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(int width, int height, uint32_t dst_pix_fmt,
@@ -23,7 +23,7 @@ JetsonEncoder::JetsonEncoder(int width, int height, uint32_t dst_pix_fmt, bool i
       height_(height),
       framerate_(30),
       bitrate_bps_(2 * 1024 * 1024),
-      src_pix_fmt_(V4L2_PIX_FMT_YUV420M),
+      src_pix_fmt_(V4L2_PIX_FMT_NV12M),
       dst_pix_fmt_(dst_pix_fmt),
       is_dma_src_(is_dma_src) {}
 
@@ -67,7 +67,7 @@ bool JetsonEncoder::CreateVideoEncoder() {
 
     if (dst_pix_fmt_ == V4L2_PIX_FMT_H264) {
         ret = encoder_->setProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
-        ret = encoder_->setLevel(V4L2_MPEG_VIDEO_H264_LEVEL_4_0); // 4k60fps needs level 5.2
+        ret = encoder_->setLevel(V4L2_MPEG_VIDEO_H264_LEVEL_5_1); // 4k60fps needs level 5.2
         if (ret < 0)
             ORIGINATE_ERROR("Could not set encoder level");
 
@@ -225,12 +225,20 @@ void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
         v4l2_output_buf.index = nv_buffer->index;
     }
 
+    NvBufSurface *nvbuf_surf = 0;
+    int ret = NvBufSurfaceFromFd(frame_buffer->GetDmaFd(), (void **)(&nvbuf_surf));
+    if (ret < 0) {
+        ERROR_PRINT("Error while calling NvBufSurfaceFromFd");
+    }
+
     if (is_dma_src_) {
         for (int i = 0; i < nv_buffer->n_planes; i++) {
-
-            v4l2_output_buf.m.planes[i].m.fd = frame_buffer->GetDmaFd();
-            /* byteused must be non-zero for a valid buffer */
-            v4l2_output_buf.m.planes[i].bytesused = 1;
+            nv_buffer->planes[i].fd = frame_buffer->GetDmaFd();
+            v4l2_output_buf.m.planes[i].m.fd = nv_buffer->planes[i].fd;
+            nv_buffer->planes[i].mem_offset = nvbuf_surf->surfaceList[0].planeParams.offset[i];
+            nv_buffer->planes[i].bytesused =
+                nv_buffer->planes[i].fmt.stride * nv_buffer->planes[i].fmt.height;
+            v4l2_output_buf.m.planes[i].bytesused = nv_buffer->planes[i].bytesused;
         }
     } else {
         ConvertI420ToYUV420M(nv_buffer, frame_buffer->ToI420());

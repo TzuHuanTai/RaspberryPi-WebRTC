@@ -136,7 +136,7 @@ void LibargusBufferCapturer::RunProducer() {
 
     for (uint32_t i = 0; i < buffer_count_; i++) {
         native_buffers_[i] =
-            DmaBuffer::create(stream_size_, NVBUF_COLOR_FORMAT_NV12, NVBUF_LAYOUT_PITCH);
+            DmaBuffer::create(stream_size_, NVBUF_COLOR_FORMAT_NV12, NVBUF_LAYOUT_BLOCK_LINEAR);
         if (!native_buffers_[i]) {
             ERROR_PRINT("Failed to allocate NativeBuffer");
         }
