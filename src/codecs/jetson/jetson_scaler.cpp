@@ -55,8 +55,8 @@ bool JetsonScaler::PrepareScaledDmaBuffer(int width, int height) {
         NvBufSurf::NvCommonAllocateParams cParams;
         cParams.width = width;
         cParams.height = height;
-        cParams.layout = NVBUF_LAYOUT_PITCH;
-        cParams.colorFormat = NVBUF_COLOR_FORMAT_YUV420;
+        cParams.layout = NVBUF_LAYOUT_BLOCK_LINEAR;
+        cParams.colorFormat = NVBUF_COLOR_FORMAT_NV12;
         cParams.memtag = NvBufSurfaceTag_VIDEO_ENC;
         cParams.memType = NVBUF_MEM_SURFACE_ARRAY;
 
@@ -80,8 +80,7 @@ void JetsonScaler::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
                     frame_buffer->GetDmaFd(), dst_dma_fd);
     }
 
-    auto v4l2_buffer =
-        V4L2Buffer::FromCapturedPlane(nullptr, 0, dst_dma_fd, 0, V4L2_PIX_FMT_YUV420M);
+    auto v4l2_buffer = V4L2Buffer::FromCapturedPlane(nullptr, 0, dst_dma_fd, 0, V4L2_PIX_FMT_NV12);
     auto scaled_frame_buffer_ = V4L2FrameBuffer::Create(dst_width_, dst_height_, v4l2_buffer);
 
     on_capture(scaled_frame_buffer_);
