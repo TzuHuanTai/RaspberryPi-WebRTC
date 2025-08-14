@@ -1,18 +1,20 @@
-#include "codecs/jetson/jetson_h264_encoder.h"
+#include "codecs/jetson/jetson_video_encoder.h"
 #include "common/logging.h"
 #include "common/v4l2_frame_buffer.h"
 
-std::unique_ptr<webrtc::VideoEncoder> JetsonH264Encoder::Create(Args args) {
-    return std::make_unique<JetsonH264Encoder>(args);
+#include <modules/video_coding/include/video_codec_interface.h>
+
+std::unique_ptr<webrtc::VideoEncoder> JetsonVideoEncoder::Create(Args args) {
+    return std::make_unique<JetsonVideoEncoder>(args);
 }
 
-JetsonH264Encoder::JetsonH264Encoder(Args args)
+JetsonVideoEncoder::JetsonVideoEncoder(Args args)
     : fps_adjuster_(args.fps),
       bitrate_adjuster_(.85, 1),
       callback_(nullptr) {}
 
-int32_t JetsonH264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
-                                      const VideoEncoder::Settings &settings) {
+int32_t JetsonVideoEncoder::InitEncode(const webrtc::VideoCodec *codec_settings,
+                                       const VideoEncoder::Settings &settings) {
     codec_ = *codec_settings;
     width_ = codec_settings->width;
     height_ = codec_settings->height;
@@ -21,25 +23,21 @@ int32_t JetsonH264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
-    if (codec_.codecType != webrtc::kVideoCodecH264) {
-        return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t JetsonH264Encoder::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback *callback) {
+int32_t JetsonVideoEncoder::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback *callback) {
     callback_ = callback;
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t JetsonH264Encoder::Release() {
+int32_t JetsonVideoEncoder::Release() {
     encoder_.reset();
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t JetsonH264Encoder::Encode(const webrtc::VideoFrame &frame,
-                                  const std::vector<webrtc::VideoFrameType> *frame_types) {
+int32_t JetsonVideoEncoder::Encode(const webrtc::VideoFrame &frame,
+                                   const std::vector<webrtc::VideoFrameType> *frame_types) {
     if (!frame_types) {
         return WEBRTC_VIDEO_CODEC_NO_OUTPUT;
     }
@@ -51,8 +49,12 @@ int32_t JetsonH264Encoder::Encode(const webrtc::VideoFrame &frame,
     auto v4l2_frame_buffer = V4L2FrameBufferRef(static_cast<V4L2FrameBuffer *>(frame_buffer.get()));
 
     if (!encoder_) {
+        auto codec_fmt = GetV4L2CodecFormat(codec_.codecType);
+        if (codec_fmt == 0) {
+            return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
+        }
         encoder_ =
-            JetsonEncoder::Create(width_, height_, V4L2_PIX_FMT_H264,
+            JetsonEncoder::Create(width_, height_, codec_fmt,
                                   frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative);
     }
 
@@ -68,7 +70,7 @@ int32_t JetsonH264Encoder::Encode(const webrtc::VideoFrame &frame,
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-void JetsonH264Encoder::SetRates(const RateControlParameters &parameters) {
+void JetsonVideoEncoder::SetRates(const RateControlParameters &parameters) {
     if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0) {
         return;
     }
@@ -82,22 +84,25 @@ void JetsonH264Encoder::SetRates(const RateControlParameters &parameters) {
     encoder_->SetBitrate(bitrate_adjuster_.GetAdjustedBitrateBps());
 }
 
-webrtc::VideoEncoder::EncoderInfo JetsonH264Encoder::GetEncoderInfo() const {
+webrtc::VideoEncoder::EncoderInfo JetsonVideoEncoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
-    info.implementation_name = "Jetson H264 Hardware Encoder";
+    info.implementation_name = "Jetson Hardware Encoder";
     return info;
 }
 
-void JetsonH264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer) {
+void JetsonVideoEncoder::SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer) {
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 
     webrtc::CodecSpecificInfo codec_specific;
-    codec_specific.codecType = webrtc::kVideoCodecH264;
-    codec_specific.codecSpecific.H264.packetization_mode =
-        webrtc::H264PacketizationMode::NonInterleaved;
+    codec_specific.codecType = codec_.codecType;
+
+    if (codec_specific.codecType == webrtc::kVideoCodecH264) {
+        codec_specific.codecSpecific.H264.packetization_mode =
+            webrtc::H264PacketizationMode::NonInterleaved;
+    }
 
     encoded_image_.SetEncodedData(encoded_image_buffer);
     encoded_image_.SetTimestamp(frame.timestamp());
@@ -114,5 +119,20 @@ void JetsonH264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &e
     auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
     if (result.error != webrtc::EncodedImageCallback::Result::OK) {
         ERROR_PRINT("Failed to send the frame => %d", result.error);
+    }
+}
+
+uint32_t JetsonVideoEncoder::GetV4L2CodecFormat(webrtc::VideoCodecType type) {
+    switch (type) {
+        case webrtc::kVideoCodecVP8:
+            return V4L2_PIX_FMT_VP8;
+        case webrtc::kVideoCodecVP9:
+            return V4L2_PIX_FMT_VP9;
+        case webrtc::kVideoCodecAV1:
+            return V4L2_PIX_FMT_AV1;
+        case webrtc::kVideoCodecH264:
+            return V4L2_PIX_FMT_H264;
+        default:
+            return 0;
     }
 }
