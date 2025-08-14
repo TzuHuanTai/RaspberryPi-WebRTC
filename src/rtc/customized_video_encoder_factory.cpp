@@ -3,7 +3,7 @@
 #if defined(USE_RPI_HW_ENCODER)
 #include "codecs/v4l2/v4l2_h264_encoder.h"
 #elif defined(USE_JETSON_HW_ENCODER)
-#include "codecs/jetson/jetson_h264_encoder.h"
+#include "codecs/jetson/jetson_video_encoder.h"
 #endif
 
 #include <modules/video_coding/codecs/av1/av1_svc_config.h>
@@ -41,6 +41,10 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
                                                     webrtc::H264Level::kLevel4, "1"));
         supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
                                                     webrtc::H264Level::kLevel4, "0"));
+        // av1
+        supported_codecs.push_back(
+            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
+                                   webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
 #endif
     } else {
         // vp8
@@ -64,16 +68,19 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
 
 std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
-    if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
-        if (args_.hw_accel) {
-#if defined(USE_RPI_HW_ENCODER)
-            return V4L2H264Encoder::Create(args_);
-#elif defined(USE_JETSON_HW_ENCODER)
-            return JetsonH264Encoder::Create(args_);
+#if defined(USE_JETSON_HW_ENCODER)
+    if (args_.hw_accel) {
+        return JetsonVideoEncoder::Create(args_);
+    }
 #endif
-        } else {
-            return webrtc::H264Encoder::Create(cricket::VideoCodec(format));
+
+    if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
+#if defined(USE_RPI_HW_ENCODER)
+        if (args_.hw_accel) {
+            return V4L2H264Encoder::Create(args_);
         }
+#endif
+        return webrtc::H264Encoder::Create(cricket::VideoCodec(format));
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
         return webrtc::VP8Encoder::Create();
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName)) {

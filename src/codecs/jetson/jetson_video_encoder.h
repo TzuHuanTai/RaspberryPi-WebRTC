@@ -1,18 +1,17 @@
-#ifndef JETSON_H264_ENCODER_H_
-#define JETSON_H264_ENCODER_H_
+#ifndef JETSON_VIDEO_ENCODER_H_
+#define JETSON_VIDEO_ENCODER_H_
 
 // WebRTC
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
-#include <modules/video_coding/codecs/h264/include/h264.h>
 
 #include "args.h"
 #include "codecs/jetson/jetson_encoder.h"
 
-class JetsonH264Encoder : public webrtc::VideoEncoder {
+class JetsonVideoEncoder : public webrtc::VideoEncoder {
   public:
     static std::unique_ptr<webrtc::VideoEncoder> Create(Args args);
-    JetsonH264Encoder(Args args);
+    JetsonVideoEncoder(Args args);
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
                        const VideoEncoder::Settings &settings) override;
@@ -36,6 +35,9 @@ class JetsonH264Encoder : public webrtc::VideoEncoder {
     std::unique_ptr<JetsonEncoder> encoder_;
 
     virtual void SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer);
+
+  private:
+    static uint32_t GetV4L2CodecFormat(webrtc::VideoCodecType codec);
 };
 
 #endif

@@ -57,6 +57,12 @@ bool JetsonEncoder::CreateVideoEncoder() {
     if (ret < 0)
         ORIGINATE_ERROR("Could not set capture plane format");
 
+    if (dst_pix_fmt_ == V4L2_PIX_FMT_AV1) {
+        ret = DisableAV1IVF();
+        if (ret < 0)
+            ORIGINATE_ERROR("Could not disable IVF headers for AV1 codec");
+    }
+
     ret = encoder_->setOutputPlaneFormat(src_pix_fmt_, width_, height_);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set output plane format");
@@ -339,4 +345,21 @@ void JetsonEncoder::SendEOS() {
     if (encoder_->output_plane.qBuffer(v4l2_buffer, NULL) < 0) {
         ERROR_PRINT("Failed to qBuffer at encoder while sending eos");
     }
+}
+
+uint32_t JetsonEncoder::DisableAV1IVF() {
+    struct v4l2_ext_control control;
+    struct v4l2_ext_controls ctrls;
+
+    memset(&control, 0, sizeof(control));
+    memset(&ctrls, 0, sizeof(ctrls));
+
+    control.id = V4L2_CID_MPEG_VIDEOENC_AV1_HEADERS_WITH_FRAME;
+    control.value = 0;
+
+    ctrls.ctrl_class = V4L2_CTRL_CLASS_MPEG;
+    ctrls.count = 1;
+    ctrls.controls = &control;
+
+    return encoder_->setExtControls(ctrls);
 }
