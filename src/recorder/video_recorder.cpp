@@ -4,8 +4,6 @@
 
 #include "common/logging.h"
 #include "common/utils.h"
-#include "recorder/h264_recorder.h"
-#include "recorder/raw_h264_recorder.h"
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
@@ -27,13 +25,13 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
 }
 
 void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
-    if (frame_buffer_queue.push(frame_buffer->Clone())) {
-        ERROR_PRINT("frame_buffer_queue skip a frame due to overloaded queue.\n");
+    if (!frame_buffer_queue.push(frame_buffer->Clone())) {
+        INFO_PRINT("frame_buffer_queue skip a frame due to overloaded queue.\n");
     }
 }
 
 void VideoRecorder::OnStop() {
-    // Wait P-frames are all consumed until I-frame appear while the video is h264.
+    // Wait P-frames are all consumed until I-frame appear when the video source is h264.
     auto frame = frame_buffer_queue.front();
     while (frame.has_value() && (frame.value()->format() == V4L2_PIX_FMT_H264 &&
                                  (frame.value()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0)) {

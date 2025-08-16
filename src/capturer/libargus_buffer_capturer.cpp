@@ -272,6 +272,7 @@ void LibargusBufferCapturer::CaptureImage() {
     auto dmabuf = DmaBuffer::fromArgusBuffer(buffer);
     int dmabuf_fd = dmabuf->getFd();
     frame_buffer_->SetDmaFd(dmabuf_fd);
+    frame_buffer_->SetTimestamp(dmabuf->getTimeval());
 
     // NV12M to NV12
     NvBufSurface *nvbuf = nullptr;

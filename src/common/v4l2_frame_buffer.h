@@ -32,6 +32,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     V4L2Buffer GetRawBuffer();
     int GetDmaFd() const;
     bool SetDmaFd(int fd);
+    void SetTimestamp(timeval timestamp);
     rtc::scoped_refptr<V4L2FrameBuffer> Clone() const;
 
   protected:
