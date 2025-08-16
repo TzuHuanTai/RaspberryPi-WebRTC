@@ -1,0 +1,58 @@
+name: Build Jetson Code in Docker
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+    paths-ignore:
+      - 'doc/**'
+      - 'example/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '*.md'
+
+jobs:
+  build:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get L4T Version
+        id: l4t
+        run: |
+          RAW=$(head -n 1 /etc/nv_tegra_release)
+          MAJOR=$(echo $RAW | sed -n 's/^# R\([0-9]*\).*/\1/p')
+          REVISION=$(echo $RAW | sed -n 's/.*REVISION: \([0-9]*\.[0-9]*\).*/\1/p')
+          echo "version=${MAJOR}.${REVISION}" >> $GITHUB_OUTPUT
+
+      - name: Create build directory
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          make -j$(nproc)
+
+      - name: Zip binary
+        id: zip-binary
+        run: |
+          cd build
+          if [ "${{ matrix.build_type }}" == "Release" ]; then
+            FILENAME="pi-webrtc-${{ github.ref_name }}_jetson-l4t-${{ steps.l4t.outputs.version }}.tar.gz"
+          else
+            FILENAME="pi-webrtc-${{ github.ref_name }}_jetson-l4t-${{ steps.l4t.outputs.version }}_debug.tar.gz"
+          fi
+          tar -czvf $FILENAME pi-webrtc
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/${{ steps.zip-binary.outputs.filename }}
