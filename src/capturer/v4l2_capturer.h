@@ -25,7 +25,7 @@ class V4L2Capturer : public VideoCapturer {
     Args config() const override;
     void StartCapture() override;
 
-    V4L2Capturer &SetControls(int key, int value);
+    V4L2Capturer &SetControls(int key, int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
   private:
