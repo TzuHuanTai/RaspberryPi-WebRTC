@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-Turn your Raspberry Pi into a real-time,<b> ~200ms low-latency</b> WebRTC camera.
+Turn Raspberry Pi or NVIDIA Jetson into a low-latency<b> ~200ms </b> WebRTC streaming platform.
 </p>
 
 
@@ -21,8 +21,9 @@ Turn your Raspberry Pi into a real-time,<b> ~200ms low-latency</b> WebRTC camera
 
 <hr>
 
-- Snapshot/video recording and WebRTC DataChannel messaging
-- Supports P2P, [SFU broadcasting](https://youtu.be/fuJ_EzwmlPM?si=66H8CgUIKo85leHI), and [Home Assistant](https://www.home-assistant.io) integration
+- Native WebRTC with hardware/software encoding
+- Support snapshot, recording and [broadcasting](https://youtu.be/fuJ_EzwmlPM?si=66H8CgUIKo85leHI)
+- Remote control and IoT messaging via WebRTC DataChannel
 - Signaling options:
 
   **MQTT**
@@ -38,22 +39,20 @@ Turn your Raspberry Pi into a real-time,<b> ~200ms low-latency</b> WebRTC camera
   **WebSocket**
     * [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#watch-videos-via-the-sfu-server)  - SFU signaling & broadcast
 
-# Quick Start
-
-Check out the [tutorial video](https://youtu.be/g5Npb6DsO-0) or follow these steps.
-
 ## Requirements
 
 <img src="https://assets.raspberrypi.com/static/51035ec4c2f8f630b3d26c32e90c93f1/2b8d7/zero2-hero.webp" height="96">
 
-- Raspberry Pi Zero 2W, 3B, 4B, or 5
-- CSI or USB camera (supports libcamera or V4L2)
+- **Raspberry Pi (Zero/3/4/5)** or **NVIDIA Jetson (Nano/NX/Orin)** 
+- CSI or USB camera (supports libcamera, libargus or V4L2)
 
-## Setup
+# Quick Start for Pi
+
+Check out the [tutorial video](https://youtu.be/g5Npb6DsO-0) or follow these steps.
 
 ### 1. Flash Raspberry Pi OS
 
-Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash **Lite OS** (or full OS) to SD card.
+Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash **Lite OS** to SD card.
 
 ### 2. Install Dependencies
 
@@ -62,12 +61,12 @@ sudo apt update
 sudo apt install libcamera0.5 libmosquitto1 pulseaudio libavformat59 libswscale6 libprotobuf32
 ```
 
-### 3. Download App
+### 3. Download Binary
 
 Get the latest [release binary](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases) .
 ```bash
-wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.1.2_raspios-bookworm-arm64.tar.gz
-tar -xzf pi-webrtc-v1.1.2_raspios-bookworm-arm64.tar.gz
+wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.2.0_raspios-bookworm-arm64.tar.gz
+tar -xzf pi-webrtc-v1.2.0_raspios-bookworm-arm64.tar.gz
 ```
 
 ### 4. MQTT Signaling
@@ -101,7 +100,7 @@ Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [sel
     ```
 
 > [!IMPORTANT]
-> Remove `--hw-accel` for Pi 5 or others without hardware encoder..
+> Remove `--hw-accel` for Pi 5 or others without hardware encoder.
 
 # [Advanced Usage](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
