@@ -50,14 +50,27 @@ class DmaBuffer : public ArgusSamples::NvNativeBuffer,
 
     /* Help function to convert Argus Buffer to DmaBuffer */
     static DmaBuffer *fromArgusBuffer(Argus::Buffer *buffer) {
-        Argus::IBuffer *iBuffer = interface_cast<Argus::IBuffer>(buffer);
-        const DmaBuffer *dmabuf = static_cast<const DmaBuffer *>(iBuffer->getClientData());
+        Argus::IBuffer *i_buffer = interface_cast<Argus::IBuffer>(buffer);
+        const DmaBuffer *dmabuf = static_cast<const DmaBuffer *>(i_buffer->getClientData());
 
         return const_cast<DmaBuffer *>(dmabuf);
     }
 
     /* Return DMA buffer handle */
     int getFd() const { return m_fd; }
+
+    /* Get timestamp*/
+    timeval getTimeval() const {
+        Argus::IBuffer *i_buffer = interface_cast<Argus::IBuffer>(m_buffer);
+        auto metadata = i_buffer->getMetadata();
+        const Argus::ICaptureMetadata *imetadata =
+            Argus::interface_cast<const Argus::ICaptureMetadata>(metadata);
+
+        timeval tv = {};
+        tv.tv_sec = imetadata->getSensorTimestamp() / 1000000000;
+        tv.tv_usec = (imetadata->getSensorTimestamp() % 1000000000) / 1000;
+        return tv;
+    }
 
     /* Get and set reference to Argus buffer */
     void setArgusBuffer(Argus::Buffer *buffer) { m_buffer = buffer; }

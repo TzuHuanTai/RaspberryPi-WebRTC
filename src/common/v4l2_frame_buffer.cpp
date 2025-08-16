@@ -108,6 +108,8 @@ bool V4L2FrameBuffer::SetDmaFd(int fd) {
     return true;
 }
 
+void V4L2FrameBuffer::SetTimestamp(timeval timestamp) { timestamp_ = timestamp; }
+
 /*  Return a new refptr with copied metadata and frame data. */
 rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Clone() const {
     auto clone = rtc::make_ref_counted<V4L2FrameBuffer>(width_, height_, size_, format_);

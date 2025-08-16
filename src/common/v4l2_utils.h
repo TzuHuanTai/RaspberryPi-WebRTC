@@ -20,13 +20,6 @@ struct V4L2Buffer {
 
     V4L2Buffer() = default;
 
-    static V4L2Buffer FromRaw(void *start, uint32_t length) {
-        V4L2Buffer buf;
-        buf.start = start;
-        buf.length = length;
-        return buf;
-    }
-
     static V4L2Buffer FromV4L2(void *start, const v4l2_buffer &v4l2, uint32_t fmt) {
         V4L2Buffer buf;
         buf.start = start;
