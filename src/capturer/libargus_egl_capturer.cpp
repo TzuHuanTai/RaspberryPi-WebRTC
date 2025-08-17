@@ -15,7 +15,7 @@ std::shared_ptr<LibargusEglCapturer> LibargusEglCapturer::Create(Args args) {
 }
 
 LibargusEglCapturer::LibargusEglCapturer(Args args)
-    : cameraId_(args.cameraId),
+    : camera_id_(args.camera_id),
       dma_fd_(-1),
       fps_(args.fps),
       width_(args.width),
@@ -171,8 +171,8 @@ void LibargusEglCapturer::InitCamera() {
         camera_devices.empty()) {
         throw std::runtime_error("No cameras available");
     }
-    if (camera_devices.size() <= cameraId_) {
-        INFO_PRINT("Camera device %u requested but only %lu available.", cameraId_,
+    if (camera_devices.size() <= camera_id_) {
+        INFO_PRINT("Camera device %u requested but only %lu available.", camera_id_,
                    camera_devices.size());
         for (uint32_t i = 0; i < camera_devices.size(); i++) {
             INFO_PRINT("  ==== CameraDevice %u: ====", i);
@@ -181,7 +181,7 @@ void LibargusEglCapturer::InitCamera() {
         return;
     }
 
-    camera_device_ = camera_devices[cameraId_];
+    camera_device_ = camera_devices[camera_id_];
     auto capture_session(icamera_provider_->createCaptureSession(camera_device_));
     icapture_session_ = Argus::interface_cast<Argus::ICaptureSession>(capture_session);
     if (!icapture_session_) {

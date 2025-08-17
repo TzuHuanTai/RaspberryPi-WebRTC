@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     int images_nb = 0;
     int record_sec = 100;
     Args args{
-        .cameraId = 0,
+        .camera_id = 0,
         .fps = 60,
         .width = 1280,
         .height = 720,

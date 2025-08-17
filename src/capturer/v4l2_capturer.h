@@ -16,7 +16,8 @@ class V4L2Capturer : public VideoCapturer {
     static std::shared_ptr<V4L2Capturer> Create(Args args);
 
     V4L2Capturer(Args args);
-    ~V4L2Capturer();
+    ~V4L2Capturer() override;
+
     int fps() const override;
     int width() const override;
     int height() const override;
@@ -25,14 +26,16 @@ class V4L2Capturer : public VideoCapturer {
     Args config() const override;
     void StartCapture() override;
 
-    V4L2Capturer &SetControls(int key, int value) override;
+    bool SetControls(int key, int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
 
   private:
+    int camera_id_;
     int fd_;
     int fps_;
     int width_;
     int height_;
+    int rotation_;
     int buffer_count_;
     bool hw_accel_;
     bool has_first_keyframe_;
@@ -41,18 +44,13 @@ class V4L2Capturer : public VideoCapturer {
     V4L2BufferGroup capture_;
     std::unique_ptr<Worker> worker_;
     std::unique_ptr<V4L2Decoder> decoder_;
-    rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
+    V4L2FrameBufferRef frame_buffer_;
 
-    V4L2Capturer &SetResolution(int width, int height);
-    V4L2Capturer &SetFps(int fps);
-    V4L2Capturer &SetRotation(int angle);
-
-    void Init(int deviceId);
+    void Initialize();
     bool IsCompressedFormat() const;
     void CaptureImage();
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
-    void NextBuffer(V4L2FrameBufferRef buffer);
 };
 
 #endif

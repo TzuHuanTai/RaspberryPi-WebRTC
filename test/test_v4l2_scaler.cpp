@@ -29,22 +29,24 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int images_nb = 0;
     int record_sec = 1;
-    Args args{.cameraId = 1, .fps = 15, .width = 640, .height = 480, .format = V4L2_PIX_FMT_YUV420};
+    int scaled_width = 320;
+    int scaled_height = 240;
+    Args args{
+        .camera_id = 1, .fps = 15, .width = 640, .height = 480, .format = V4L2_PIX_FMT_YUV420};
 
-    auto scaler =
-        V4L2Scaler::Create(args.width, args.height, V4L2_PIX_FMT_YUV420, 320, 240, false, false);
+    auto scaler = V4L2Scaler::Create(args.width, args.height, V4L2_PIX_FMT_YUV420, scaled_width,
+                                     scaled_height, false, false);
 
     auto capturer = V4L2Capturer::Create(args);
     auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
-        auto buffer = frame_buffer->GetRawBuffer();
-        scaler->EmplaceBuffer(buffer, [&](V4L2Buffer &scaled_buffer) {
+    observer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
+        scaler->EmplaceBuffer(frame_buffer, [&](V4L2FrameBufferRef scaled_buffer) {
             if (is_finished) {
                 return;
             }
 
             if (images_nb++ < args.fps * record_sec) {
-                WriteImage(scaled_buffer, images_nb);
+                WriteImage(scaled_buffer->GetRawBuffer(), images_nb);
             } else {
                 is_finished = true;
                 cond_var.notify_all();

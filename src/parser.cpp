@@ -298,7 +298,7 @@ void Parser::ParseDevice(Args &args) {
     std::string id = args.camera.substr(pos + 1);
 
     try {
-        args.cameraId = std::stoi(id);
+        args.camera_id = std::stoi(id);
     } catch (const std::exception &e) {
         throw std::runtime_error("Invalid camera ID: " + id);
     }
@@ -307,7 +307,7 @@ void Parser::ParseDevice(Args &args) {
 #if defined(USE_LIBCAMERA_CAPTURE)
         args.use_libcamera = true;
         args.format = V4L2_PIX_FMT_YUV420;
-        std::cout << "Using libcamera, ID: " << args.cameraId << std::endl;
+        std::cout << "Using libcamera, ID: " << args.camera_id << std::endl;
 #elif defined(JETSON_PLATFORM)
         throw std::runtime_error("Jetson does not support libcamera. Use v4l2:<id> instead.");
 #else
@@ -325,7 +325,7 @@ void Parser::ParseDevice(Args &args) {
 #endif
     } else if (prefix == "v4l2") {
         args.format = ParseEnum(v4l2_fmt_table, args.v4l2_format);
-        std::cout << "Using V4L2, ID: " << args.cameraId << std::endl;
+        std::cout << "Using V4L2, ID: " << args.camera_id << std::endl;
         std::cout << "V4L2 format: " << args.v4l2_format << std::endl;
 
     } else {

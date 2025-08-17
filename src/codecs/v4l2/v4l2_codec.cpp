@@ -109,7 +109,7 @@ void V4L2Codec::Start() {
         exit(EXIT_FAILURE);
     }
     if (capture_.type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-        ERROR_PRINT("Capture buffer type is not set for device: %s", file_name_);
+        ERROR_PRINT("Capture buffer is not set for device: %s", file_name_);
         exit(EXIT_FAILURE);
     }
 
@@ -117,7 +117,7 @@ void V4L2Codec::Start() {
     V4L2Util::StreamOn(fd_, capture_.type);
 
     abort_ = false;
-    worker_ = std::make_unique<Worker>(file_name_ + std::to_string(pthread_self()), [this]() {
+    worker_ = std::make_unique<Worker>(file_name_, [this]() {
         CaptureBuffer();
     });
     worker_->Run();

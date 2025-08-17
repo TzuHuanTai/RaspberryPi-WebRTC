@@ -36,7 +36,7 @@ class LibargusEglCapturer : public VideoCapturer {
     void PrintCameraDeviceInfo(Argus::CameraDevice *device, const char *indent);
 
   private:
-    int cameraId_;
+    int camera_id_;
     int dma_fd_;
     int fps_;
     int width_;
