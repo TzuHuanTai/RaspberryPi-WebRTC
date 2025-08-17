@@ -226,7 +226,7 @@ bool V4L2Util::StreamOff(int fd, v4l2_buf_type type) {
 
 void V4L2Util::UnMap(V4L2BufferGroup *gbuffer) {
     for (int i = 0; i < gbuffer->num_buffers; i++) {
-        if (gbuffer->buffers[i].dmafd != 0) {
+        if (gbuffer->buffers[i].dmafd > 0) {
             DEBUG_PRINT("close (%d) dmafd", gbuffer->buffers[i].dmafd);
             close(gbuffer->buffers[i].dmafd);
         }
