@@ -15,7 +15,7 @@ std::shared_ptr<LibargusBufferCapturer> LibargusBufferCapturer::Create(Args args
 }
 
 LibargusBufferCapturer::LibargusBufferCapturer(Args args)
-    : cameraId_(args.cameraId),
+    : camera_id_(args.camera_id),
       fps_(args.fps),
       width_(args.width),
       height_(args.height),
@@ -102,14 +102,14 @@ void LibargusBufferCapturer::RunProducer() {
     if (camera_devices.size() == 0)
         ERROR_PRINT("No cameras available");
 
-    if (cameraId_ >= camera_devices.size()) {
+    if (camera_id_ >= camera_devices.size()) {
         ERROR_PRINT("CAMERA_INDEX out of range. Fall back to 0");
-        cameraId_ = 0;
+        camera_id_ = 0;
     }
 
     /* Create the capture session using the first device and get the core interface */
     Argus::UniqueObj<Argus::CaptureSession> capture_session(
-        icamera_provider->createCaptureSession(camera_devices[cameraId_]));
+        icamera_provider->createCaptureSession(camera_devices[camera_id_]));
     icapture_session_ = interface_cast<Argus::ICaptureSession>(capture_session);
     if (!icapture_session_)
         ERROR_PRINT("Failed to get ICaptureSession interface");
@@ -205,7 +205,7 @@ void LibargusBufferCapturer::RunProducer() {
     if (!iSourceSettings)
         ERROR_PRINT("Failed to get ISourceSettings interface");
     iSourceSettings->setFrameDurationRange(Argus::Range<uint64_t>(1e9 / fps_));
-    auto mode = FindBestSensorMode(camera_devices[cameraId_], width_, height_, fps_);
+    auto mode = FindBestSensorMode(camera_devices[camera_id_], width_, height_, fps_);
     iSourceSettings->setSensorMode(mode);
 
     /* Submit capture requests */

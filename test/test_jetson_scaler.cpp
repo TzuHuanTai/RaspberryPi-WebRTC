@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     int adapted_width = 1280;
     int adapted_height = 720;
     Args args{
-        .cameraId = 0,
+        .camera_id = 0,
         .fps = 30,
         .width = 1920,
         .height = 1080,

@@ -18,7 +18,8 @@ class LibcameraCapturer : public VideoCapturer {
     static std::shared_ptr<LibcameraCapturer> Create(Args args);
 
     LibcameraCapturer(Args args);
-    ~LibcameraCapturer();
+    ~LibcameraCapturer() override;
+
     int fps() const override;
     int width() const override;
     int height() const override;
@@ -26,15 +27,17 @@ class LibcameraCapturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
 
-    LibcameraCapturer &SetControls(int key, int value) override;
+    bool SetControls(int key, int value) override;
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
     void StartCapture() override;
 
   private:
+    int camera_id_;
     int fps_;
     int width_;
     int height_;
     int stride_;
+    int rotation_;
     int buffer_count_;
     uint32_t format_;
     Args config_;
@@ -49,13 +52,9 @@ class LibcameraCapturer : public VideoCapturer {
     libcamera::ControlList controls_;
     std::map<int, std::pair<void *, unsigned int>> mapped_buffers_;
 
-    rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
+    V4L2FrameBufferRef frame_buffer_;
 
-    LibcameraCapturer &SetResolution(int width, int height);
-    LibcameraCapturer &SetFps(int fps);
-    LibcameraCapturer &SetRotation(int angle);
-
-    void InitCamera(int deviceId);
+    void InitCamera();
     void InitControls(Args arg);
     void AllocateBuffer();
     void RequestComplete(libcamera::Request *request);

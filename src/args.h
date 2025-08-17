@@ -49,7 +49,7 @@ template <typename DEFAULT> struct TimeVal {
 
 struct Args {
     // video input
-    int cameraId = 0;
+    int camera_id = 0;
     int fps = 30;
     int width = 640;
     int height = 480;

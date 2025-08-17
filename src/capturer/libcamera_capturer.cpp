@@ -7,17 +7,19 @@
 
 std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
-    ptr->InitCamera(args.cameraId);
+    ptr->InitCamera();
     ptr->InitControls(args);
-    ptr->SetFps(args.fps)
-        .SetRotation(args.rotation)
-        .SetResolution(args.width, args.height)
-        .StartCapture();
+    ptr->StartCapture();
     return ptr;
 }
 
 LibcameraCapturer::LibcameraCapturer(Args args)
-    : buffer_count_(2),
+    : camera_id_(args.camera_id),
+      fps_(args.fps),
+      width_(args.width),
+      height_(args.height),
+      rotation_(args.rotation),
+      buffer_count_(2),
       format_(args.format),
       config_(args) {}
 
@@ -31,7 +33,7 @@ LibcameraCapturer::~LibcameraCapturer() {
     cm_->stop();
 }
 
-void LibcameraCapturer::InitCamera(int cameraId) {
+void LibcameraCapturer::InitCamera() {
     cm_ = std::make_unique<libcamera::CameraManager>();
     int ret = cm_->start();
     if (ret) {
@@ -43,15 +45,63 @@ void LibcameraCapturer::InitCamera(int cameraId) {
         throw std::runtime_error("No camera is available via libcamera.");
     }
 
-    if (cameraId >= cameras.size()) {
+    if (camera_id_ >= cameras.size()) {
         throw std::runtime_error("Selected camera is not available.");
     }
 
-    std::string const &cam_id = cameras[cameraId]->id();
+    std::string const &cam_id = cameras[camera_id_]->id();
     INFO_PRINT("camera id: %s", cam_id.c_str());
     camera_ = cm_->get(cam_id);
     camera_->acquire();
     camera_config_ = camera_->generateConfiguration({libcamera::StreamRole::VideoRecording});
+
+    if (rotation_ == 90) {
+        camera_config_->orientation = libcamera::Orientation::Rotate90;
+    } else if (rotation_ == 180) {
+        camera_config_->orientation = libcamera::Orientation::Rotate180;
+    } else if (rotation_ == 270) {
+        camera_config_->orientation = libcamera::Orientation::Rotate270;
+    }
+
+    int64_t frame_time = 1000000 / fps_;
+    controls_.set(libcamera::controls::FrameDurationLimits,
+                  libcamera::Span<const int64_t, 2>({frame_time, frame_time}));
+
+    DEBUG_PRINT("camera original format: %s", camera_config_->at(0).toString().c_str());
+    if (width_ && height_) {
+        libcamera::Size size(width_, height_);
+        camera_config_->at(0).size = size;
+    }
+
+    camera_config_->at(0).pixelFormat = libcamera::formats::YUV420;
+    camera_config_->at(0).bufferCount = buffer_count_;
+
+    if (width_ >= 1280 || width_ >= 720) {
+        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Rec709;
+    } else {
+        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Smpte170m;
+    }
+
+    auto validation = camera_config_->validate();
+    if (validation == libcamera::CameraConfiguration::Status::Valid) {
+        INFO_PRINT("camera validated format: %s.", camera_config_->at(0).toString().c_str());
+    } else if (validation == libcamera::CameraConfiguration::Status::Adjusted) {
+        INFO_PRINT("camera adjusted format: %s.", camera_config_->at(0).toString().c_str());
+    } else {
+        ERROR_PRINT("Failed to validate camera configuration.");
+        exit(EXIT_FAILURE);
+    }
+
+    width_ = camera_config_->at(0).size.width;
+    height_ = camera_config_->at(0).size.height;
+    stride_ = camera_config_->at(0).stride;
+
+    INFO_PRINT("  width: %d, height: %d, stride: %d", width_, height_, stride_);
+
+    if (width_ != stride_) {
+        ERROR_PRINT("Stride is not equal to width");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void LibcameraCapturer::InitControls(Args args) {
@@ -177,76 +227,11 @@ uint32_t LibcameraCapturer::format() const { return format_; }
 
 Args LibcameraCapturer::config() const { return config_; }
 
-LibcameraCapturer &LibcameraCapturer::SetResolution(int width, int height) {
-    DEBUG_PRINT("camera original format: %s", camera_config_->at(0).toString().c_str());
-
-    if (width && height) {
-        libcamera::Size size(width, height);
-        camera_config_->at(0).size = size;
-    }
-
-    camera_config_->at(0).pixelFormat = libcamera::formats::YUV420;
-    camera_config_->at(0).bufferCount = buffer_count_;
-
-    if (width >= 1280 || height >= 720) {
-        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Rec709;
-    } else {
-        camera_config_->at(0).colorSpace = libcamera::ColorSpace::Smpte170m;
-    }
-
-    auto validation = camera_config_->validate();
-    if (validation == libcamera::CameraConfiguration::Status::Valid) {
-        INFO_PRINT("camera validated format: %s.", camera_config_->at(0).toString().c_str());
-    } else if (validation == libcamera::CameraConfiguration::Status::Adjusted) {
-        INFO_PRINT("camera adjusted format: %s.", camera_config_->at(0).toString().c_str());
-    } else {
-        ERROR_PRINT("Failed to validate camera configuration.");
-        exit(1);
-    }
-
-    width_ = camera_config_->at(0).size.width;
-    height_ = camera_config_->at(0).size.height;
-    stride_ = camera_config_->at(0).stride;
-
-    INFO_PRINT("  width: %d, height: %d, stride: %d", width_, height_, stride_);
-
-    if (width_ != stride_) {
-        ERROR_PRINT("Stride is not equal to width");
-        exit(1);
-    }
-
-    return *this;
-}
-
-LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
-    fps_ = fps;
-    int64_t frame_time = 1000000 / fps;
-    controls_.set(libcamera::controls::FrameDurationLimits,
-                  libcamera::Span<const int64_t, 2>({frame_time, frame_time}));
-    DEBUG_PRINT("  Fps: %d", fps);
-
-    return *this;
-}
-
-LibcameraCapturer &LibcameraCapturer::SetControls(int key, int value) {
+bool LibcameraCapturer::SetControls(int key, int value) {
     std::lock_guard<std::mutex> lock(control_mutex_);
     DEBUG_PRINT("  Set camera control: %d, %d", key, value);
     controls_.set(key, value);
-    return *this;
-}
-
-LibcameraCapturer &LibcameraCapturer::SetRotation(int angle) {
-    if (angle == 90) {
-        camera_config_->orientation = libcamera::Orientation::Rotate90;
-    } else if (angle == 180) {
-        camera_config_->orientation = libcamera::Orientation::Rotate180;
-    } else if (angle == 270) {
-        camera_config_->orientation = libcamera::Orientation::Rotate270;
-    }
-
-    DEBUG_PRINT("  Rotation: %d", angle);
-
-    return *this;
+    return true;
 }
 
 void LibcameraCapturer::AllocateBuffer() {

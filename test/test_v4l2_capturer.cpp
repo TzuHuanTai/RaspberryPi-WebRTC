@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int i = 0;
     int images_nb = 10;
-    Args args{.cameraId = 0,
+    Args args{.camera_id = 0,
               .fps = 15,
               .width = 1280,
               .height = 720,

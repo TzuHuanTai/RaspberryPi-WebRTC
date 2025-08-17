@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int images_nb = 0;
     int record_sec = 1;
-    Args args{.cameraId = 0,
+    Args args{.camera_id = 0,
               .fps = 15,
               .width = 640,
               .height = 480,
@@ -36,18 +36,18 @@ int main(int argc, char *argv[]) {
     auto decoder = V4L2Decoder::Create(args.width, args.height, capturer->format(), true);
 
     auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    observer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
         printf("Camera buffer: %u\n", frame_buffer->size());
 
-        auto buffer = frame_buffer->GetRawBuffer();
-        decoder->EmplaceBuffer(buffer, [&](V4L2Buffer decoded_buffer) {
+        decoder->EmplaceBuffer(frame_buffer, [&](V4L2FrameBufferRef decoded_buffer) {
+            auto raw_buffer = decoded_buffer->GetRawBuffer();
             if (is_finished) {
                 return;
             }
 
             if (images_nb++ < args.fps * record_sec) {
-                printf("Buffer index: %d\n  bytesused: %u\n", images_nb, decoded_buffer.length);
-                WriteYuvImage(decoded_buffer.start, decoded_buffer.length, images_nb);
+                printf("Buffer index: %d\n  bytesused: %u\n", images_nb, raw_buffer.length);
+                WriteYuvImage(raw_buffer.start, raw_buffer.length, images_nb);
             } else {
                 is_finished = true;
                 cond_var.notify_all();
