@@ -28,7 +28,7 @@ Build on raspberry pi and it'll output a `pi-webrtc` file in `/build`.
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/usr/local
 make -j
 ```
 
