@@ -3,9 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
+                "${workspaceFolder}",
                 "${workspaceFolder}/src",
-                "${workspaceFolder}/proto",
-                "${workspaceFolder}/external/livekit-protocol/protobufs",
                 "/usr/include",
                 "/usr/local/include",
                 "/usr/include/libcamera",
