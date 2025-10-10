@@ -181,22 +181,25 @@ void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer) {
         return;
     }
 
-    // Essential data channels（Lossy / Reliable / Command）
-    auto lossy_channel = peer->CreateDataChannel(ChannelMode::Lossy);
-    auto reliable_channel = peer->CreateDataChannel(ChannelMode::Reliable);
-
     if (args.enable_ipc) {
         switch (args.ipc_channel_mode) {
-            case ChannelMode::Lossy:
+            case ChannelMode::Lossy: {
+                auto lossy_channel = peer->CreateDataChannel(ChannelMode::Lossy);
                 BindIpcToDataChannel(lossy_channel);
                 break;
-            case ChannelMode::Reliable:
+            }
+            case ChannelMode::Reliable: {
+                auto reliable_channel = peer->CreateDataChannel(ChannelMode::Reliable);
                 BindIpcToDataChannel(reliable_channel);
                 break;
-            default:
+            }
+            default: {
+                auto lossy_channel = peer->CreateDataChannel(ChannelMode::Lossy);
+                auto reliable_channel = peer->CreateDataChannel(ChannelMode::Reliable);
                 BindIpcToDataChannel(lossy_channel);
                 BindIpcToDataChannel(reliable_channel);
                 break;
+            }
         }
     }
 
