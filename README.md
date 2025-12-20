@@ -58,7 +58,7 @@ Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash **Lite
 
 ```bash
 sudo apt update
-sudo apt install libcamera0.5 libmosquitto1 pulseaudio libavformat59 libswscale6 libprotobuf32
+sudo apt install libmosquitto1 pulseaudio libavformat61 libswscale8 libprotobuf32t64
 ```
 
 ### 3. Download Binary
