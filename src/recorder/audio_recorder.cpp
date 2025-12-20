@@ -23,8 +23,14 @@ void AudioRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->sample_fmt = sample_fmt;
     encoder->bit_rate = 128000;
     encoder->sample_rate = sample_rate;
+#if LIBAVCODEC_VERSION_MAJOR >= 60
+    AVChannelLayout layout;
+    av_channel_layout_default(&layout, channels);
+    av_channel_layout_copy(&encoder->ch_layout, &layout);
+#else
     encoder->channel_layout = av_get_default_channel_layout(channels);
     encoder->channels = channels;
+#endif
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     avcodec_open2(encoder, codec, nullptr);
 
@@ -38,8 +44,12 @@ void AudioRecorder::InitializeFrame() {
         frame->pts = 0;
         frame->nb_samples = frame_size;
         frame->format = encoder->sample_fmt;
+#if LIBAVCODEC_VERSION_MAJOR >= 60
+        av_channel_layout_copy(&frame->ch_layout, &encoder->ch_layout);
+#else
         frame->channel_layout = encoder->channel_layout;
         frame->channels = encoder->channels;
+#endif
         frame->sample_rate = encoder->sample_rate;
     }
     av_frame_get_buffer(frame, 0);
