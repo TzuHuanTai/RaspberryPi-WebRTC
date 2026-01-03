@@ -260,6 +260,8 @@ void LibargusEglCapturer::CaptureImage() {
         return;
     }
 
+    frame_buffer_->SetDmaFd(dma_fd_);
+
     NvBufSurface *nvbuf = nullptr;
     if (NvBufSurfaceFromFd(dma_fd_, reinterpret_cast<void **>(&nvbuf)) != 0) {
         DestroyNvBufferFromFd(dma_fd_);
