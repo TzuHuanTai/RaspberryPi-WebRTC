@@ -48,8 +48,6 @@ class RecorderManager {
     std::string record_path;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
-    std::shared_ptr<Observable<rtc::scoped_refptr<V4L2FrameBuffer>>> video_observer;
-    std::shared_ptr<Observable<PaBuffer>> audio_observer;
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
 
@@ -64,6 +62,9 @@ class RecorderManager {
     std::unique_ptr<Worker> worker_;
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
+
+    Subscription audio_subscription_;
+    Subscription video_subscription_;
 
     void MakePreviewImage(std::string path);
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);

@@ -4,55 +4,77 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <vector>
 
-template <typename T> class Observable {
+class Subscription {
   public:
-    Observable() = default;
-    ~Observable() = default;
-    using OnMessageFunc = std::function<void(T)>;
+    Subscription() = default;
+    Subscription(std::function<void()> unsubscribe)
+        : unsubscribe_(std::move(unsubscribe)) {}
 
-    void Subscribe(OnMessageFunc func) { subscribed_func_ = func; }
-    void UnSubscribe() { subscribed_func_ = nullptr; }
+    // Enable move semantics
+    Subscription(Subscription &&) = default;
+    Subscription &operator=(Subscription &&) = default;
 
-    OnMessageFunc subscribed_func_;
+    // Disable copy semantics
+    Subscription(const Subscription &) = delete;
+    Subscription &operator=(const Subscription &) = delete;
+
+    ~Subscription() {
+        if (unsubscribe_) {
+            unsubscribe_();
+        }
+    }
+
+  private:
+    std::function<void()> unsubscribe_;
 };
 
 template <typename T> class Subject {
   public:
-    virtual ~Subject() = default;
-    virtual void Next(T message) {
-        for (auto &observer : observers_) {
-            if (observer && observer->subscribed_func_ != nullptr) {
-                observer->subscribed_func_(message);
-            }
+    using Callback = std::function<void(const T &)>;
+
+    Subscription Subscribe(Callback callback) {
+        auto observer = std::make_shared<Observer>();
+        observer->callback = std::move(callback);
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            observers_.push_back(observer);
+        }
+
+        return Subscription{[this, observer]() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            observers_.erase(std::remove(observers_.begin(), observers_.end(), observer),
+                             observers_.end());
+        }};
+    }
+
+    void Next(const T &value) {
+        std::vector<std::shared_ptr<Observer>> snapshot;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            snapshot = observers_;
+        }
+
+        for (auto &obs : snapshot) {
+            obs->callback(value);
         }
     }
 
-    virtual std::shared_ptr<Observable<T>> AsObservable() {
-        auto observer = std::make_shared<Observable<T>>();
-        observers_.push_back(observer);
-        return observer;
+    size_t ObserverCount() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return observers_.size();
     }
 
-    virtual void UnSubscribe() {
-        auto it = observers_.begin();
-        while (it != observers_.end()) {
-            it->reset();
-            it = observers_.erase(it);
-        }
-    }
+  private:
+    struct Observer {
+        Callback callback;
+    };
 
-  protected:
-    std::vector<std::shared_ptr<Observable<T>>> observers_;
-
-    void RemoveNullObservers() {
-        auto new_end = std::remove_if(observers_.begin(), observers_.end(),
-                                      [](const std::shared_ptr<Observable<T>> observer) {
-                                          return !observer;
-                                      });
-        observers_.erase(new_end, observers_.end());
-    }
+    mutable std::mutex mutex_;
+    std::vector<std::shared_ptr<Observer>> observers_;
 };
 
 #endif

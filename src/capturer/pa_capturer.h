@@ -22,6 +22,9 @@ class PaCapturer : public Subject<PaBuffer> {
     Args config() const;
     void StartCapture();
 
+  protected:
+    using Subject<PaBuffer>::Next;
+
   private:
     Args config_;
     pa_simple *src;

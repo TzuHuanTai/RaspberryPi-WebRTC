@@ -25,6 +25,7 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
     rtc::TimestampAligner timestamp_aligner;
 
   private:
+    Subscription subscription_;
     void OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer);
 };
 

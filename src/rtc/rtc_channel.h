@@ -105,18 +105,15 @@ class RtcChannel : public webrtc::DataChannelObserver,
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
 
     virtual void Send(const uint8_t *data, size_t size);
-    void Next(std::string message) override final;
+    void Next(const std::string &message);
 
   private:
     std::string id_;
     std::string label_;
     std::function<void()> on_closed_func_;
-    std::map<CommandType, std::vector<std::shared_ptr<Observable<std::string>>>> observers_map_;
 
-    // Subject
-    std::shared_ptr<Observable<std::string>> AsObservable() override;
-    std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
-    void UnSubscribe() override;
+    std::vector<Subscription> subscriptions_;
+    std::map<CommandType, Subject<std::string>> observers_map_;
 
     void Send(CommandType type, const uint8_t *data, size_t size);
 };

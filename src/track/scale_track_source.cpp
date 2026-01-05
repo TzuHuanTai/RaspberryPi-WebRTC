@@ -26,10 +26,10 @@ ScaleTrackSource::~ScaleTrackSource() {
 }
 
 void ScaleTrackSource::StartTrack() {
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
-        OnFrameCaptured(frame_buffer);
-    });
+    subscription_ =
+        capturer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
+            OnFrameCaptured(frame_buffer);
+        });
 }
 
 void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
