@@ -192,10 +192,12 @@ void LibargusEglCapturer::InitCamera() {
     Argus::UniqueObj<Argus::OutputStreamSettings> stream_settings(
         icapture_session_->createOutputStreamSettings(Argus::STREAM_TYPE_EGL));
     auto iegl_stream_settings = interface_cast<Argus::IEGLOutputStreamSettings>(stream_settings);
-    if (iegl_stream_settings) {
-        iegl_stream_settings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
-        iegl_stream_settings->setResolution(Argus::Size2D<uint32_t>(width_, height_));
+    if (!iegl_stream_settings) {
+        throw std::runtime_error("Failed to get IEGLOutputStreamSettings");
     }
+    iegl_stream_settings->setEGLDisplay(EGL_NO_DISPLAY);
+    iegl_stream_settings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
+    iegl_stream_settings->setResolution(Argus::Size2D<uint32_t>(width_, height_));
 
     output_stream_ = Argus::UniqueObj<Argus::OutputStream>(
         icapture_session_->createOutputStream(stream_settings.get()));
@@ -300,7 +302,7 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusEglCapturer::GetI420Fram
 
 void LibargusEglCapturer::StartCapture() {
     framesize_ = width_ * height_ + ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
-    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, framesize_, V4L2_PIX_FMT_YUV420);
+    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, framesize_, format_);
 
     if (iegl_stream_->waitUntilConnected() != Argus::STATUS_OK) {
         ERROR_PRINT("Stream failed to connect.");
