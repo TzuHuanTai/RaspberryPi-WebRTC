@@ -43,7 +43,7 @@ class Utils {
                                 const std::string &url, int quality);
     static void WriteJpegImage(Buffer buffer, const std::string &url);
     static int GetVideoDuration(const std::string &filePath);
-
+    static timeval ToTimeval(uint64_t timestamp_ns);
     static std::string GenerateUuid();
 };
 

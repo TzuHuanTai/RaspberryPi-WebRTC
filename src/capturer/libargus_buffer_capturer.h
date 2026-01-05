@@ -5,6 +5,7 @@
 
 #include "args.h"
 #include "capturer/video_capturer.h"
+#include "common/utils.h"
 #include "common/worker.h"
 
 // Jetson Multimedia API
@@ -66,10 +67,7 @@ class DmaBuffer : public ArgusSamples::NvNativeBuffer,
         const Argus::ICaptureMetadata *imetadata =
             Argus::interface_cast<const Argus::ICaptureMetadata>(metadata);
 
-        timeval tv = {};
-        tv.tv_sec = imetadata->getSensorTimestamp() / 1000000000;
-        tv.tv_usec = (imetadata->getSensorTimestamp() % 1000000000) / 1000;
-        return tv;
+        return Utils::ToTimeval(imetadata->getSensorTimestamp());
     }
 
     /* Get and set reference to Argus buffer */

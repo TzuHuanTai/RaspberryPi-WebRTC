@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 
 #include "common/logging.h"
+#include "common/utils.h"
 
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
 
@@ -243,6 +244,8 @@ void LibargusEglCapturer::CaptureImage() {
 
     auto iFrame = interface_cast<EGLStream::IFrame>(frame);
     auto image = iFrame->getImage();
+    auto timestamp = Utils::ToTimeval(iFrame->getTime());
+
     auto native_buffer = interface_cast<EGLStream::NV::IImageNativeBuffer>(image);
     if (!native_buffer) {
         return;
@@ -261,6 +264,7 @@ void LibargusEglCapturer::CaptureImage() {
     }
 
     frame_buffer_->SetDmaFd(dma_fd_);
+    frame_buffer_->SetTimestamp(timestamp);
 
     NvBufSurface *nvbuf = nullptr;
     if (NvBufSurfaceFromFd(dma_fd_, reinterpret_cast<void **>(&nvbuf)) != 0) {

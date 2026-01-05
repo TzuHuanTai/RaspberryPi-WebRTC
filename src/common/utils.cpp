@@ -470,6 +470,13 @@ int Utils::GetVideoDuration(const std::string &filePath) {
     return durationInSeconds;
 }
 
+timeval Utils::ToTimeval(uint64_t timestamp_ns) {
+    timeval tv{};
+    tv.tv_sec = timestamp_ns / 1000000000ULL;
+    tv.tv_usec = (timestamp_ns % 1000000000ULL) / 1000ULL;
+    return tv;
+}
+
 std::string Utils::GenerateUuid() {
     uuid_t uuid;
     char uuid_str[37];
