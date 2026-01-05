@@ -88,21 +88,11 @@ void Conductor::InitializeTracks() {
         })();
 
         video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
-#if defined(USE_LIBCAMERA_CAPTURE)
             if (args.hw_accel) {
                 return V4L2DmaTrackSource::Create(video_capture_source_);
             } else {
                 return ScaleTrackSource::Create(video_capture_source_);
             }
-#else
-            /** Todo: Jetson DMA transformer hardware seems to slower than libyuv, it
-             * needs to check again */
-            if (args.hw_accel) {
-                return V4L2DmaTrackSource::Create(video_capture_source_);
-            } else {
-                return ScaleTrackSource::Create(video_capture_source_);
-            }
-#endif
         })();
 
         auto video_source = webrtc::VideoTrackSourceProxy::Create(
