@@ -5,6 +5,7 @@ find_package(PkgConfig REQUIRED)
 set(CAPTURE_FILES
     v4l2_capturer.cpp
     pa_capturer.cpp
+    yuyv_clock.cpp
 )
 
 if(USE_LIBARGUS_CAPTURE)

@@ -49,6 +49,7 @@ class V4L2Capturer : public VideoCapturer {
     void Initialize();
     bool IsCompressedFormat() const;
     void CaptureImage();
+    void DrawDebugInfo(void *buffer);
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
 };

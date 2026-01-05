@@ -2,6 +2,8 @@
 
 #include "common/logging.h"
 
+#include <boost/cerrno.hpp>
+
 std::shared_ptr<UnixSocketServer> UnixSocketServer::Create(const std::string &socket_path) {
     return std::make_shared<UnixSocketServer>(socket_path);
 }
@@ -38,13 +40,15 @@ void UnixSocketServer::Start() {
         return;
     }
 
-    unlink(socket_path_.c_str());
+    if (unlink(socket_path_.c_str()) == -1 && errno != ENOENT) {
+        ERROR_PRINT("unlink %s failed %s", socket_path_.c_str(), strerror(errno));
+    }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, socket_path_.c_str(), sizeof(addr.sun_path) - 1);
 
     if (bind(server_fd_, (sockaddr *)&addr, sizeof(addr)) == -1) {
-        perror("bind");
+        ERROR_PRINT("bind %s failed %s", socket_path_.c_str(), strerror(errno));
         close(server_fd_);
         return;
     }

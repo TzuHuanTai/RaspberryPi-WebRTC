@@ -12,6 +12,9 @@ int main(int argc, char *argv[]) {
     Args args;
     Parser::ParseArgs(argc, argv, args);
 
+    setvbuf(stdout, NULL, _IOLBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);
     std::unique_ptr<RecorderManager> recorder_mgr;
 
