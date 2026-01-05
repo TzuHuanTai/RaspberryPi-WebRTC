@@ -298,7 +298,7 @@ void LibargusBufferCapturer::CaptureImage() {
         NvBufSurfaceUnMap(nvbuf, 0, p);
     }
 
-    NextFrameBuffer(frame_buffer_);
+    Next(frame_buffer_);
 
     ibuffer_output_stream_->releaseBuffer(dmabuf->getArgusBuffer());
 }

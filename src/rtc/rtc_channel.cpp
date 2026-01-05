@@ -28,7 +28,6 @@ void RtcChannel::OnStateChange() {
 }
 
 void RtcChannel::Terminate() {
-    UnSubscribe();
     data_channel->UnregisterObserver();
     data_channel->Close();
     if (on_closed_func_) {
@@ -47,24 +46,25 @@ void RtcChannel::OnMessage(const webrtc::DataBuffer &buffer) {
 }
 
 void RtcChannel::RegisterHandler(CommandType type, ChannelCommandHandler func) {
-    auto observer = AsObservable(type);
-    observer->Subscribe([self = shared_from_this(), func](std::string message) {
-        if (!message.empty()) {
-            func(self, message);
-        }
-    });
+    auto sub =
+        observers_map_[type].Subscribe([self = shared_from_this(), func](std::string message) {
+            if (!message.empty()) {
+                func(self, message);
+            }
+        });
+    subscriptions_.push_back(std::move(sub));
 }
 
 void RtcChannel::RegisterHandler(CommandType type, PayloadHandler func) {
-    auto observer = AsObservable(type);
-    observer->Subscribe([func](std::string message) {
+    auto sub = observers_map_[type].Subscribe([func](std::string message) {
         if (!message.empty()) {
             func(message);
         }
     });
+    subscriptions_.push_back(std::move(sub));
 }
 
-void RtcChannel::Next(std::string message) {
+void RtcChannel::Next(const std::string &message) {
     try {
         json jsonObj = json::parse(message.c_str());
 
@@ -77,35 +77,11 @@ void RtcChannel::Next(std::string message) {
             return;
         }
 
-        observers_ = observers_map_[type];
+        observers_map_[type].Next(content);
 
-        for (auto &observer : observers_) {
-            if (observer->subscribed_func_ != nullptr) {
-                observer->subscribed_func_(content);
-            }
-        }
     } catch (const json::parse_error &e) {
         ERROR_PRINT("JSON parse error, %s, occur at position: %lu", e.what(), e.byte);
     }
-}
-
-std::shared_ptr<Observable<std::string>> RtcChannel::AsObservable() {
-    auto observer = std::make_shared<Observable<std::string>>();
-    observers_map_[CommandType::CUSTOM].push_back(observer);
-    return observer;
-}
-
-std::shared_ptr<Observable<std::string>> RtcChannel::AsObservable(CommandType type) {
-    auto observer = std::make_shared<Observable<std::string>>();
-    observers_map_[type].push_back(observer);
-    return observer;
-}
-
-void RtcChannel::UnSubscribe() {
-    for (auto &[type, observers] : observers_map_) {
-        observers.clear();
-    }
-    observers_map_.clear();
 }
 
 void RtcChannel::Send(CommandType type, const uint8_t *data, size_t size) {

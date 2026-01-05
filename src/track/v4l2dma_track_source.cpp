@@ -23,8 +23,7 @@ V4L2DmaTrackSource::V4L2DmaTrackSource(std::shared_ptr<VideoCapturer> capturer)
 V4L2DmaTrackSource::~V4L2DmaTrackSource() { scaler.reset(); }
 
 void V4L2DmaTrackSource::StartTrack() {
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([this](V4L2FrameBufferRef frame_buffer) {
+    subscription_ = capturer->Subscribe([this](V4L2FrameBufferRef frame_buffer) {
         OnFrameCaptured(frame_buffer);
     });
 }

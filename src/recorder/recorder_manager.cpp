@@ -125,8 +125,7 @@ RecorderManager::RecorderManager(Args config)
       elapsed_time_(0.0) {}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
-    video_observer = video_src->AsFrameBufferObservable();
-    video_observer->Subscribe([this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
+    video_subscription_ = video_src->Subscribe([this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
         // waiting first keyframe to start recorders.
         if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
                                     video_src_->format() != V4L2_PIX_FMT_H264)) {
@@ -161,8 +160,7 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src
         return;
     }
 
-    audio_observer = audio_src->AsObservable();
-    audio_observer->Subscribe([this](PaBuffer buffer) {
+    audio_subscription_ = audio_src->Subscribe([this](PaBuffer buffer) {
         if (has_first_keyframe) {
             audio_recorder->OnBuffer(buffer);
         }
@@ -251,8 +249,6 @@ RecorderManager::~RecorderManager() {
     worker_.reset();
     video_recorder.reset();
     audio_recorder.reset();
-    video_observer.reset();
-    audio_observer.reset();
 }
 
 void RecorderManager::MakePreviewImage(std::string path) {

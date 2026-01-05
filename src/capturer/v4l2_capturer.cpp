@@ -177,10 +177,10 @@ void V4L2Capturer::CaptureImage() {
         decoder_->EmplaceBuffer(frame_buffer_, [this, buffer](V4L2FrameBufferRef decoded_buffer) {
             // hw decoder doesn't output timestamps.
             decoded_buffer->GetRawBuffer().timestamp = buffer.timestamp;
-            NextFrameBuffer(decoded_buffer);
+            Next(decoded_buffer);
         });
     } else {
-        NextFrameBuffer(frame_buffer_);
+        Next(frame_buffer_);
     }
 
     if (!V4L2Util::QueueBuffer(fd_, &buf)) {

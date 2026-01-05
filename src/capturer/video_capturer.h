@@ -6,10 +6,10 @@
 #include "common/v4l2_frame_buffer.h"
 #include "common/v4l2_utils.h"
 
-class VideoCapturer {
+class VideoCapturer : public Subject<V4L2FrameBufferRef> {
   public:
     VideoCapturer() = default;
-    virtual ~VideoCapturer() { frame_buffer_subject_.UnSubscribe(); }
+    virtual ~VideoCapturer() = default;
 
     virtual int fps() const = 0;
     virtual int width() const = 0;
@@ -21,17 +21,8 @@ class VideoCapturer {
     virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() = 0;
     virtual bool SetControls(int key, int value) { return false; };
 
-    std::shared_ptr<Observable<V4L2FrameBufferRef>> AsFrameBufferObservable() {
-        return frame_buffer_subject_.AsObservable();
-    }
-
   protected:
-    void NextFrameBuffer(V4L2FrameBufferRef frame_buffer) {
-        frame_buffer_subject_.Next(frame_buffer);
-    }
-
-  private:
-    Subject<V4L2FrameBufferRef> frame_buffer_subject_;
+    using Subject<V4L2FrameBufferRef>::Next;
 };
 
 #endif

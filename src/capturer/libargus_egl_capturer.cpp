@@ -287,7 +287,7 @@ void LibargusEglCapturer::CaptureImage() {
         NvBufSurfaceUnMap(nvbuf, 0, p);
     }
 
-    NextFrameBuffer(frame_buffer_);
+    Next(frame_buffer_);
 }
 
 rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusEglCapturer::GetI420Frame() {
