@@ -43,7 +43,7 @@ class MqttService : public SignalingService {
     void Subscribe(const std::string &topic);
     void Unsubscribe(const std::string &topic);
     void Publish(const std::string &topic, const std::string &msg);
-    void OnConnect(struct mosquitto *mosq, void *obj, int result);
+    void OnConnect(struct mosquitto *mosq, void *obj, int rc);
     void OnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
     std::string GetClientId(std::string &topic);
     std::string GetTopic(const std::string &topic, const std::string &client_id = "") const;
