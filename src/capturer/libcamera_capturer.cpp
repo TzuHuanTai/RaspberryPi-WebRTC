@@ -292,7 +292,7 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     auto v4l2_buffer = V4L2Buffer::FromLibcamera((uint8_t *)data, length, fd, tv, format_);
     frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, v4l2_buffer);
-    NextFrameBuffer(frame_buffer_);
+    Next(frame_buffer_);
 
     request->reuse(libcamera::Request::ReuseBuffers);
 
