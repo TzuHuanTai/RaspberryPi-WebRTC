@@ -65,8 +65,8 @@ sudo apt install libmosquitto1 pulseaudio libavformat61 libswscale8 libprotobuf3
 
 Get the latest [release binary](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases) .
 ```bash
-wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.2.1_raspios-trixie-arm64.tar.gz
-tar -xzf pi-webrtc-v1.2.1_raspios-trixie-arm64.tar.gz
+wget https://github.com/TzuHuanTai/RaspberryPi-WebRTC/releases/latest/download/pi-webrtc-v1.2.2_raspios-trixie-arm64.tar.gz
+tar -xzf pi-webrtc-v1.2.2_raspios-trixie-arm64.tar.gz
 ```
 
 ### 4. MQTT Signaling
