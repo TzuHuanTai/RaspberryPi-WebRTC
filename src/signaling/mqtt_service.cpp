@@ -11,8 +11,6 @@
 
 #include "common/logging.h"
 
-const int MAX_RETRIES = 10;
-
 std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Conductor> conductor) {
     return std::make_shared<MqttService>(args, conductor);
 }
@@ -92,12 +90,25 @@ void MqttService::AnswerLocalIce(const std::string &peer_id, const std::string &
 }
 
 void MqttService::Disconnect() {
-    mosquitto_disconnect(connection_);
-
-    if (connection_) {
-        mosquitto_destroy(connection_);
-        connection_ = nullptr;
+    if (!connection_) {
+        DEBUG_PRINT("MQTT service already released.");
+        mosquitto_lib_cleanup();
+        return;
     }
+
+    int rc = mosquitto_loop_stop(connection_, true);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        ERROR_PRINT("mosquitto_loop_stop: %s", mosquitto_strerror(rc));
+    }
+
+    rc = mosquitto_disconnect(connection_);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        ERROR_PRINT("mosquitto_disconnect: %s", mosquitto_strerror(rc));
+    }
+
+    mosquitto_destroy(connection_);
+    connection_ = nullptr;
+
     mosquitto_lib_cleanup();
     DEBUG_PRINT("MQTT service is released.");
 };
@@ -129,14 +140,14 @@ void MqttService::Unsubscribe(const std::string &topic) {
     }
 }
 
-void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
-    if (result == 0) {
+void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int rc) {
+    if (rc == 0) {
+        INFO_PRINT("MQTT connected to broker %s:%d", hostname_.c_str(), port_);
         Subscribe(sdp_base_topic_ + "/+/offer");
         Subscribe(ice_base_topic_ + "/+/offer");
-        DEBUG_PRINT("MQTT service is ready.");
+        INFO_PRINT("MQTT service is ready.");
     } else {
-        // todo: retry connection on failure
-        DEBUG_PRINT("Connect failed with error code: %d", result);
+        ERROR_PRINT("MQTT connect failed: %s", mosquitto_strerror(rc));
     }
 }
 
@@ -223,14 +234,15 @@ void MqttService::Connect() {
     mosquitto_lib_init();
 
     connection_ = mosquitto_new(NULL, true, this);
-    mosquitto_int_option(connection_, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
-    if (port_ == 8883) {
-        mosquitto_int_option(connection_, MOSQ_OPT_TLS_USE_OS_CERTS, 1);
-    }
-
     if (connection_ == nullptr) {
         ERROR_PRINT("Failed to new mosquitto object.");
         return;
+    }
+
+    mosquitto_int_option(connection_, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
+
+    if (port_ == 8883) {
+        mosquitto_int_option(connection_, MOSQ_OPT_TLS_USE_OS_CERTS, 1);
     }
 
     if (!username_.empty()) {
@@ -238,12 +250,16 @@ void MqttService::Connect() {
     }
 
     /* Configure callbacks. This should be done before connecting ideally. */
-    mosquitto_connect_callback_set(connection_, [](struct mosquitto *mosq, void *obj, int result) {
+    mosquitto_connect_callback_set(connection_, [](struct mosquitto *mosq, void *obj, int rc) {
         MqttService *service = static_cast<MqttService *>(obj);
-        service->OnConnect(mosq, obj, result);
+        service->OnConnect(mosq, obj, rc);
     });
     mosquitto_disconnect_callback_set(connection_, [](struct mosquitto *mosq, void *obj, int rc) {
-        ERROR_PRINT("%s", mosquitto_strerror(rc));
+        if (rc != 0) {
+            ERROR_PRINT("Unexpected MQTT disconnect: %s", mosquitto_strerror(rc));
+        } else {
+            INFO_PRINT("MQTT disconnected normally.");
+        }
     });
     mosquitto_message_callback_set(connection_, [](struct mosquitto *mosq, void *obj,
                                                    const struct mosquitto_message *message) {
@@ -251,24 +267,18 @@ void MqttService::Connect() {
         service->OnMessage(mosq, obj, message);
     });
 
-    int attempt = 0;
-    while (attempt < MAX_RETRIES) {
-        int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
-        if (rc == MOSQ_ERR_SUCCESS) {
-            break;
-        }
-        attempt++;
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        ERROR_PRINT("The %d try connecting: %s", attempt, mosquitto_strerror(rc));
-    }
+    mosquitto_reconnect_delay_set(connection_, 2, 10, true);
 
-    if (attempt >= MAX_RETRIES) {
-        ERROR_PRINT("Can't connect to MQTT Broker, it reach max retries(%d)", MAX_RETRIES);
+    int rc = mosquitto_loop_start(connection_);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        ERROR_PRINT("mosquitto_loop_start: %s", mosquitto_strerror(rc));
+        Disconnect();
         return;
     }
 
-    int rc = mosquitto_loop_start(connection_); // already handle reconnections
+    INFO_PRINT("Trying to connect to MQTT Broker %s:%d", hostname_.c_str(), port_);
+    rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
     if (rc != MOSQ_ERR_SUCCESS) {
-        ERROR_PRINT("%s", mosquitto_strerror(rc));
+        ERROR_PRINT("mosquitto_connect_async: %s", mosquitto_strerror(rc));
     }
 }
