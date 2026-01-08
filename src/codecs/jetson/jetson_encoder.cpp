@@ -231,21 +231,9 @@ void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
         v4l2_output_buf.index = nv_buffer->index;
     }
 
-    NvBufSurface *nvbuf_surf = 0;
-    int ret = NvBufSurfaceFromFd(frame_buffer->GetDmaFd(), (void **)(&nvbuf_surf));
-    if (ret < 0) {
-        ERROR_PRINT("Error while calling NvBufSurfaceFromFd");
-    }
-
     if (is_dma_src_) {
-        for (int i = 0; i < nv_buffer->n_planes; i++) {
-            nv_buffer->planes[i].fd = frame_buffer->GetDmaFd();
-            v4l2_output_buf.m.planes[i].m.fd = nv_buffer->planes[i].fd;
-            nv_buffer->planes[i].mem_offset = nvbuf_surf->surfaceList[0].planeParams.offset[i];
-            nv_buffer->planes[i].bytesused =
-                nv_buffer->planes[i].fmt.stride * nv_buffer->planes[i].fmt.height;
-            v4l2_output_buf.m.planes[i].bytesused = nv_buffer->planes[i].bytesused;
-        }
+        v4l2_output_buf.m.planes[0].m.fd = frame_buffer->GetDmaFd();
+        v4l2_output_buf.m.planes[0].bytesused = 1; // byteused must be non-zero
     } else {
         ConvertI420ToYUV420M(nv_buffer, frame_buffer->ToI420());
     }
