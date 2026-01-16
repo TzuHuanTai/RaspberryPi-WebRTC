@@ -97,9 +97,9 @@ void V4L2Capturer::Initialize() {
 
 int V4L2Capturer::fps() const { return fps_; }
 
-int V4L2Capturer::width() const { return width_; }
+int V4L2Capturer::width(int stream_idx) const { return width_; }
 
-int V4L2Capturer::height() const { return height_; }
+int V4L2Capturer::height(int stream_idx) const { return height_; }
 
 bool V4L2Capturer::is_dma_capture() const { return hw_accel_ && IsCompressedFormat(); }
 
@@ -190,7 +190,7 @@ void V4L2Capturer::CaptureImage() {
 
 bool V4L2Capturer::SetControls(int key, int value) { return V4L2Util::SetExtCtrl(fd_, key, value); }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame() {
+rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
 }
 

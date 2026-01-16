@@ -49,6 +49,7 @@ template <typename DEFAULT> struct TimeVal {
 
 struct Args {
     // video input
+    int num_streams = 1;
     int camera_id = 0;
     int fps = 30;
     int width = 640;
@@ -59,6 +60,10 @@ struct Args {
     uint32_t format = V4L2_PIX_FMT_MJPEG;
     std::string camera = "libcamera:0";
     std::string v4l2_format = "mjpeg";
+
+    // sub stream for AI processing
+    int sub_width = -1;
+    int sub_height = -1;
 
     // audio input
     int sample_rate = 44100;
@@ -101,6 +106,7 @@ struct Args {
     bool set_default_lens_position = false;
 
     // recording
+    int record_stream_idx = 0; // recording stream index, 0: main stream, 1: sub stream
     std::string record = "both";
     int record_mode = -1;
     std::string record_path = "";

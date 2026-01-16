@@ -15,7 +15,6 @@ if(USE_LIBARGUS_CAPTURE)
 
     list(APPEND CAPTURE_FILES
         libargus_egl_capturer.cpp
-        libargus_buffer_capturer.cpp
 
         ${MULTIMEDIA_API_BASE}/samples/common/classes/NvBuffer.cpp
         ${MULTIMEDIA_API_BASE}/samples/common/classes/NvLogging.cpp
