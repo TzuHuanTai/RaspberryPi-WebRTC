@@ -54,13 +54,22 @@ void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp
     pkt->size = length;
     pkt->stream_index = st->index;
 
-    double elapsed_time = (timestamp.tv_sec - base_time_.tv_sec) +
-                          (timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
-    pkt->pts = pkt->dts =
-        static_cast<int64_t>(elapsed_time * st->time_base.den / st->time_base.num);
+    int64_t elapsed_usec = (int64_t)(timestamp.tv_sec - base_time_.tv_sec) * 1000000LL +
+                           (int64_t)(timestamp.tv_usec - base_time_.tv_usec);
+
+    AVRational usec_base = {1, 1000000};
+    int64_t calculated_ts = av_rescale_q(elapsed_usec, usec_base, st->time_base);
+
+    static int64_t last_dts = -1;
+    if (calculated_ts <= last_dts) {
+        calculated_ts = last_dts + 1;
+    }
+    last_dts = calculated_ts;
+
+    pkt->pts = pkt->dts = calculated_ts;
 
     OnPacketed(pkt);
-    av_packet_unref(pkt);
+
     av_packet_free(&pkt);
 }
 

@@ -106,6 +106,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("height", bpo::value<int>(&args.height)->default_value(args.height), "Set camera frame height.")
         ("rotation", bpo::value<int>(&args.rotation)->default_value(args.rotation),
             "Set the rotation angle of the camera (0, 90, 180, 270).")
+        ("sub-width", bpo::value<int>(&args.sub_width)->default_value(args.sub_width),
+            "Set sub stream frame width for AI processing, default is 0 (disabled).")
+        ("sub-height", bpo::value<int>(&args.sub_height)->default_value(args.sub_height),
+            "Set sub stream frame height for AI processing, default is 0 (disabled).")
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
@@ -147,6 +151,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("lens-position", bpo::value<std::string>(&args.lens_position_)->default_value(args.lens_position_),
             "Set the lens to a particular focus position, \"0\" moves the lens to infinity, or \"default\" for the hyperfocal distance")
 #endif
+        ("record-stream", bpo::value<int>(&args.record_stream_idx)->default_value(args.record_stream_idx),
+            "Recording stream index, 0: main stream, 1: sub stream")
         ("record-mode", bpo::value<std::string>(&args.record)->default_value(args.record),
             "Recording mode: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
             "or 'both' to do both simultaneously.")
@@ -217,6 +223,21 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     if (vm.count("help")) {
         std::cout << opts << std::endl;
         exit(1);
+    }
+
+    if (args.sub_height > 0 && args.sub_width > 0) {
+        if (args.sub_width > args.width || args.sub_height > args.height) {
+            args.sub_width = args.width;
+            args.sub_height = args.height;
+            std::cout << "Sub stream resolution should not be larger than main stream. "
+                      << "Set to " << args.sub_width << "x" << args.sub_height << std::endl;
+        }
+        args.num_streams += 1;
+        std::cout << "Sub stream is enabled with resolution: " << args.sub_width << "x"
+                  << args.sub_height << std::endl;
+    } else {
+        args.record_stream_idx = 0;
+        std::cout << "Sub stream is not enabled." << std::endl;
     }
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {

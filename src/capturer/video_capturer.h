@@ -12,14 +12,18 @@ class VideoCapturer : public Subject<V4L2FrameBufferRef> {
     virtual ~VideoCapturer() = default;
 
     virtual int fps() const = 0;
-    virtual int width() const = 0;
-    virtual int height() const = 0;
+    virtual int width(int stream_idx = 0) const = 0;
+    virtual int height(int stream_idx = 0) const = 0;
+    virtual bool has_sub_stream() const { return false; }
     virtual bool is_dma_capture() const = 0;
     virtual uint32_t format() const = 0;
     virtual Args config() const = 0;
     virtual void StartCapture() = 0;
-    virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() = 0;
+    virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) = 0;
     virtual bool SetControls(int key, int value) { return false; };
+    virtual Subscription SubscribeSub(Subject<V4L2FrameBufferRef>::Callback callback) {
+        return Subject<V4L2FrameBufferRef>::Subscribe(std::move(callback));
+    }
 
   protected:
     using Subject<V4L2FrameBufferRef>::Next;

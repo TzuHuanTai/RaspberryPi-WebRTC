@@ -19,15 +19,15 @@ class V4L2Capturer : public VideoCapturer {
     ~V4L2Capturer() override;
 
     int fps() const override;
-    int width() const override;
-    int height() const override;
+    int width(int stream_idx = 0) const override;
+    int height(int stream_idx = 0) const override;
     bool is_dma_capture() const override;
     uint32_t format() const override;
     Args config() const override;
     void StartCapture() override;
 
     bool SetControls(int key, int value) override;
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
+    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
 
   private:
     int camera_id_;
