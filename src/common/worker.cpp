@@ -17,7 +17,7 @@ void Worker::Run() {
         [this]() {
             this->Thread();
         },
-        "CaptureThread", rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
+        name_, rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
 }
 
 void Worker::Thread() {

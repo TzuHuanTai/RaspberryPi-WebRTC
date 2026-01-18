@@ -217,9 +217,9 @@ void LibcameraCapturer::InitControls(Args args) {
 
 int LibcameraCapturer::fps() const { return fps_; }
 
-int LibcameraCapturer::width() const { return width_; }
+int LibcameraCapturer::width(int stream_idx) const { return width_; }
 
-int LibcameraCapturer::height() const { return height_; }
+int LibcameraCapturer::height(int stream_idx) const { return height_; }
 
 bool LibcameraCapturer::is_dma_capture() const { return true; }
 
@@ -292,7 +292,7 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     auto v4l2_buffer = V4L2Buffer::FromLibcamera((uint8_t *)data, length, fd, tv, format_);
     frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, v4l2_buffer);
-    Next(frame_buffer_);
+    stream_subject_.Next(frame_buffer_);
 
     request->reuse(libcamera::Request::ReuseBuffers);
 
@@ -304,8 +304,13 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     camera_->queueRequest(request);
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> LibcameraCapturer::GetI420Frame() {
+rtc::scoped_refptr<webrtc::I420BufferInterface> LibcameraCapturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
+}
+
+Subscription LibcameraCapturer::Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                                          int stream_idx) {
+    return stream_subject_.Subscribe(std::move(callback));
 }
 
 void LibcameraCapturer::StartCapture() {

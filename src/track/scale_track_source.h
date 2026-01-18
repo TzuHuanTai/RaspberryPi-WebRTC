@@ -21,6 +21,7 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
   protected:
     int width;
     int height;
+    int stream_idx;
     std::shared_ptr<VideoCapturer> capturer;
     rtc::TimestampAligner timestamp_aligner;
 

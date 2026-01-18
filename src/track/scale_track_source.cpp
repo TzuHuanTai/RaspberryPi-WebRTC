@@ -19,17 +19,19 @@ ScaleTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
 ScaleTrackSource::ScaleTrackSource(std::shared_ptr<VideoCapturer> capturer)
     : capturer(capturer),
       width(capturer->width()),
-      height(capturer->height()) {}
+      height(capturer->height()),
+      stream_idx(capturer->config().live_stream_idx) {}
 
 ScaleTrackSource::~ScaleTrackSource() {
     // todo: tell capture unsubscribe observer.
 }
 
 void ScaleTrackSource::StartTrack() {
-    subscription_ =
-        capturer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
+    subscription_ = capturer->Subscribe(
+        [this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
             OnFrameCaptured(frame_buffer);
-        });
+        },
+        stream_idx);
 }
 
 void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {

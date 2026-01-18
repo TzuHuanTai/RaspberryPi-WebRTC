@@ -5,20 +5,22 @@
 #include "common/logging.h"
 #include "common/utils.h"
 
-VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
+VideoRecorder::VideoRecorder(int width, int height, int fps, std::string encoder_name)
     : Recorder(),
+      fps(fps),
+      width(width),
+      height(height),
       encoder_name(encoder_name),
-      config(config),
       abort_(true) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
-    frame_rate = {.num = (int)config.fps, .den = 1};
+    frame_rate = {.num = (int)fps, .den = 1};
 
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_VIDEO;
-    encoder->width = config.width;
-    encoder->height = config.height;
+    encoder->width = width;
+    encoder->height = height;
     encoder->framerate = frame_rate;
     encoder->time_base = av_inv_q(frame_rate);
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;

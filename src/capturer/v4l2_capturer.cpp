@@ -177,10 +177,10 @@ void V4L2Capturer::CaptureImage() {
         decoder_->EmplaceBuffer(frame_buffer_, [this, buffer](V4L2FrameBufferRef decoded_buffer) {
             // hw decoder doesn't output timestamps.
             decoded_buffer->GetRawBuffer().timestamp = buffer.timestamp;
-            Next(decoded_buffer);
+            stream_subject_.Next(decoded_buffer);
         });
     } else {
-        Next(frame_buffer_);
+        stream_subject_.Next(frame_buffer_);
     }
 
     if (!V4L2Util::QueueBuffer(fd_, &buf)) {
@@ -192,6 +192,11 @@ bool V4L2Capturer::SetControls(int key, int value) { return V4L2Util::SetExtCtrl
 
 rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
+}
+
+Subscription V4L2Capturer::Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                                     int stream_idx) {
+    return stream_subject_.Subscribe(std::move(callback));
 }
 
 void V4L2Capturer::StartCapture() {

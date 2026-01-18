@@ -1,15 +1,15 @@
 #include "recorder/openh264_recorder.h"
 
-std::unique_ptr<Openh264Recorder> Openh264Recorder::Create(Args config) {
-    return std::make_unique<Openh264Recorder>(config, "h264_v4l2m2m");
+std::unique_ptr<Openh264Recorder> Openh264Recorder::Create(int width, int height, int fps) {
+    return std::make_unique<Openh264Recorder>(width, height, fps, "h264_v4l2m2m");
 }
 
-Openh264Recorder::Openh264Recorder(Args config, std::string encoder_name)
-    : VideoRecorder(config, encoder_name) {}
+Openh264Recorder::Openh264Recorder(int width, int height, int fps, std::string encoder_name)
+    : VideoRecorder(width, height, fps, encoder_name) {}
 
 void Openh264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     if (!encoder_) {
-        encoder_ = Openh264Encoder::Create(config);
+        encoder_ = Openh264Encoder::Create(width, height, fps);
     }
 
     auto i420_buffer = frame_buffer->ToI420();

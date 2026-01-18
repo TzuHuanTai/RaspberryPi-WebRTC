@@ -61,9 +61,14 @@ struct Args {
     std::string camera = "libcamera:0";
     std::string v4l2_format = "mjpeg";
 
-    // sub stream for AI processing
-    int sub_width = -1;
-    int sub_height = -1;
+    // sub stream for multiple resolution capture
+    int sub_width = 0;
+    int sub_height = 0;
+
+    // stream usage, 0: main stream, 1: sub stream
+    int record_stream_idx = 0; // recording stream index
+    int live_stream_idx = 0;   // webrtc live stream index
+    int ai_stream_idx = 0;     // ai stream index
 
     // audio input
     int sample_rate = 44100;
@@ -106,7 +111,6 @@ struct Args {
     bool set_default_lens_position = false;
 
     // recording
-    int record_stream_idx = 0; // recording stream index, 0: main stream, 1: sub stream
     std::string record = "both";
     int record_mode = -1;
     std::string record_path = "";

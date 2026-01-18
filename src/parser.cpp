@@ -110,6 +110,12 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Set sub stream frame width for AI processing, default is 0 (disabled).")
         ("sub-height", bpo::value<int>(&args.sub_height)->default_value(args.sub_height),
             "Set sub stream frame height for AI processing, default is 0 (disabled).")
+        ("record-stream", bpo::value<int>(&args.record_stream_idx)->default_value(args.record_stream_idx),
+            "Recording stream index, 0: main stream, 1: sub stream")
+        ("live-stream", bpo::value<int>(&args.live_stream_idx)->default_value(args.live_stream_idx),
+            "Live stream index, 0: main stream, 1: sub stream")
+        ("ai-stream", bpo::value<int>(&args.ai_stream_idx)->default_value(args.ai_stream_idx),
+            "AI stream index, 0: main stream, 1: sub stream")
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
@@ -151,8 +157,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("lens-position", bpo::value<std::string>(&args.lens_position_)->default_value(args.lens_position_),
             "Set the lens to a particular focus position, \"0\" moves the lens to infinity, or \"default\" for the hyperfocal distance")
 #endif
-        ("record-stream", bpo::value<int>(&args.record_stream_idx)->default_value(args.record_stream_idx),
-            "Recording stream index, 0: main stream, 1: sub stream")
         ("record-mode", bpo::value<std::string>(&args.record)->default_value(args.record),
             "Recording mode: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
             "or 'both' to do both simultaneously.")
@@ -237,6 +241,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                   << args.sub_height << std::endl;
     } else {
         args.record_stream_idx = 0;
+        args.live_stream_idx = 0;
+        args.ai_stream_idx = 0;
         std::cout << "Sub stream is not enabled." << std::endl;
     }
 

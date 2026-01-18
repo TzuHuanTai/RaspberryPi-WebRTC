@@ -86,24 +86,24 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
 void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capturer) {
     video_src_ = capturer;
     fps = capturer->fps();
-    width = capturer->width();
-    height = capturer->height();
+    width = capturer->width(config.record_stream_idx);
+    height = capturer->height(config.record_stream_idx);
     video_recorder = ([this, capturer]() -> std::unique_ptr<VideoRecorder> {
         if (config.record_mode == RecordMode::Snapshot) {
             return nullptr;
         }
 #if defined(RPI_PLATFORM)
         if (capturer->format() == V4L2_PIX_FMT_H264) {
-            return RawH264Recorder::Create(capturer->config());
+            return RawH264Recorder::Create(width, height, fps);
         } else if (config.hw_accel) {
-            return V4L2H264Recorder::Create(capturer->config());
+            return V4L2H264Recorder::Create(width, height, fps);
         }
 #endif
 
 #if defined(JETSON_PLATFORM)
         // todo: use jetson hw video encoder
 #endif
-        return Openh264Recorder::Create(capturer->config());
+        return Openh264Recorder::Create(width, height, fps);
     })();
 }
 
@@ -112,7 +112,7 @@ void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) 
         if (config.record_mode == RecordMode::Snapshot) {
             return nullptr;
         } else {
-            return AudioRecorder::Create(capturer->config());
+            return AudioRecorder::Create(capturer->config().sample_rate);
         }
     })();
 }
@@ -125,28 +125,30 @@ RecorderManager::RecorderManager(Args config)
       elapsed_time_(0.0) {}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
-    video_subscription_ = video_src->Subscribe([this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
-        // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
-                                    video_src_->format() != V4L2_PIX_FMT_H264)) {
-            Start();
-            last_created_time_ = buffer->timestamp();
-        }
+    video_subscription_ = video_src->Subscribe(
+        [this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
+            // waiting first keyframe to start recorders.
+            if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
+                                        video_src_->format() != V4L2_PIX_FMT_H264)) {
+                Start();
+                last_created_time_ = buffer->timestamp();
+            }
 
-        // restart to write in the new file.
-        if (elapsed_time_ >= config.file_duration) {
-            last_created_time_ = buffer->timestamp();
-            Stop();
-            Start();
-        }
+            // restart to write in the new file.
+            if (elapsed_time_ >= config.file_duration) {
+                last_created_time_ = buffer->timestamp();
+                Stop();
+                Start();
+            }
 
-        if (has_first_keyframe && video_recorder) {
-            video_recorder->OnBuffer(buffer);
-        }
+            if (has_first_keyframe && video_recorder) {
+                video_recorder->OnBuffer(buffer);
+            }
 
-        elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
-                        (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
-    });
+            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
+                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
+        },
+        config.record_stream_idx);
 
     if (video_recorder) {
         video_recorder->OnPacketed([this](AVPacket *pkt) {
@@ -257,7 +259,7 @@ void RecorderManager::MakePreviewImage(std::string path) {
         if (video_src_ == nullptr) {
             return;
         }
-        auto i420buff = video_src_->GetI420Frame();
+        auto i420buff = video_src_->GetI420Frame(config.record_stream_idx);
         Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(), path,
                                config.jpeg_quality);
     }).detach();
