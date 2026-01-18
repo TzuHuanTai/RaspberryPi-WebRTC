@@ -16,13 +16,15 @@ extern "C" {
 
 class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
   public:
-    VideoRecorder(Args config, std::string encoder_name);
+    VideoRecorder(int width, int height, int fps, std::string encoder_name);
     virtual ~VideoRecorder(){};
     void OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> buffer) override;
     void OnStop() override final;
 
   protected:
-    Args config;
+    int fps;
+    int width;
+    int height;
     std::string encoder_name;
     ThreadSafeQueue<rtc::scoped_refptr<V4L2FrameBuffer>> frame_buffer_queue;
 

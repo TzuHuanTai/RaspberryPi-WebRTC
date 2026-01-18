@@ -21,15 +21,18 @@ class LibcameraCapturer : public VideoCapturer {
     ~LibcameraCapturer() override;
 
     int fps() const override;
-    int width() const override;
-    int height() const override;
+    int width(int stream_idx = 0) const override;
+    int height(int stream_idx = 0) const override;
     bool is_dma_capture() const override;
     uint32_t format() const override;
     Args config() const override;
 
     bool SetControls(int key, int value) override;
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame() override;
     void StartCapture() override;
+
+    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
+    Subscription Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                           int stream_idx = 0) override;
 
   private:
     int camera_id_;
@@ -53,6 +56,7 @@ class LibcameraCapturer : public VideoCapturer {
     std::map<int, std::pair<void *, unsigned int>> mapped_buffers_;
 
     V4L2FrameBufferRef frame_buffer_;
+    Subject<V4L2FrameBufferRef> stream_subject_;
 
     void InitCamera();
     void InitControls(Args arg);

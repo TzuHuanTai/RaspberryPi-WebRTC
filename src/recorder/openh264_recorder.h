@@ -6,8 +6,8 @@
 
 class Openh264Recorder : public VideoRecorder {
   public:
-    static std::unique_ptr<Openh264Recorder> Create(Args config);
-    Openh264Recorder(Args config, std::string encoder_name);
+    static std::unique_ptr<Openh264Recorder> Create(int width, int height, int fps);
+    Openh264Recorder(int width, int height, int fps, std::string encoder_name);
 
   protected:
     void ReleaseEncoder() override;

@@ -3,16 +3,16 @@
 #include "common/logging.h"
 #include "common/utils.h"
 
-std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(Args args) {
-    auto ptr = std::make_unique<Openh264Encoder>(args);
+std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(int width, int height, int fps) {
+    auto ptr = std::make_unique<Openh264Encoder>(width, height, fps);
     ptr->Init();
     return ptr;
 }
 
-Openh264Encoder::Openh264Encoder(Args args)
-    : fps_(args.fps),
-      width_(args.width),
-      height_(args.height),
+Openh264Encoder::Openh264Encoder(int width, int height, int fps)
+    : fps_(fps),
+      width_(width),
+      height_(height),
       bitrate_(width_ * height_ * fps_ * 0.1),
       encoder_(nullptr) {}
 

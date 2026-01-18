@@ -11,8 +11,8 @@
 
 class Openh264Encoder {
   public:
-    static std::unique_ptr<Openh264Encoder> Create(Args args);
-    Openh264Encoder(Args args);
+    static std::unique_ptr<Openh264Encoder> Create(int width, int height, int fps);
+    Openh264Encoder(int width, int height, int fps);
     ~Openh264Encoder();
     void Init();
     void Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,

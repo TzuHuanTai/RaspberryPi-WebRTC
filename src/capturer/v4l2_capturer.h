@@ -24,10 +24,13 @@ class V4L2Capturer : public VideoCapturer {
     bool is_dma_capture() const override;
     uint32_t format() const override;
     Args config() const override;
-    void StartCapture() override;
 
     bool SetControls(int key, int value) override;
+    void StartCapture() override;
+
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
+    Subscription Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                           int stream_idx = 0) override;
 
   private:
     int camera_id_;
@@ -44,7 +47,9 @@ class V4L2Capturer : public VideoCapturer {
     V4L2BufferGroup capture_;
     std::unique_ptr<Worker> worker_;
     std::unique_ptr<V4L2Decoder> decoder_;
+
     V4L2FrameBufferRef frame_buffer_;
+    Subject<V4L2FrameBufferRef> stream_subject_;
 
     void Initialize();
     bool IsCompressedFormat() const;

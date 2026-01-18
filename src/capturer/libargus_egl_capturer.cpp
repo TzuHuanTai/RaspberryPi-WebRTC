@@ -3,7 +3,6 @@
 #include <iostream>
 #include <sys/mman.h>
 
-#include "common/logging.h"
 #include "common/utils.h"
 
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
@@ -23,40 +22,37 @@ LibargusEglCapturer::LibargusEglCapturer(Args args)
       config_(args) {}
 
 LibargusEglCapturer::~LibargusEglCapturer() {
-    for (auto &worker : workers_) {
-        worker.reset();
-    }
-    for (int fd : dma_fds_) {
-        DestroyNvBufferFromFd(fd);
-    }
-
     if (icapture_session_) {
         icapture_session_->stopRepeat();
         icapture_session_->waitForIdle();
     }
 
+    stream_handlers_.clear();
+
+    for (int i = 0; i < num_streams_; i++) {
+        output_streams_[i].reset();
+    }
+
+    capture_session_.reset();
     camera_provider_.reset();
 }
 
 void LibargusEglCapturer::Initialize() {
-    dma_fds_.assign(num_streams_, -1);
     output_streams_.resize(num_streams_);
 
-    widths_.push_back(config_.width);
-    heights_.push_back(config_.height);
+    stream_handlers_.emplace_back(
+        StreamHandler::Create(0, Argus::Size2D<uint32_t>(config_.width, config_.height)));
     int frame_size =
         config_.width * config_.height + ((config_.width + 1) / 2) * ((config_.height + 1) / 2) * 2;
-    framesizes_.push_back(frame_size);
-    frame_buffer_.emplace_back(
+    stream_handlers_[0]->SetFrameBuffer(
         V4L2FrameBuffer::Create(config_.width, config_.height, frame_size, format_));
 
     if (has_sub_stream()) {
-        widths_.push_back(config_.sub_width);
-        heights_.push_back(config_.sub_height);
-        int frame_size = config_.sub_width * config_.sub_height +
-                         ((config_.sub_width + 1) / 2) * ((config_.sub_height + 1) / 2) * 2;
-        framesizes_.push_back(frame_size);
-        frame_buffer_.emplace_back(
+        stream_handlers_.emplace_back(StreamHandler::Create(
+            1, Argus::Size2D<uint32_t>(config_.sub_width, config_.sub_height)));
+        frame_size = config_.sub_width * config_.sub_height +
+                     ((config_.sub_width + 1) / 2) * ((config_.sub_height + 1) / 2) * 2;
+        stream_handlers_[1]->SetFrameBuffer(
             V4L2FrameBuffer::Create(config_.sub_width, config_.sub_height, frame_size, format_));
     }
 
@@ -68,13 +64,13 @@ void LibargusEglCapturer::Initialize() {
     InitStreams();
 }
 
-void LibargusEglCapturer::DestroyNvBufferFromFd(int &fd) {
-    if (fd >= 0) {
+void StreamHandler::DestroyNvBufferFromFd() {
+    if (dma_fd_ >= 0) {
         NvBufSurface *nvbuf = nullptr;
-        if (NvBufSurfaceFromFd(fd, (void **)(&nvbuf)) == 0 && nvbuf) {
+        if (NvBufSurfaceFromFd(dma_fd_, (void **)(&nvbuf)) == 0 && nvbuf) {
             NvBufSurfaceDestroy(nvbuf);
         }
-        fd = -1;
+        dma_fd_ = -1;
     }
 }
 
@@ -191,7 +187,7 @@ void LibargusEglCapturer::PrintCameraDeviceInfo(Argus::CameraDevice *cameraDevic
 }
 
 void LibargusEglCapturer::InitStreams() {
-    icamera_provider_ = Argus::interface_cast<Argus::ICameraProvider>(camera_provider_);
+    auto icamera_provider_ = Argus::interface_cast<Argus::ICameraProvider>(camera_provider_);
     if (!icamera_provider_) {
         throw std::runtime_error("Failed to create CameraProvider");
     }
@@ -213,8 +209,8 @@ void LibargusEglCapturer::InitStreams() {
     }
 
     camera_device_ = camera_devices[camera_id_];
-    auto capture_session(icamera_provider_->createCaptureSession(camera_device_));
-    icapture_session_ = Argus::interface_cast<Argus::ICaptureSession>(capture_session);
+    capture_session_.reset(icamera_provider_->createCaptureSession(camera_device_));
+    icapture_session_ = Argus::interface_cast<Argus::ICaptureSession>(capture_session_);
     if (!icapture_session_) {
         throw std::runtime_error("Failed to get ICaptureSession");
     }
@@ -228,12 +224,13 @@ void LibargusEglCapturer::InitStreams() {
     for (size_t i = 0; i < num_streams_; i++) {
         iegl_stream_settings->setEGLDisplay(EGL_NO_DISPLAY);
         iegl_stream_settings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
-        iegl_stream_settings->setResolution(Argus::Size2D<uint32_t>(widths_[i], heights_[i]));
+        iegl_stream_settings->setResolution(stream_handlers_[i]->GetSize());
         output_streams_[i].reset(icapture_session_->createOutputStream(stream_settings.get()));
+        stream_handlers_[i]->SetOutputStream(output_streams_[i].get());
     }
 
     request_ = Argus::UniqueObj<Argus::Request>(icapture_session_->createRequest());
-    irequest_ = interface_cast<Argus::IRequest>(request_);
+    auto irequest_ = interface_cast<Argus::IRequest>(request_);
     for (size_t i = 0; i < num_streams_; i++) {
         irequest_->enableOutputStream(output_streams_[i].get());
         auto irequest_stream_settings_ = interface_cast<Argus::IStreamSettings>(
@@ -242,55 +239,32 @@ void LibargusEglCapturer::InitStreams() {
             throw std::runtime_error("Failed to get IStreamSettings");
         }
         irequest_stream_settings_->setPostProcessingEnable(false);
-
-        INFO_PRINT("stream %zu initialized: %dx%d", i, widths_[i], heights_[i]);
     }
 
     auto isource_settings = interface_cast<Argus::ISourceSettings>(irequest_->getSourceSettings());
     if (!isource_settings) {
         throw std::runtime_error("Failed to get ISourceSettings");
     }
-    auto mode = FindBestSensorMode(widths_[0], heights_[0], fps_);
+    auto mode = FindBestSensorMode(config_.width, config_.height, fps_);
     isource_settings->setSensorMode(mode);
     isource_settings->setFrameDurationRange(
         Argus::Range<uint64_t>(static_cast<uint64_t>(1e9 / fps_)));
-
-    for (size_t i = 0; i < num_streams_; i++) {
-        iegl_streams_.push_back(interface_cast<Argus::IEGLOutputStream>(output_streams_[i].get()));
-        frame_consumers_.emplace_back(EGLStream::FrameConsumer::create(output_streams_[i].get()));
-        iframe_consumers_.push_back(
-            interface_cast<EGLStream::IFrameConsumer>(frame_consumers_.back()));
-
-        workers_.push_back(std::make_unique<Worker>("LibargusCapture", [this, i]() {
-            if (iegl_streams_[i]->waitUntilConnected() != Argus::STATUS_OK) {
-                ERROR_PRINT("Stream %zu failed to connect.", i);
-                return;
-            }
-            while (true) {
-                CaptureImage(i);
-            }
-        }));
-    }
-
-    if (icapture_session_->repeat(request_.get()) != Argus::STATUS_OK) {
-        throw std::runtime_error("Failed to start repeat");
-    }
 }
 
 int LibargusEglCapturer::fps() const { return fps_; }
 
 int LibargusEglCapturer::width(int stream_idx) const {
-    if (stream_idx >= num_streams_ || stream_idx < 0) {
-        return widths_[0];
+    if (stream_idx <= 0 || stream_idx >= num_streams_) {
+        return stream_handlers_[0]->width();
     }
-    return widths_[stream_idx];
+    return stream_handlers_[stream_idx]->width();
 }
 
 int LibargusEglCapturer::height(int stream_idx) const {
-    if (stream_idx >= num_streams_ || stream_idx < 0) {
-        return heights_[0];
+    if (stream_idx <= 0 || stream_idx >= num_streams_) {
+        return stream_handlers_[0]->height();
     }
-    return heights_[stream_idx];
+    return stream_handlers_[stream_idx]->height();
 }
 
 bool LibargusEglCapturer::is_dma_capture() const { return false; }
@@ -299,11 +273,11 @@ uint32_t LibargusEglCapturer::format() const { return format_; }
 
 Args LibargusEglCapturer::config() const { return config_; }
 
-void LibargusEglCapturer::CaptureImage(int stream_idx) {
+void StreamHandler::CaptureImage() {
     Argus::Status status;
     Argus::UniqueObj<EGLStream::Frame> frame(
-        iframe_consumers_[stream_idx]->acquireFrame(kAcquireFrameTimeoutNs, &status));
-    if (status != Argus::STATUS_OK) {
+        i_consumer_->acquireFrame(kAcquireFrameTimeoutNs, &status));
+    if (status != Argus::STATUS_OK || !frame) {
         return;
     }
 
@@ -315,26 +289,25 @@ void LibargusEglCapturer::CaptureImage(int stream_idx) {
     if (!native_buffer) {
         return;
     }
-    if (dma_fds_[stream_idx] == -1) {
-        dma_fds_[stream_idx] =
-            native_buffer->createNvBuffer(iegl_streams_[stream_idx]->getResolution(),
-                                          NVBUF_COLOR_FORMAT_YUV420, NVBUF_LAYOUT_PITCH);
-        if (dma_fds_[stream_idx] < 0) {
+    if (dma_fd_ == -1) {
+        dma_fd_ =
+            native_buffer->createNvBuffer(size_, NVBUF_COLOR_FORMAT_YUV420, NVBUF_LAYOUT_PITCH);
+        if (dma_fd_ < 0) {
             return;
         }
     }
 
-    if (native_buffer->copyToNvBuffer(dma_fds_[stream_idx]) != Argus::STATUS_OK) {
-        DestroyNvBufferFromFd(dma_fds_[stream_idx]);
+    if (native_buffer->copyToNvBuffer(dma_fd_) != Argus::STATUS_OK) {
+        DestroyNvBufferFromFd();
         return;
     }
 
-    frame_buffer_[stream_idx]->SetDmaFd(dma_fds_[stream_idx]);
-    frame_buffer_[stream_idx]->SetTimestamp(timestamp);
+    frame_buffer_->SetDmaFd(dma_fd_);
+    frame_buffer_->SetTimestamp(timestamp);
 
     NvBufSurface *nvbuf = nullptr;
-    if (NvBufSurfaceFromFd(dma_fds_[stream_idx], reinterpret_cast<void **>(&nvbuf)) != 0) {
-        DestroyNvBufferFromFd(dma_fds_[stream_idx]);
+    if (NvBufSurfaceFromFd(dma_fd_, reinterpret_cast<void **>(&nvbuf)) != 0) {
+        DestroyNvBufferFromFd();
         return;
     }
 
@@ -350,38 +323,65 @@ void LibargusEglCapturer::CaptureImage(int stream_idx) {
         uint8_t *addr = static_cast<uint8_t *>(surf.mappedAddr.addr[p]);
         for (uint32_t row = 0; row < surf.planeParams.height[p]; ++row) {
             int row_size = surf.planeParams.width[p] * surf.planeParams.bytesPerPix[p];
-            memcpy(frame_buffer_[stream_idx]->MutableData() + offset,
-                   addr + row * surf.planeParams.pitch[p], row_size);
+            memcpy(frame_buffer_->MutableData() + offset, addr + row * surf.planeParams.pitch[p],
+                   row_size);
             offset += row_size;
         }
         NvBufSurfaceUnMap(nvbuf, 0, p);
     }
 
-    if (stream_idx == 0) {
-        Next(frame_buffer_[stream_idx]);
-    }
-
-    if (has_sub_stream() && stream_idx == 1) {
-        // Notify sub stream observers
-        sub_stream_.Next(frame_buffer_[stream_idx]);
-    }
+    Next(frame_buffer_);
 }
 
 rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusEglCapturer::GetI420Frame(int stream_idx) {
-    if (stream_idx >= num_streams_ || stream_idx < 0) {
-        return frame_buffer_[0]->ToI420();
+    if (stream_idx <= 0 || stream_idx >= num_streams_) {
+        return stream_handlers_[0]->GetFrameBuffer()->ToI420();
     }
-    return frame_buffer_[stream_idx]->ToI420();
+    return stream_handlers_[stream_idx]->GetFrameBuffer()->ToI420();
+}
+
+void StreamHandler::StartCapture() {
+    if (!output_stream_) {
+        ERROR_PRINT("Output stream is null");
+        return;
+    }
+
+    consumer_ = Argus::UniqueObj<EGLStream::FrameConsumer>(
+        EGLStream::FrameConsumer::create(output_stream_));
+    i_consumer_ = interface_cast<EGLStream::IFrameConsumer>(consumer_);
+
+    INFO_PRINT("stream %d initialized: %dx%d", stream_idx_, width(), height());
+
+    worker_ = std::make_unique<Worker>("argus stream: " + std::to_string(stream_idx_), [this]() {
+        auto iegl_stream_ = interface_cast<Argus::IEGLOutputStream>(output_stream_);
+
+        if (iegl_stream_->waitUntilConnected() != Argus::STATUS_OK) {
+            ERROR_PRINT("Stream failed to connect.");
+            return;
+        }
+        while (running_) {
+            CaptureImage();
+        }
+    });
+    worker_->Run();
 }
 
 void LibargusEglCapturer::StartCapture() {
-    for (auto &worker : workers_) {
-        worker->Run();
+    for (auto &ctx : stream_handlers_) {
+        ctx->StartCapture();
+    }
+
+    if (icapture_session_->repeat(request_.get()) != Argus::STATUS_OK) {
+        throw std::runtime_error("Failed to start repeat");
     }
 }
 
-Subscription LibargusEglCapturer::SubscribeSub(Subject<V4L2FrameBufferRef>::Callback callback) {
-    return sub_stream_.Subscribe(std::move(callback));
+Subscription LibargusEglCapturer::Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                                            int stream_idx) {
+    if (stream_idx <= 0 || stream_idx >= num_streams_) {
+        return stream_handlers_[0]->Subscribe(std::move(callback));
+    }
+    return stream_handlers_[stream_idx]->Subscribe(std::move(callback));
 }
 
 Argus::SensorMode *LibargusEglCapturer::FindBestSensorMode(int req_width, int req_height,

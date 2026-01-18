@@ -53,8 +53,8 @@ class ThreadSafeAudioFifo {
 
 class AudioRecorder : public Recorder<PaBuffer> {
   public:
-    static std::unique_ptr<AudioRecorder> Create(Args config);
-    AudioRecorder(Args config);
+    static std::unique_ptr<AudioRecorder> Create(int sample_rate);
+    AudioRecorder(int sample_rate);
     ~AudioRecorder();
     void OnBuffer(PaBuffer buffer) override;
     void OnStart() override;

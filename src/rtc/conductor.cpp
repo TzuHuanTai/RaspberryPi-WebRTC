@@ -231,9 +231,10 @@ void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::s
         ss >> num;
         int quality = ss.fail() ? 100 : num;
 
-        auto i420buff = video_capture_source_->GetI420Frame();
-        auto jpg_buffer =
-            Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
+        auto i420buff = video_capture_source_->GetI420Frame(args.live_stream_idx);
+        auto jpg_buffer = Utils::ConvertYuvToJpeg(
+            i420buff->DataY(), video_capture_source_->width(args.live_stream_idx),
+            video_capture_source_->height(args.live_stream_idx), quality);
         datachannel->Send(std::move(jpg_buffer));
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());

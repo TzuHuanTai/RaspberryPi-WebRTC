@@ -1,15 +1,15 @@
 #include "recorder/audio_recorder.h"
 #include "common/logging.h"
 
-std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
-    auto ptr = std::make_unique<AudioRecorder>(config);
+std::unique_ptr<AudioRecorder> AudioRecorder::Create(int sample_rate) {
+    auto ptr = std::make_unique<AudioRecorder>(sample_rate);
     ptr->InitializeFifoBuffer();
     return ptr;
 }
 
-AudioRecorder::AudioRecorder(Args config)
+AudioRecorder::AudioRecorder(int sample_rate)
     : Recorder(),
-      sample_rate(config.sample_rate),
+      sample_rate(sample_rate),
       channels(2),
       sample_fmt(AV_SAMPLE_FMT_FLTP),
       encoder_name("aac") {}

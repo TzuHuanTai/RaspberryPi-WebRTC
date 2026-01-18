@@ -6,7 +6,8 @@
 #include "common/v4l2_frame_buffer.h"
 #include "common/v4l2_utils.h"
 
-class VideoCapturer : public Subject<V4L2FrameBufferRef> {
+// multiple video stream capturer interface
+class VideoCapturer {
   public:
     VideoCapturer() = default;
     virtual ~VideoCapturer() = default;
@@ -21,12 +22,8 @@ class VideoCapturer : public Subject<V4L2FrameBufferRef> {
     virtual void StartCapture() = 0;
     virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) = 0;
     virtual bool SetControls(int key, int value) { return false; };
-    virtual Subscription SubscribeSub(Subject<V4L2FrameBufferRef>::Callback callback) {
-        return Subject<V4L2FrameBufferRef>::Subscribe(std::move(callback));
-    }
-
-  protected:
-    using Subject<V4L2FrameBufferRef>::Next;
+    virtual Subscription Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
+                                   int stream_idx = 0) = 0;
 };
 
 #endif
