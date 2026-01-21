@@ -38,8 +38,7 @@ int main(int argc, char *argv[]) {
                                      scaled_height, false, false);
 
     auto capturer = V4L2Capturer::Create(args);
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
+    auto observer = capturer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
         scaler->EmplaceBuffer(frame_buffer, [&](V4L2FrameBufferRef scaled_buffer) {
             if (is_finished) {
                 return;
@@ -60,7 +59,6 @@ int main(int argc, char *argv[]) {
     });
 
     scaler.reset();
-    observer->UnSubscribe();
 
     return 0;
 }

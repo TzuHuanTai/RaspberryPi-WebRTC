@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
     };
 
     auto capturer = LibargusBufferCapturer::Create(args);
-    auto observer = capturer->AsFrameBufferObservable();
     auto scaler = JetsonScaler::Create(args.width, args.height, adapted_width, adapted_height);
     auto encoder =
         JetsonEncoder::Create(adapted_width, adapted_height, V4L2_PIX_FMT_H264, args.hw_accel);
@@ -38,7 +37,7 @@ int main(int argc, char *argv[]) {
     int frame_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 
-    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    auto observer = capturer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
         auto buffer = frame_buffer->GetRawBuffer();
 
         auto cam_current_time = std::chrono::steady_clock::now();
@@ -108,9 +107,6 @@ int main(int argc, char *argv[]) {
     cond_var.wait(lock, [&] {
         return is_finished;
     });
-
-    // encoder.reset();
-    observer->UnSubscribe();
 
     return 0;
 }
