@@ -35,8 +35,7 @@ int main(int argc, char *argv[]) {
     auto capturer = V4L2Capturer::Create(args);
     auto decoder = V4L2Decoder::Create(args.width, args.height, capturer->format(), true);
 
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
+    auto observer = capturer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
         printf("Camera buffer: %u\n", frame_buffer->size());
 
         decoder->EmplaceBuffer(frame_buffer, [&](V4L2FrameBufferRef decoded_buffer) {
@@ -61,7 +60,6 @@ int main(int argc, char *argv[]) {
     });
 
     decoder.reset();
-    observer->UnSubscribe();
 
     return 0;
 }

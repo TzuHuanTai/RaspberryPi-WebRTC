@@ -32,8 +32,7 @@ int main(int argc, char *argv[]) {
 
     auto capturer = LibcameraCapturer::Create(args);
 
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    auto observer = capturer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
         if (i < images_nb) {
             auto buffer = frame_buffer->GetRawBuffer();
             WriteImage(buffer.start, buffer.length, ++i);

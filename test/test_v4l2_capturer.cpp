@@ -35,8 +35,7 @@ int main(int argc, char *argv[]) {
               .hw_accel = true};
 
     auto capturer = V4L2Capturer::Create(args);
-    auto observer = capturer->AsFrameBufferObservable();
-    observer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    auto observer = capturer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
         if (i < images_nb) {
             WriteImage(frame_buffer->GetRawBuffer(), ++i);
         } else {
