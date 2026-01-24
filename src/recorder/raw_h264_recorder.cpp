@@ -34,7 +34,8 @@ void RawH264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     }
 
     if (has_first_keyframe_) {
-        OnEncoded((uint8_t *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->timestamp());
+        OnEncoded((uint8_t *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->timestamp(),
+                  frame_buffer->flags());
     }
 }
 

@@ -20,7 +20,7 @@ void V4L2H264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) 
 
     encoder_->EmplaceBuffer(frame_buffer, [this, frame_buffer](V4L2FrameBufferRef encoded_buffer) {
         OnEncoded((uint8_t *)encoded_buffer->Data(), encoded_buffer->size(),
-                  frame_buffer->timestamp());
+                  frame_buffer->timestamp(), encoded_buffer->flags());
     });
 }
 

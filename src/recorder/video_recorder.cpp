@@ -50,11 +50,14 @@ void VideoRecorder::OnStop() {
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
-void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp) {
+void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags) {
     AVPacket *pkt = av_packet_alloc();
     pkt->data = start;
     pkt->size = length;
     pkt->stream_index = st->index;
+    if (flags & V4L2_BUF_FLAG_KEYFRAME) {
+        pkt->flags |= AV_PKT_FLAG_KEY;
+    }
 
     int64_t elapsed_usec = (int64_t)(timestamp.tv_sec - base_time_.tv_sec) * 1000000LL +
                            (int64_t)(timestamp.tv_usec - base_time_.tv_usec);

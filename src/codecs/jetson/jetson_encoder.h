@@ -9,15 +9,30 @@
 
 #include <NvVideoEncoder.h>
 
+struct JetsonEncoderConfig {
+    int width;
+    int height;
+    bool is_dma_src;
+    uint32_t dst_pix_fmt;
+
+    int fps = 30;
+    int bitrate = 2 * 1024 * 1024;
+    int i_interval = 0;
+    int idr_interval = 256;
+    v4l2_mpeg_video_bitrate_mode rc_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
+};
+
 class JetsonEncoder : public IFrameProcessor {
   public:
-    JetsonEncoder(int width, int height, uint32_t dst_pix_fmt, bool is_dma_src);
-    ~JetsonEncoder() override;
-
     static std::unique_ptr<JetsonEncoder> Create(int width, int height, uint32_t dst_pix_fmt,
                                                  bool is_dma_src);
+    static std::unique_ptr<JetsonEncoder> Create(JetsonEncoderConfig config);
+
+    JetsonEncoder(JetsonEncoderConfig config, const char *name);
+    ~JetsonEncoder() override;
+
     void EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
-                       std::function<void(V4L2FrameBufferRef)> on_capture);
+                       std::function<void(V4L2FrameBufferRef)> on_capture) override;
     void ForceKeyFrame();
     void SetFps(int adjusted_fps);
     void SetBitrate(int adjusted_bitrate_bps);
@@ -25,13 +40,17 @@ class JetsonEncoder : public IFrameProcessor {
   private:
     NvVideoEncoder *encoder_;
     std::atomic<bool> abort_;
+    const char *name_;
     int width_;
     int height_;
     int framerate_;
     int bitrate_bps_;
+    int i_interval_;
+    int idr_interval_;
     uint32_t src_pix_fmt_;
     uint32_t dst_pix_fmt_;
     bool is_dma_src_;
+    v4l2_mpeg_video_bitrate_mode rate_control_mode_;
     ThreadSafeQueue<std::function<void(V4L2FrameBufferRef)>> capturing_tasks_;
 
     bool CreateVideoEncoder();

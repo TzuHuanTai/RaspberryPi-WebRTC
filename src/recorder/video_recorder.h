@@ -32,7 +32,7 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
     virtual void Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) = 0;
 
     bool ConsumeBuffer() override;
-    void OnEncoded(uint8_t *start, uint32_t length, timeval timestamp);
+    void OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags = 0);
     void SetBaseTimestamp(struct timeval time);
 
   private:
