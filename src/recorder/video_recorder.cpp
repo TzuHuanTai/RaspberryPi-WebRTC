@@ -5,18 +5,18 @@
 #include "common/logging.h"
 #include "common/utils.h"
 
-VideoRecorder::VideoRecorder(int width, int height, int fps, std::string encoder_name)
+VideoRecorder::VideoRecorder(int width, int height, int fps, AVCodecID encoder_id)
     : Recorder(),
       fps(fps),
       width(width),
       height(height),
-      encoder_name(encoder_name),
+      encoder_id(encoder_id),
       abort_(true) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
-    frame_rate = {.num = (int)fps, .den = 1};
+    AVRational frame_rate = {.num = (int)fps, .den = 1};
 
-    const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
+    const AVCodec *codec = avcodec_find_encoder(encoder_id);
     encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_VIDEO;
     encoder->width = width;
@@ -60,15 +60,8 @@ void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp
                            (int64_t)(timestamp.tv_usec - base_time_.tv_usec);
 
     AVRational usec_base = {1, 1000000};
-    int64_t calculated_ts = av_rescale_q(elapsed_usec, usec_base, st->time_base);
 
-    static int64_t last_dts = -1;
-    if (calculated_ts <= last_dts) {
-        calculated_ts = last_dts + 1;
-    }
-    last_dts = calculated_ts;
-
-    pkt->pts = pkt->dts = calculated_ts;
+    pkt->pts = pkt->dts = av_rescale_q(elapsed_usec, usec_base, st->time_base);
 
     OnPacketed(pkt);
 
