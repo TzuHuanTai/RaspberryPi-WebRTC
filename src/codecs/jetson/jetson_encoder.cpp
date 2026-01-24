@@ -6,26 +6,44 @@
 #include "NvBuffer.h"
 #include <NvBufSurface.h>
 
-const int KEY_FRAME_INTERVAL = 256;
 const int BUFFER_NUM = 4;
+
+static std::atomic<uint32_t> global_enc_id{0};
 
 /* Only accept V4L2_PIX_FMT_YUV420M (multi-pnale yuv420) or dma source input */
 std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(int width, int height, uint32_t dst_pix_fmt,
                                                      bool is_dma_src) {
-    auto ptr = std::make_unique<JetsonEncoder>(width, height, dst_pix_fmt, is_dma_src);
+    JetsonEncoderConfig config = {
+        .width = width,
+        .height = height,
+        .is_dma_src = is_dma_src,
+        .dst_pix_fmt = dst_pix_fmt,
+    };
+    return Create(config);
+}
+
+std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(JetsonEncoderConfig config) {
+    char auto_name[16];
+    snprintf(auto_name, sizeof(auto_name), "enc%d", global_enc_id.fetch_add(1) % 10);
+    auto ptr = std::make_unique<JetsonEncoder>(config, auto_name);
     ptr->Start();
     return ptr;
 }
 
-JetsonEncoder::JetsonEncoder(int width, int height, uint32_t dst_pix_fmt, bool is_dma_src)
+JetsonEncoder::JetsonEncoder(JetsonEncoderConfig config, const char *name)
     : abort_(true),
-      width_(width),
-      height_(height),
-      framerate_(30),
-      bitrate_bps_(2 * 1024 * 1024),
+      encoder_(nullptr),
+      name_(name),
+      width_(config.width),
+      height_(config.height),
+      framerate_(config.fps),
+      bitrate_bps_(config.bitrate),
+      i_interval_(config.i_interval),
+      idr_interval_(config.idr_interval),
       src_pix_fmt_(V4L2_PIX_FMT_NV12M),
-      dst_pix_fmt_(dst_pix_fmt),
-      is_dma_src_(is_dma_src) {}
+      dst_pix_fmt_(config.dst_pix_fmt),
+      is_dma_src_(config.is_dma_src),
+      rate_control_mode_(config.rc_mode) {}
 
 JetsonEncoder::~JetsonEncoder() {
     abort_ = true;
@@ -49,7 +67,7 @@ JetsonEncoder::~JetsonEncoder() {
 bool JetsonEncoder::CreateVideoEncoder() {
     int ret = 0;
 
-    encoder_ = NvVideoEncoder::createVideoEncoder("enc0");
+    encoder_ = NvVideoEncoder::createVideoEncoder(name_);
     if (!encoder_)
         ORIGINATE_ERROR("Could not create encoder");
 
@@ -81,24 +99,24 @@ bool JetsonEncoder::CreateVideoEncoder() {
         if (ret < 0)
             ORIGINATE_ERROR("Could not set B frame number");
 
-        ret = encoder_->setInsertSpsPpsAtIdrEnabled(true);
-        if (ret < 0)
-            ORIGINATE_ERROR("Could not insert SPS PPS at every IDR");
-
         ret = encoder_->setInsertVuiEnabled(true);
         if (ret < 0)
             ORIGINATE_ERROR("Could not insert Video Usability Information");
     }
 
-    ret = encoder_->setRateControlMode(V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
+    ret = encoder_->setInsertSpsPpsAtIdrEnabled(true);
+    if (ret < 0)
+        ORIGINATE_ERROR("Could not insert SPS PPS at every IDR");
+
+    ret = encoder_->setRateControlMode(rate_control_mode_);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set rate control mode");
 
-    ret = encoder_->setIDRInterval(KEY_FRAME_INTERVAL);
+    ret = encoder_->setIDRInterval(idr_interval_);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set IDR interval");
 
-    ret = encoder_->setIFrameInterval(0);
+    ret = encoder_->setIFrameInterval(i_interval_);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set I-frame interval");
 
@@ -171,7 +189,7 @@ void JetsonEncoder::SetBitrate(int adjusted_bitrate_bps) {
 void JetsonEncoder::ForceKeyFrame() {
     int ret = encoder_->forceIDR();
     if (ret < 0)
-        ERROR_PRINT("Could not force set encoder tokey frame");
+        ERROR_PRINT("Could not force set encoder to key frame");
 }
 
 void JetsonEncoder::Start() {

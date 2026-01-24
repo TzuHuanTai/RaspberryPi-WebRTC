@@ -12,9 +12,11 @@
 #include "common/utils.h"
 #include "common/v4l2_frame_buffer.h"
 #include "recorder/openh264_recorder.h"
-#if defined(RPI_PLATFORM)
 #include "recorder/raw_h264_recorder.h"
+#if defined(USE_RPI_HW_ENCODER)
 #include "recorder/v4l2_h264_recorder.h"
+#elif defined(USE_JETSON_HW_ENCODER)
+#include "recorder/jetson_recorder.h"
 #endif
 
 const int ROTATION_PERIOD = 60;
@@ -92,17 +94,15 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capture
         if (config.record_mode == RecordMode::Snapshot) {
             return nullptr;
         }
-#if defined(RPI_PLATFORM)
         if (capturer->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(width, height, fps);
         } else if (config.hw_accel) {
+#if defined(USE_RPI_HW_ENCODER)
             return V4L2H264Recorder::Create(width, height, fps);
+#elif defined(USE_JETSON_HW_ENCODER)
+            return JetsonRecorder::Create(width, height, fps);
+#endif
         }
-#endif
-
-#if defined(JETSON_PLATFORM)
-        // todo: use jetson hw video encoder
-#endif
         return Openh264Recorder::Create(width, height, fps);
     })();
 }

@@ -119,7 +119,7 @@ rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Clone() const {
     } else {
         memcpy(clone->data_.get(), buffer_.start, size_);
     }
-
+    clone->SetDmaFd(buffer_.dmafd);
     clone->flags_ = flags_;
     clone->timestamp_ = timestamp_;
 
