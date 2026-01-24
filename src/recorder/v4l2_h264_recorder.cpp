@@ -1,11 +1,11 @@
 #include "recorder/v4l2_h264_recorder.h"
 
 std::unique_ptr<V4L2H264Recorder> V4L2H264Recorder::Create(int width, int height, int fps) {
-    return std::make_unique<V4L2H264Recorder>(width, height, fps, "h264_v4l2m2m");
+    return std::make_unique<V4L2H264Recorder>(width, height, fps);
 }
 
-V4L2H264Recorder::V4L2H264Recorder(int width, int height, int fps, std::string encoder_name)
-    : VideoRecorder(width, height, fps, encoder_name) {}
+V4L2H264Recorder::V4L2H264Recorder(int width, int height, int fps)
+    : VideoRecorder(width, height, fps, AV_CODEC_ID_H264) {}
 
 void V4L2H264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     if (!encoder_) {

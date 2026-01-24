@@ -6,11 +6,11 @@
 #define NAL_UNIT_TYPE_PPS 8
 
 std::unique_ptr<RawH264Recorder> RawH264Recorder::Create(int width, int height, int fps) {
-    return std::make_unique<RawH264Recorder>(width, height, fps, "h264_v4l2m2m");
+    return std::make_unique<RawH264Recorder>(width, height, fps);
 }
 
-RawH264Recorder::RawH264Recorder(int width, int height, int fps, std::string encoder_name)
-    : VideoRecorder(width, height, fps, encoder_name),
+RawH264Recorder::RawH264Recorder(int width, int height, int fps)
+    : VideoRecorder(width, height, fps, AV_CODEC_ID_H264),
       has_sps_(false),
       has_pps_(false),
       has_first_keyframe_(false){};

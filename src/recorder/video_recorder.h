@@ -16,7 +16,7 @@ extern "C" {
 
 class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
   public:
-    VideoRecorder(int width, int height, int fps, std::string encoder_name);
+    VideoRecorder(int width, int height, int fps, AVCodecID encoder_id);
     virtual ~VideoRecorder(){};
     void OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> buffer) override;
     void OnStop() override final;
@@ -25,10 +25,8 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
     int fps;
     int width;
     int height;
-    std::string encoder_name;
+    AVCodecID encoder_id;
     ThreadSafeQueue<rtc::scoped_refptr<V4L2FrameBuffer>> frame_buffer_queue;
-
-    AVRational frame_rate;
 
     virtual void ReleaseEncoder() = 0;
     virtual void Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) = 0;
@@ -41,7 +39,6 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
     std::mutex encoder_mtx_;
     std::atomic<bool> abort_;
     struct timeval base_time_;
-    std::unique_ptr<V4L2Decoder> image_decoder_;
 
     void InitializeEncoderCtx(AVCodecContext *&encoder) override;
 };

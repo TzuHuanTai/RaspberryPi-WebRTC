@@ -6,7 +6,7 @@
 class RawH264Recorder : public VideoRecorder {
   public:
     static std::unique_ptr<RawH264Recorder> Create(int width, int height, int fps);
-    RawH264Recorder(int width, int height, int fps, std::string encoder_name);
+    RawH264Recorder(int width, int height, int fps);
     ~RawH264Recorder();
     void OnStart() override;
 
