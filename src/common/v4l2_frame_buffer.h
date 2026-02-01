@@ -31,7 +31,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     uint8_t *MutableData();
     V4L2Buffer GetRawBuffer();
     int GetDmaFd() const;
-    bool SetDmaFd(int fd);
+    void SetDmaFd(int fd);
     void SetTimestamp(timeval timestamp);
     rtc::scoped_refptr<V4L2FrameBuffer> Clone() const;
 
@@ -46,10 +46,12 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     const uint32_t format_;
     uint32_t size_;
     uint32_t flags_;
-    bool has_mutable_data_;
     timeval timestamp_;
     V4L2Buffer buffer_;
-    const std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;
+    std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;
+
+    V4L2FrameBuffer(int width, int height, uint32_t format, int size, uint32_t flags,
+                    timeval timestamp);
 };
 
 #endif // V4L2_FRAME_BUFFER_H_
