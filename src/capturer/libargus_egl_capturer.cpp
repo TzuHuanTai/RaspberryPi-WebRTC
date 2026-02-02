@@ -18,7 +18,7 @@ LibargusEglCapturer::LibargusEglCapturer(Args args)
     : camera_id_(args.camera_id),
       num_streams_(args.num_streams),
       fps_(args.fps),
-      format_(args.format),
+      format_(V4L2_PIX_FMT_NV12),
       config_(args) {}
 
 LibargusEglCapturer::~LibargusEglCapturer() {
@@ -267,7 +267,7 @@ int LibargusEglCapturer::height(int stream_idx) const {
     return stream_handlers_[stream_idx]->height();
 }
 
-bool LibargusEglCapturer::is_dma_capture() const { return false; }
+bool LibargusEglCapturer::is_dma_capture() const { return true; }
 
 uint32_t LibargusEglCapturer::format() const { return format_; }
 
@@ -290,8 +290,8 @@ void StreamHandler::CaptureImage() {
         return;
     }
     if (dma_fd_ == -1) {
-        dma_fd_ =
-            native_buffer->createNvBuffer(size_, NVBUF_COLOR_FORMAT_YUV420, NVBUF_LAYOUT_PITCH);
+        dma_fd_ = native_buffer->createNvBuffer(size_, NVBUF_COLOR_FORMAT_NV12,
+                                                NVBUF_LAYOUT_BLOCK_LINEAR);
         if (dma_fd_ < 0) {
             return;
         }
@@ -304,31 +304,6 @@ void StreamHandler::CaptureImage() {
 
     frame_buffer_->SetDmaFd(dma_fd_);
     frame_buffer_->SetTimestamp(timestamp);
-
-    NvBufSurface *nvbuf = nullptr;
-    if (NvBufSurfaceFromFd(dma_fd_, reinterpret_cast<void **>(&nvbuf)) != 0) {
-        DestroyNvBufferFromFd();
-        return;
-    }
-
-    auto &surf = nvbuf->surfaceList[0];
-    int offset = 0;
-    for (int p = 0; p < surf.planeParams.num_planes; ++p) {
-        if (NvBufSurfaceMap(nvbuf, 0, p, NVBUF_MAP_READ) != 0)
-            continue;
-        if (NvBufSurfaceSyncForCpu(nvbuf, 0, p) != 0) {
-            NvBufSurfaceUnMap(nvbuf, 0, p);
-            continue;
-        }
-        uint8_t *addr = static_cast<uint8_t *>(surf.mappedAddr.addr[p]);
-        for (uint32_t row = 0; row < surf.planeParams.height[p]; ++row) {
-            int row_size = surf.planeParams.width[p] * surf.planeParams.bytesPerPix[p];
-            memcpy(frame_buffer_->MutableData() + offset, addr + row * surf.planeParams.pitch[p],
-                   row_size);
-            offset += row_size;
-        }
-        NvBufSurfaceUnMap(nvbuf, 0, p);
-    }
 
     Next(frame_buffer_);
 }
