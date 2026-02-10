@@ -1,8 +1,19 @@
 #!/bin/bash
 
-PROTO_SRC_DIR=external/livekit-protocol/protobufs
 PROTO_OUT_DIR=proto
+PROTO_DIRS=(
+  external/livekit-protocol/protobufs
+  external/protocol/protos
+)
 
 mkdir -p $PROTO_OUT_DIR
 
-protoc -I=$PROTO_SRC_DIR --cpp_out=$PROTO_OUT_DIR $PROTO_SRC_DIR/*.proto
+INCLUDES=""
+FILES=""
+
+for dir in "${PROTO_DIRS[@]}"; do
+  INCLUDES="$INCLUDES -I=$dir"
+  FILES="$FILES $dir/*.proto"
+done
+
+protoc $INCLUDES --cpp_out=$PROTO_OUT_DIR $FILES
