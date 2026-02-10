@@ -1,3 +1,6 @@
 [submodule "external/livekit-protocol"]
 	path = external/livekit-protocol
 	url = https://github.com/livekit/protocol.git
+[submodule "external/protocol"]
+	path = external/protocol
+	url = https://github.com/TzuHuanTai/protocol.git
