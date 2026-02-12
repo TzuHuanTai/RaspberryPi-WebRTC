@@ -2,7 +2,7 @@
 
 #include "common/logging.h"
 
-const int CHUNK_SIZE = 65536;
+const int CHUNK_SIZE = 64 * 1024; // 64KB
 
 std::shared_ptr<RtcChannel>
 RtcChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
@@ -45,71 +45,78 @@ void RtcChannel::OnMessage(const webrtc::DataBuffer &buffer) {
     Next(message);
 }
 
-void RtcChannel::RegisterHandler(CommandType type, ChannelCommandHandler func) {
+void RtcChannel::RegisterHandler(protocol::CommandType type, CommandHandler func) {
     auto sub =
-        observers_map_[type].Subscribe([self = shared_from_this(), func](std::string message) {
-            if (!message.empty()) {
-                func(self, message);
-            }
+        observers_map_[type].Subscribe([self = shared_from_this(), func](protocol::Packet pkt) {
+            func(self, pkt);
         });
     subscriptions_.push_back(std::move(sub));
 }
 
-void RtcChannel::RegisterHandler(CommandType type, PayloadHandler func) {
-    auto sub = observers_map_[type].Subscribe([func](std::string message) {
-        if (!message.empty()) {
-            func(message);
-        }
+void RtcChannel::RegisterHandler(CustomPayloadHandler func) {
+    auto sub = custom_cmd_subject_.Subscribe([func](std::string message) {
+        func(message);
     });
     subscriptions_.push_back(std::move(sub));
 }
 
 void RtcChannel::Next(const std::string &message) {
-    try {
-        json jsonObj = json::parse(message.c_str());
-
-        std::string jsonStr = jsonObj.dump();
-        DEBUG_PRINT("Receive message => %s", jsonStr.c_str());
-
-        CommandType type = jsonObj["type"];
-        std::string content = jsonObj["message"];
-        if (content.empty()) {
-            return;
-        }
-
-        observers_map_[type].Next(content);
-
-    } catch (const json::parse_error &e) {
-        ERROR_PRINT("JSON parse error, %s, occur at position: %lu", e.what(), e.byte);
-    }
-}
-
-void RtcChannel::Send(CommandType type, const uint8_t *data, size_t size) {
-    int bytes_read = 0;
-    const size_t header_size = sizeof(CommandType);
-
-    std::vector<char> data_with_header(CHUNK_SIZE);
-
-    if (size == 0) {
-        std::memcpy(data_with_header.data(), &type, header_size);
-        Send((uint8_t *)data_with_header.data(), header_size);
+    protocol::Packet packet;
+    if (!packet.ParseFromString(message)) {
+        ERROR_PRINT("Failed to parse incoming packet");
         return;
     }
 
-    while (bytes_read < size) {
-        if (data_channel->buffered_amount() + CHUNK_SIZE > data_channel->MaxSendQueueSize()) {
-            usleep(100);
-            DEBUG_PRINT("Sleeping for 100 microsecond due to MaxSendQueueSize reached.");
-            continue;
+    DEBUG_PRINT("Received packet type: %s", protocol::CommandType_Name(packet.type()).c_str());
+
+    if (packet.type() == protocol::CommandType::CUSTOM) {
+        if (packet.has_custom_command()) {
+            const std::string &payload = packet.custom_command();
+            DEBUG_PRINT("CUSTOM payload: %s", payload.c_str());
+            custom_cmd_subject_.Next(payload);
+        } else {
+            ERROR_PRINT("CUSTOM command without payload");
         }
-        int read_size = std::min(CHUNK_SIZE - header_size, size - bytes_read);
-
-        std::memcpy(data_with_header.data(), &type, header_size);
-        std::memcpy(data_with_header.data() + header_size, data + bytes_read, read_size);
-
-        Send((uint8_t *)data_with_header.data(), read_size + header_size);
-        bytes_read += read_size;
+        return;
+    } else {
+        observers_map_[packet.type()].Next(packet);
     }
+}
+
+void RtcChannel::SendStream(protocol::CommandType type, const uint8_t *data, size_t size) {
+    auto stream_id = Utils::GenerateUuid();
+
+    protocol::Packet header_pkt;
+    header_pkt.set_type(type);
+    auto *header = header_pkt.mutable_stream_header();
+    header->set_stream_id(stream_id);
+    header->set_total_length(size);
+
+    std::string header_buf = header_pkt.SerializeAsString();
+    Send((uint8_t *)header_buf.data(), header_buf.size());
+
+    size_t offset = 0;
+    while (offset < size) {
+        protocol::Packet chunk_pkt;
+        chunk_pkt.set_type(type);
+        auto *chunk = chunk_pkt.mutable_stream_chunk();
+        auto read_size = std::min((size_t)CHUNK_SIZE, size - offset);
+        chunk->set_stream_id(stream_id);
+        chunk->set_offset(offset);
+        chunk->set_data(data + offset, read_size);
+
+        std::string chunk_buf = chunk_pkt.SerializeAsString();
+        Send((uint8_t *)chunk_buf.data(), chunk_buf.size());
+        offset += read_size;
+    }
+
+    protocol::Packet trailer_pkt;
+    trailer_pkt.set_type(type);
+    auto *trailer = trailer_pkt.mutable_stream_trailer();
+    trailer->set_stream_id(stream_id);
+
+    std::string trailer_buf = trailer_pkt.SerializeAsString();
+    Send((uint8_t *)trailer_buf.data(), trailer_buf.size());
 }
 
 void RtcChannel::Send(const uint8_t *data, size_t size) {
@@ -117,76 +124,79 @@ void RtcChannel::Send(const uint8_t *data, size_t size) {
         return;
     }
 
+    while (data_channel->buffered_amount() + size > data_channel->MaxSendQueueSize()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
     rtc::CopyOnWriteBuffer buffer(data, size);
     webrtc::DataBuffer data_buffer(buffer, true);
     data_channel->Send(data_buffer);
 }
 
-void RtcChannel::Send(MetaMessage metadata) {
-    if (metadata.path.empty()) {
+void RtcChannel::Send(const protocol::QueryFileResponse &response) {
+    std::string body;
+    if (!response.SerializeToString(&body)) {
+        ERROR_PRINT("Failed to serialize QueryFileResponse");
         return;
     }
 
-    auto type = CommandType::METADATA;
-    auto body = metadata.ToString();
-    int body_size = body.length();
-    auto header = std::to_string(body_size);
-    int header_size = header.length();
-
-    Send(type, (uint8_t *)header.c_str(), header_size);
-    Send(type, (uint8_t *)body.c_str(), body_size);
-    Send(type, nullptr, 0);
+    SendStream(protocol::CommandType::QUERY_FILE, (uint8_t *)body.c_str(), body.size());
 }
 
 void RtcChannel::Send(Buffer image) {
-    auto type = CommandType::SNAPSHOT;
-    const int file_size = image.length;
-    std::string size_str = std::to_string(file_size);
-    Send(type, (uint8_t *)size_str.c_str(), size_str.length());
-    Send(type, (uint8_t *)image.start.get(), file_size);
-    Send(type, nullptr, 0);
-
-    DEBUG_PRINT("Image sent: %d bytes", file_size);
+    SendStream(protocol::CommandType::TAKE_SNAPSHOT, (uint8_t *)image.start.get(), image.length);
+    DEBUG_PRINT("Image sent: %lu bytes", image.length);
 }
 
 void RtcChannel::Send(std::ifstream &file) {
-    std::vector<char> buffer(CHUNK_SIZE);
-    int bytes_read = 0;
-    int count = 0;
-    const int header_size = sizeof(CommandType);
-    auto type = CommandType::RECORDING;
+    if (!file.is_open())
+        return;
 
-    int file_size = file.tellg();
-    std::string size_str = std::to_string(file_size);
+    auto type = protocol::CommandType::TRANSFER_FILE;
+
+    file.seekg(0, std::ios::end);
+    size_t total_size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    Send(type, (uint8_t *)size_str.c_str(), size_str.length());
+    auto stream_id = Utils::GenerateUuid();
 
-    while (bytes_read < file_size) {
-        if (data_channel->buffered_amount() + CHUNK_SIZE > data_channel->MaxSendQueueSize()) {
-            sleep(1);
-            DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
-            continue;
-        }
-        int read_size = std::min(CHUNK_SIZE - header_size, file_size - bytes_read);
-        std::memcpy(buffer.data(), &type, header_size);
-        file.read(buffer.data() + header_size, read_size);
+    protocol::Packet header_pkt;
+    header_pkt.set_type(type);
+    auto *header = header_pkt.mutable_stream_header();
+    header->set_stream_id(stream_id);
+    header->set_total_length(total_size);
 
-        Send((uint8_t *)buffer.data(), read_size + header_size);
-        bytes_read += read_size;
+    std::string header_data = header_pkt.SerializeAsString();
+    Send((uint8_t *)header_data.data(), header_data.size());
+
+    std::vector<char> buffer(CHUNK_SIZE);
+    std::vector<uint8_t> serialization_buf(CHUNK_SIZE + 256);
+    size_t offset = 0;
+    while (file.read(buffer.data(), CHUNK_SIZE) || file.gcount() > 0) {
+        size_t read_size = file.gcount();
+
+        protocol::Packet chunk_pkt;
+        chunk_pkt.set_type(type);
+        auto *chunk = chunk_pkt.mutable_stream_chunk();
+        chunk->set_stream_id(stream_id);
+        chunk->set_offset(offset);
+        chunk->set_data(buffer.data(), read_size);
+
+        std::string chunk_data = chunk_pkt.SerializeAsString();
+        Send((uint8_t *)chunk_data.data(), chunk_data.size());
+
+        offset += read_size;
     }
 
-    Send(type, nullptr, 0);
+    protocol::Packet trailer_pkt;
+    trailer_pkt.set_type(type);
+    auto *trailer = trailer_pkt.mutable_stream_trailer();
+    trailer->set_stream_id(stream_id);
+
+    std::string trailer_data = trailer_pkt.SerializeAsString();
+    Send((uint8_t *)trailer_data.data(), trailer_data.size());
 }
 
 void RtcChannel::Send(const std::string &message) {
-    auto type = CommandType::CUSTOM;
-    auto body = message;
-    int body_size = message.length();
-    auto header = std::to_string(body_size);
-    int header_size = header.length();
-
-    Send(type, (uint8_t *)header.c_str(), header_size);
-    Send(type, (uint8_t *)body.c_str(), body_size);
-    Send(type, nullptr, 0);
+    SendStream(protocol::CommandType::CUSTOM, (uint8_t *)message.c_str(), message.length());
 }

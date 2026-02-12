@@ -2,6 +2,8 @@
 
 #include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
+
 std::shared_ptr<WebsocketService>
 WebsocketService::Create(Args args, std::shared_ptr<Conductor> conductor, net::io_context &ioc) {
     return std::make_shared<WebsocketService>(args, conductor, ioc);
