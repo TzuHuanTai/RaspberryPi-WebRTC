@@ -107,11 +107,18 @@ std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
         DEBUG_PRINT("The Command data channel is established successfully.");
         cmd_channel_ = channel;
 
-        cmd_channel_->RegisterHandler(CommandType::CONNECT, [this](std::string message) {
-            if (message == "false") { // todo: use enum or so.
+        cmd_channel_->RegisterHandler(
+            protocol::CommandType::DISCONNECT,
+            [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
+                DEBUG_PRINT("Received DISCONNECT command. Closing peer connection.");
                 peer_connection_->Close();
-            }
-        });
+                if (pkt.has_disconnection_request()) {
+                    auto request = pkt.disconnection_request();
+                    DEBUG_PRINT("Reason: %s",
+                                protocol::DisconnectRequest_DisconnectReason_Name(request.reason())
+                                    .c_str());
+                }
+            });
     } else if (mode == ChannelMode::Lossy) {
         DEBUG_PRINT("The Lossy data channel is established successfully.");
         lossy_channel_ = channel;

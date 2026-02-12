@@ -1,5 +1,7 @@
 #include "rtc/conductor.h"
 
+#include <algorithm>
+
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/create_peerconnection_factory.h>
@@ -203,33 +205,30 @@ void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer) {
 void Conductor::InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer) {
     auto cmd_channel = peer->CreateDataChannel(ChannelMode::Command);
     cmd_channel->RegisterHandler(
-        CommandType::SNAPSHOT,
-        [this](std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-            OnSnapshot(datachannel, msg);
+        protocol::CommandType::TAKE_SNAPSHOT,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            TakeSnapshot(datachannel, pkt);
         });
     cmd_channel->RegisterHandler(
-        CommandType::METADATA,
-        [this](std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-            OnMetadata(datachannel, msg);
+        protocol::CommandType::QUERY_FILE,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            QueryFile(datachannel, pkt);
         });
     cmd_channel->RegisterHandler(
-        CommandType::RECORDING,
-        [this](std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-            OnRecord(datachannel, msg);
+        protocol::CommandType::TRANSFER_FILE,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            TransferFile(datachannel, pkt);
         });
     cmd_channel->RegisterHandler(
-        CommandType::CAMERA_OPTION,
-        [this](std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-            OnCameraOption(datachannel, msg);
+        protocol::CommandType::CONTROL_CAMERA,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            ControlCamera(datachannel, pkt);
         });
 }
 
-void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
+void Conductor::TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
     try {
-        std::stringstream ss(msg);
-        int num;
-        ss >> num;
-        int quality = ss.fail() ? 100 : num;
+        auto quality = std::clamp(pkt.take_snapshot_request().quality(), 0u, 100u);
 
         auto i420buff = video_capture_source_->GetI420Frame(args.live_stream_idx);
         auto jpg_buffer = Utils::ConvertYuvToJpeg(
@@ -241,41 +240,72 @@ void Conductor::OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::s
     }
 }
 
-void Conductor::OnMetadata(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-    DEBUG_PRINT("OnMetadata msg: %s", msg.c_str());
-    json jsonObj = json::parse(msg.c_str());
-
-    MetadataCommand cmd = jsonObj["command"];
-    std::string message = jsonObj["message"];
-    DEBUG_PRINT("parse meta cmd message => %hhu, %s", cmd, message.c_str());
-
-    if (args.record_path.empty()) {
+void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
+    if (!pkt.has_query_file_request()) {
+        ERROR_PRINT("Invalid metadata request");
         return;
     }
 
-    if ((cmd == MetadataCommand::LATEST) || (cmd == MetadataCommand::OLDER && message.empty())) {
-        auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
-        DEBUG_PRINT("LATEST: %s", latest_mp4_path.c_str());
-        MetaMessage metadata(latest_mp4_path);
-        datachannel->Send(metadata);
-    } else if (cmd == MetadataCommand::OLDER) {
-        auto paths = Utils::FindOlderFiles(message, 8);
+    if (args.record_path.empty()) {
+        ERROR_PRINT("Recording path is not set, unable to query files.");
+        return;
+    }
+
+    auto req = pkt.query_file_request();
+    auto type = req.type();
+    const std::string &parameter = req.parameter();
+
+    if (type == protocol::QueryFileType::LATEST_FILE || parameter.empty()) {
+        auto path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+        DEBUG_PRINT("LATEST: %s", path.c_str());
+        SendFileResponse(datachannel, path);
+    } else if (type == protocol::QueryFileType::BEFORE_FILE) {
+        auto paths = Utils::FindOlderFiles(parameter, 8);
         for (auto &path : paths) {
             DEBUG_PRINT("OLDER: %s", path.c_str());
-            MetaMessage metadata(path);
-            datachannel->Send(metadata);
+            SendFileResponse(datachannel, path);
         }
-    } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
-        auto path = Utils::FindFilesFromDatetime(args.record_path, message);
-        MetaMessage metadata(path);
-        datachannel->Send(metadata);
+    } else if (type == protocol::QueryFileType::BEFORE_TIME) {
+        auto path = Utils::FindFilesFromDatetime(args.record_path, parameter);
+        DEBUG_PRINT("TIME_MATCH: %s", path.c_str());
+        SendFileResponse(datachannel, path);
     }
 }
 
-void Conductor::OnRecord(std::shared_ptr<RtcChannel> datachannel, const std::string &path) {
+void Conductor::SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path) {
+    if (path.empty())
+        return;
+
+    protocol::QueryFileResponse resp;
+    auto *file = resp.add_files();
+    file->set_filepath(path);
+    file->set_duration_sec(Utils::GetVideoDuration(path));
+
+    auto last_dot = path.rfind('.');
+    if (last_dot != std::string::npos) {
+        std::string thumbnail_path = path.substr(0, last_dot) + ".jpg";
+
+        auto binary_data = Utils::ReadFileInBinary(thumbnail_path);
+        if (!binary_data.empty()) {
+            file->set_thumbnail("data:image/jpeg;base64," + Utils::ToBase64(binary_data));
+        }
+    }
+
+    datachannel->Send(resp);
+}
+
+void Conductor::TransferFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
     if (args.record_path.empty()) {
         return;
     }
+
+    if (!pkt.has_transfer_file_request()) {
+        ERROR_PRINT("Invalid file transfer request");
+        return;
+    }
+
+    const std::string &path = pkt.transfer_file_request().filepath();
+
     try {
         std::ifstream file(path, std::ios::binary | std::ios::ate);
         if (!file) {
@@ -289,12 +319,16 @@ void Conductor::OnRecord(std::shared_ptr<RtcChannel> datachannel, const std::str
     }
 }
 
-void Conductor::OnCameraOption(std::shared_ptr<RtcChannel> datachannel, const std::string &msg) {
-    DEBUG_PRINT("OnCameraControl msg: %s", msg.c_str());
-    json jsonObj = json::parse(msg.c_str());
+void Conductor::ControlCamera(std::shared_ptr<RtcChannel> datachannel,
+                              const protocol::Packet &pkt) {
+    if (!pkt.has_control_camera_request()) {
+        ERROR_PRINT("Invalid camera control request");
+        return;
+    }
 
-    int key = jsonObj["key"];
-    int value = jsonObj["value"];
+    const auto &req = pkt.control_camera_request();
+    int key = req.id();
+    int value = req.value();
     DEBUG_PRINT("parse meta cmd message => %d, %d", key, value);
 
     try {
@@ -404,7 +438,7 @@ void Conductor::BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel
     if (!channel || !ipc_server_)
         return;
 
-    channel->RegisterHandler(CommandType::CUSTOM, [this](const std::string &msg) {
+    channel->RegisterHandler([this](const std::string &msg) {
         ipc_server_->Write(msg);
     });
     DEBUG_PRINT("DataChannel (%s) connected to IPC server for receiving.",

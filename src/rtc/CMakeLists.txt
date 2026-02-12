@@ -20,33 +20,37 @@ if(Protobuf_PROTOC_EXECUTABLE)
 endif()
 
 # path of the proto files
-set(PROTO_SRC_DIR "${CMAKE_SOURCE_DIR}/external/livekit-protocol/protobufs")
+set(PROTO_SRC_DIRS
+  "${CMAKE_SOURCE_DIR}/external/livekit-protocol/protobufs"
+  "${CMAKE_SOURCE_DIR}/external/protocol/protos"
+)
 set(PROTO_OUT_DIR "${CMAKE_SOURCE_DIR}/proto")
-
 file(MAKE_DIRECTORY ${PROTO_OUT_DIR})
 
-# collect all .proto
-file(GLOB PROTO_FILES "${PROTO_SRC_DIR}/*.proto")
+set(PROTO_SRCS "")
+foreach(PROTO_SRC_DIR ${PROTO_SRC_DIRS})
+  # collect all .proto
+  file(GLOB PROTO_FILES "${PROTO_SRC_DIR}/*.proto")
 
-# generate `*.pb.cc` and `*.pb.h` to `proto/`
-foreach(proto_file ${PROTO_FILES})
-  get_filename_component(proto_name ${proto_file} NAME_WE)
+  # generate `*.pb.cc` and `*.pb.h` to `proto/`
+  foreach(proto_file ${PROTO_FILES})
+    get_filename_component(proto_name ${proto_file} NAME_WE)
 
-  set(proto_cc "${PROTO_OUT_DIR}/${proto_name}.pb.cc")
-  set(proto_h "${PROTO_OUT_DIR}/${proto_name}.pb.h")
+    set(proto_cc "${PROTO_OUT_DIR}/${proto_name}.pb.cc")
+    set(proto_h "${PROTO_OUT_DIR}/${proto_name}.pb.h")
 
-  add_custom_command(
-    OUTPUT ${proto_cc} ${proto_h}
-    COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-    ARGS ${PROTO_OPTIONAL_FLAG}
-    --cpp_out=${PROTO_OUT_DIR}
-    -I ${PROTO_SRC_DIR}
-    ${proto_file}
-    DEPENDS ${proto_file}
-  )
+    add_custom_command(
+      OUTPUT ${proto_cc} ${proto_h}
+      COMMAND ${Protobuf_PROTOC_EXECUTABLE}
+      ARGS ${PROTO_OPTIONAL_FLAG}
+      --cpp_out=${PROTO_OUT_DIR}
+      -I ${PROTO_SRC_DIR}
+      ${proto_file}
+      DEPENDS ${proto_file}
+    )
 
-  list(APPEND PROTO_SRCS ${proto_cc})
-  list(APPEND PROTO_HDRS ${proto_h})
+    list(APPEND PROTO_SRCS ${proto_cc})
+  endforeach()
 endforeach()
 
 aux_source_directory(${PROJECT_SOURCE_DIR} RTC_FILES)

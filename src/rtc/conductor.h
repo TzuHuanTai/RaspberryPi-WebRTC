@@ -42,10 +42,11 @@ class Conductor {
     void BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel);
 
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
-    void OnSnapshot(std::shared_ptr<RtcChannel> datachannel, const std::string &msg);
-    void OnMetadata(std::shared_ptr<RtcChannel> datachannel, const std::string &path);
-    void OnRecord(std::shared_ptr<RtcChannel> datachannel, const std::string &path);
-    void OnCameraOption(std::shared_ptr<RtcChannel> datachannel, const std::string &msg);
+    void TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
+    void QueryFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
+    void TransferFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
+    void ControlCamera(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
+    void SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
