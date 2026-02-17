@@ -83,7 +83,7 @@ void RtcChannel::Next(const std::string &message) {
     }
 }
 
-void RtcChannel::SendStream(protocol::CommandType type, const uint8_t *data, size_t size) {
+void RtcChannel::Send(protocol::CommandType type, const uint8_t *data, size_t size) {
     auto stream_id = Utils::GenerateUuid();
 
     protocol::Packet header_pkt;
@@ -140,11 +140,11 @@ void RtcChannel::Send(const protocol::QueryFileResponse &response) {
         return;
     }
 
-    SendStream(protocol::CommandType::QUERY_FILE, (uint8_t *)body.c_str(), body.size());
+    Send(protocol::CommandType::QUERY_FILE, (uint8_t *)body.c_str(), body.size());
 }
 
 void RtcChannel::Send(Buffer image) {
-    SendStream(protocol::CommandType::TAKE_SNAPSHOT, (uint8_t *)image.start.get(), image.length);
+    Send(protocol::CommandType::TAKE_SNAPSHOT, (uint8_t *)image.start.get(), image.length);
     DEBUG_PRINT("Image sent: %lu bytes", image.length);
 }
 
@@ -198,5 +198,5 @@ void RtcChannel::Send(std::ifstream &file) {
 }
 
 void RtcChannel::Send(const std::string &message) {
-    SendStream(protocol::CommandType::CUSTOM, (uint8_t *)message.c_str(), message.length());
+    Send(protocol::CommandType::CUSTOM, (uint8_t *)message.c_str(), message.length());
 }
