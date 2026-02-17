@@ -27,8 +27,12 @@ jobs:
           - 'test'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install clang-format-14
+        run: sudo apt-get install -y clang-format-14
+
       - name: Run clang-format style check for C/C++/Protobuf programs.
-        uses: jidicula/clang-format-action@v4.14.0
-        with:
-          clang-format-version: '14'
-          check-path: ${{ matrix.path }}
+        run: |
+          find ${{ matrix.path }} \
+            \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -o -name '*.proto' \) \
+            | xargs clang-format-14 --dry-run --Werror
