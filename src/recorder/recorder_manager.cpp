@@ -43,18 +43,12 @@ AVFormatContext *RecUtil::CreateContainer(const std::string &full_path) {
     return fmt_ctx;
 }
 
-bool RecUtil::WriteFormatHeader(AVFormatContext *fmt_ctx) {
-    if (avformat_write_header(fmt_ctx, nullptr) < 0) {
-        ERROR_PRINT("Error occurred when opening output file");
-        return false;
-    }
-    return true;
-}
-
 void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
     if (fmt_ctx) {
         av_write_trailer(fmt_ctx);
-        avio_closep(&fmt_ctx->pb);
+        if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+            avio_closep(&fmt_ctx->pb);
+        }
         avformat_free_context(fmt_ctx);
     }
 }
@@ -126,7 +120,7 @@ RecorderManager::RecorderManager(Args config)
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
     video_subscription_ = video_src->Subscribe(
-        [this](rtc::scoped_refptr<V4L2FrameBuffer> buffer) {
+        [this](V4L2FrameBufferRef buffer) {
             // waiting first keyframe to start recorders.
             if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
                                         video_src_->format() != V4L2_PIX_FMT_H264)) {
@@ -175,8 +169,34 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src
 
 void RecorderManager::WriteIntoFile(AVPacket *pkt) {
     std::lock_guard<std::mutex> lock(ctx_mux);
+
+    if (!fmt_ctx)
+        return;
+
+    if (!header_written_) {
+        if (!(pkt->flags & AV_PKT_FLAG_KEY)) {
+            return;
+        }
+
+        AVCodecParameters *codecpar = fmt_ctx->streams[pkt->stream_index]->codecpar;
+
+        if (codecpar->codec_id == AV_CODEC_ID_AV1) {
+            av_free(codecpar->extradata);
+            codecpar->extradata = (uint8_t *)av_malloc(pkt->size + AV_INPUT_BUFFER_PADDING_SIZE);
+            memcpy(codecpar->extradata, pkt->data, pkt->size);
+            memset(codecpar->extradata + pkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+            codecpar->extradata_size = pkt->size;
+        }
+
+        if (avformat_write_header(fmt_ctx, nullptr) < 0) {
+            ERROR_PRINT("Error writing header");
+            return;
+        }
+        header_written_ = true;
+    }
+
     int ret;
-    if (fmt_ctx && fmt_ctx->nb_streams > pkt->stream_index &&
+    if (fmt_ctx->nb_streams > pkt->stream_index &&
         (ret = av_interleaved_write_frame(fmt_ctx, pkt)) < 0) {
         char err_buf[AV_ERROR_MAX_STRING_SIZE];
         av_strerror(ret, err_buf, sizeof(err_buf));
@@ -210,7 +230,7 @@ void RecorderManager::Start() {
             audio_recorder->AddStream(fmt_ctx);
         }
 
-        RecUtil::WriteFormatHeader(fmt_ctx);
+        header_written_ = false;
 
         av_dump_format(fmt_ctx, 0, new_file.GetFullPath().c_str(), 1);
     }
@@ -238,10 +258,11 @@ void RecorderManager::Stop() {
         audio_recorder->Stop();
     }
 
-    if (fmt_ctx) {
+    {
         std::lock_guard<std::mutex> lock(ctx_mux);
         RecUtil::CloseContext(fmt_ctx);
         fmt_ctx = nullptr;
+        header_written_ = false;
     }
 }
 

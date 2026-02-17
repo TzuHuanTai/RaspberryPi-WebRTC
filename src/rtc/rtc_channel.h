@@ -57,7 +57,7 @@ class RtcChannel : public webrtc::DataChannelObserver,
     std::vector<Subscription> subscriptions_;
     std::map<protocol::CommandType, Subject<protocol::Packet>> observers_map_;
 
-    void SendStream(protocol::CommandType type, const uint8_t *data, size_t size);
+    void Send(protocol::CommandType type, const uint8_t *data, size_t size);
 };
 
 #endif // DATA_CHANNEL_H_

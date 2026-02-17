@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <regex>
 #include <sstream>
 #include <sys/statvfs.h>
 #include <uuid/uuid.h>
@@ -162,11 +163,22 @@ std::vector<std::pair<fs::file_time_type, fs::path>> Utils::GetFiles(const std::
 }
 
 std::string Utils::FindLatestSubDir(const std::string &path) {
+    if (!fs::exists(path) || !fs::is_directory(path)) {
+        return "";
+    }
+
     std::string latestDir;
+
+    // folders named in "yyyyMMdd" or "hh"
+    std::regex datePattern("^([0-9]{8}|[0-9]{2})$");
+
     for (const auto &entry : fs::directory_iterator(path)) {
         if (entry.is_directory()) {
-            if (entry.path().filename().string() > latestDir) {
-                latestDir = entry.path().filename().string();
+            std::string folderName = entry.path().filename().string();
+            if (std::regex_match(folderName, datePattern)) {
+                if (folderName > latestDir) {
+                    latestDir = folderName;
+                }
             }
         }
     }
@@ -194,14 +206,14 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
         return "";
     }
 
-    std::string datePath = path + "/" + latestDateDir;
+    std::string datePath = (fs::path(path) / latestDateDir).string();
     std::string latestHourDir = Utils::FindLatestSubDir(datePath);
     if (latestHourDir.empty()) {
         std::cerr << "No hour directories found." << std::endl;
         return "";
     }
 
-    std::string latestDir = datePath + "/" + latestHourDir;
+    std::string latestDir = (fs::path(datePath) / latestHourDir).string();
     auto files = Utils::GetFiles(latestDir, extension);
 
     // find previous hour
@@ -212,7 +224,7 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
             if (prevHourDir.length() < 2) {
                 prevHourDir = "0" + prevHourDir;
             }
-            std::string prevDir = datePath + "/" + prevHourDir;
+            std::string prevDir = (fs::path(datePath) / prevHourDir).string();
             auto prevFiles = Utils::GetFiles(prevDir, extension);
 
             files.insert(files.end(), prevFiles.begin(), prevFiles.end());
@@ -223,9 +235,9 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     if (files.size() < 2) {
         std::string prevDateDir = Utils::GetPreviousDate(latestDateDir);
 
-        std::string prevDatePath = path + "/" + prevDateDir;
+        std::string prevDatePath = (fs::path(path) / prevDateDir).string();
         latestHourDir = Utils::FindLatestSubDir(prevDatePath);
-        std::string prevDir = prevDatePath + "/" + latestHourDir;
+        std::string prevDir = (fs::path(prevDatePath) / latestHourDir).string();
         auto prevFiles = Utils::GetFiles(prevDir, extension);
 
         files.insert(files.end(), prevFiles.begin(), prevFiles.end());
@@ -258,7 +270,7 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
     std::string time = basename.substr(9);
     std::string hour = time.substr(0, 2);
 
-    fs::path hour_path(root + date + "/" + hour);
+    fs::path hour_path = fs::path(root) / date / hour;
 
     if (!fs::exists(hour_path)) {
         return "";
@@ -444,22 +456,22 @@ void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, cons
     }
 }
 
-int Utils::GetVideoDuration(const std::string &filePath) {
+uint32_t Utils::GetVideoDuration(const std::string &filePath) {
     AVFormatContext *formatContext = nullptr;
     if (avformat_open_input(&formatContext, filePath.c_str(), nullptr, nullptr) != 0) {
         std::cerr << "Could not open file: " << filePath << std::endl;
-        return -1;
+        return 0;
     }
 
     if (avformat_find_stream_info(formatContext, nullptr) < 0) {
         std::cerr << "Could not find stream information" << std::endl;
         avformat_close_input(&formatContext);
-        return -1;
+        return 0;
     }
 
     if (!formatContext) {
         std::cerr << "Invalid format context!" << std::endl;
-        return -1;
+        return 0;
     }
 
     int64_t duration = formatContext->duration;

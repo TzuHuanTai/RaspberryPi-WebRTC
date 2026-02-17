@@ -24,7 +24,6 @@ enum RecordMode {
 class RecUtil {
   public:
     static AVFormatContext *CreateContainer(const std::string &full_path);
-    static bool WriteFormatHeader(AVFormatContext *fmt_ctx);
     static void CloseContext(AVFormatContext *fmt_ctx);
 };
 
@@ -62,6 +61,8 @@ class RecorderManager {
     std::unique_ptr<Worker> worker_;
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
+
+    bool header_written_ = false;
 
     Subscription audio_subscription_;
     Subscription video_subscription_;

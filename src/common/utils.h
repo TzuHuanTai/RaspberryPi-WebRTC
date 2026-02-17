@@ -42,7 +42,7 @@ class Utils {
     static void CreateJpegImage(const uint8_t *yuv_data, int width, int height,
                                 const std::string &url, int quality);
     static void WriteJpegImage(Buffer buffer, const std::string &url);
-    static int GetVideoDuration(const std::string &filePath);
+    static uint32_t GetVideoDuration(const std::string &filePath);
     static timeval ToTimeval(uint64_t timestamp_ns);
     static std::string GenerateUuid();
 };

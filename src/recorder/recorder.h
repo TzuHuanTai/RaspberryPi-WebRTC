@@ -27,6 +27,9 @@ template <typename T> class Recorder {
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
+        st->time_base = encoder->time_base;
+        st->avg_frame_rate = encoder->framerate;
+        st->r_frame_rate = encoder->framerate;
         avcodec_parameters_from_context(st->codecpar, encoder);
 
         return st != nullptr;

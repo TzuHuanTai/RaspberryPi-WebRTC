@@ -11,7 +11,7 @@ VideoRecorder::VideoRecorder(int width, int height, int fps, AVCodecID encoder_i
       width(width),
       height(height),
       encoder_id(encoder_id),
-      abort_(true) {}
+      base_time_initialized(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     AVRational frame_rate = {.num = (int)fps, .den = 1};
@@ -33,30 +33,27 @@ void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
 }
 
 void VideoRecorder::OnStop() {
-    // Wait P-frames are all consumed until I-frame appear when the video source is h264.
-    auto frame = frame_buffer_queue.front();
-    while (frame.has_value() && (frame.value()->format() == V4L2_PIX_FMT_H264 &&
-                                 (frame.value()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0)) {
-        ConsumeBuffer();
-    }
-
-    abort_ = true;
-
-    {
-        std::lock_guard<std::mutex> lock(encoder_mtx_);
-        ReleaseEncoder();
-    }
+    std::lock_guard<std::mutex> lock(encoder_mtx_);
+    base_time_initialized = false;
+    ReleaseEncoder();
 }
 
-void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
-
 void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags) {
+    if (!st) {
+        return;
+    }
+
     AVPacket *pkt = av_packet_alloc();
     pkt->data = start;
     pkt->size = length;
     pkt->stream_index = st->index;
     if (flags & V4L2_BUF_FLAG_KEYFRAME) {
         pkt->flags |= AV_PKT_FLAG_KEY;
+    }
+
+    if (!base_time_initialized) {
+        base_time_ = timestamp;
+        base_time_initialized = true;
     }
 
     int64_t elapsed_usec = (int64_t)(timestamp.tv_sec - base_time_.tv_sec) * 1000000LL +
@@ -72,24 +69,23 @@ void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp
 }
 
 bool VideoRecorder::ConsumeBuffer() {
-    auto item = frame_buffer_queue.pop();
+    auto item = frame_buffer_queue.pop(10);
 
     if (!item) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
         return false;
     }
 
     auto frame_buffer = item.value();
 
-    if (abort_) {
-        abort_ = false;
-        SetBaseTimestamp(frame_buffer->timestamp());
+    std::lock_guard<std::mutex> lock(encoder_mtx_);
+
+    if (!IsEncoderReady()) {
+        return false;
     }
 
-    if (!abort_) {
-        std::lock_guard<std::mutex> lock(encoder_mtx_);
-        Encode(frame_buffer);
-    }
+    Encode(frame_buffer);
 
     return true;
 }
+
+bool VideoRecorder::IsEncoderReady() { return encoder != nullptr; }

@@ -33,12 +33,12 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
 
     bool ConsumeBuffer() override;
     void OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags = 0);
-    void SetBaseTimestamp(struct timeval time);
+    bool IsEncoderReady();
 
   private:
     std::mutex encoder_mtx_;
-    std::atomic<bool> abort_;
     struct timeval base_time_;
+    std::atomic<bool> base_time_initialized;
 
     void InitializeEncoderCtx(AVCodecContext *&encoder) override;
 };
