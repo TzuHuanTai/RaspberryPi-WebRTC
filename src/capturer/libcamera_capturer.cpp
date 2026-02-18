@@ -21,7 +21,8 @@ LibcameraCapturer::LibcameraCapturer(Args args)
       rotation_(args.rotation),
       buffer_count_(2),
       format_(args.format),
-      config_(args) {}
+      config_(args),
+      is_controls_updated_(false) {}
 
 LibcameraCapturer::~LibcameraCapturer() {
     camera_->stop();
@@ -231,6 +232,7 @@ bool LibcameraCapturer::SetControls(int key, int value) {
     std::lock_guard<std::mutex> lock(control_mutex_);
     DEBUG_PRINT("  Set camera control: %d, %d", key, value);
     controls_.set(key, value);
+    is_controls_updated_ = true;
     return true;
 }
 
@@ -298,7 +300,11 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     {
         std::lock_guard<std::mutex> lock(control_mutex_);
-        request->controls() = controls_;
+        if (is_controls_updated_) {
+            request->controls().clear();
+            request->controls().merge(controls_);
+            is_controls_updated_ = false;
+        }
     }
 
     camera_->queueRequest(request);
@@ -322,13 +328,19 @@ void LibcameraCapturer::StartCapture() {
 
     AllocateBuffer();
 
-    ret = camera_->start(&controls_);
+    controls_ = libcamera::ControlList(camera_->controls());
+
+    ret = camera_->start(controls_.empty() ? nullptr : &controls_);
     if (ret) {
         ERROR_PRINT("Failed to start capturing");
         exit(1);
     }
 
-    controls_.clear();
+    {
+        std::lock_guard<std::mutex> lock(control_mutex_);
+        controls_.clear();
+    }
+
     camera_->requestCompleted.connect(this, &LibcameraCapturer::RequestComplete);
 
     for (auto &request : requests_) {

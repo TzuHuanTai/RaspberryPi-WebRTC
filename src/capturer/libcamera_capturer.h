@@ -45,6 +45,7 @@ class LibcameraCapturer : public VideoCapturer {
     uint32_t format_;
     Args config_;
     std::mutex control_mutex_;
+    std::atomic<bool> is_controls_updated_;
 
     std::unique_ptr<libcamera::CameraManager> cm_;
     std::shared_ptr<libcamera::Camera> camera_;
