@@ -128,8 +128,10 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
                 last_created_time_ = buffer->timestamp();
             }
 
-            // restart to write in the new file.
-            if (elapsed_time_ >= config.file_duration) {
+            // restart to write in the new file on the next keyframe boundary.
+            if (has_first_keyframe && elapsed_time_ >= config.file_duration &&
+                ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
+                 video_src_->format() != V4L2_PIX_FMT_H264)) {
                 last_created_time_ = buffer->timestamp();
                 Stop();
                 Start();
@@ -189,7 +191,10 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
         }
 
         if (avformat_write_header(fmt_ctx, nullptr) < 0) {
-            ERROR_PRINT("Error writing header");
+            ERROR_PRINT("Error writing header, close context to avoid corrupt muxer state");
+            avio_closep(&fmt_ctx->pb);
+            avformat_free_context(fmt_ctx);
+            fmt_ctx = nullptr;
             return;
         }
         header_written_ = true;
@@ -251,6 +256,8 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
+    has_first_keyframe = false;
+
     if (video_recorder) {
         video_recorder->Stop();
     }

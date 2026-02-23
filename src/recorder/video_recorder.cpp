@@ -33,9 +33,12 @@ void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
 }
 
 void VideoRecorder::OnStop() {
-    std::lock_guard<std::mutex> lock(encoder_mtx_);
-    base_time_initialized = false;
-    ReleaseEncoder();
+    {
+        std::lock_guard<std::mutex> lock(encoder_mtx_);
+        base_time_initialized = false;
+        ReleaseEncoder();
+    }
+    frame_buffer_queue.clear();
 }
 
 void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags) {
@@ -44,8 +47,12 @@ void VideoRecorder::OnEncoded(uint8_t *start, uint32_t length, timeval timestamp
     }
 
     AVPacket *pkt = av_packet_alloc();
-    pkt->data = start;
-    pkt->size = length;
+    if (av_new_packet(pkt, length) < 0) {
+        av_packet_free(&pkt);
+        return;
+    }
+    memcpy(pkt->data, start, length);
+
     pkt->stream_index = st->index;
     if (flags & V4L2_BUF_FLAG_KEYFRAME) {
         pkt->flags |= AV_PKT_FLAG_KEY;
