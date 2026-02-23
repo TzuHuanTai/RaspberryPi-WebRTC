@@ -59,7 +59,7 @@ void Openh264Encoder::Init() {
 }
 
 void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
-                             std::function<void(uint8_t *, int)> on_capture) {
+                             std::function<void(uint8_t *, int, bool)> on_capture) {
     src_pic_ = {0};
     src_pic_.iPicWidth = width_;
     src_pic_.iPicHeight = height_;
@@ -98,6 +98,7 @@ void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> fra
             encoded_size += layer_len;
         }
 
-        on_capture(encoded_buf.data(), encoded_size);
+        bool is_keyframe = (info.eFrameType == videoFrameTypeIDR);
+        on_capture(encoded_buf.data(), encoded_size, is_keyframe);
     }
 }
