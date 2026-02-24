@@ -13,6 +13,7 @@
 #include "args.h"
 #include "capturer/pa_capturer.h"
 #include "capturer/video_capturer.h"
+#include "recorder/recorder_manager.h"
 #include "rtc/rtc_peer.h"
 #include "track/scale_track_source.h"
 
@@ -27,6 +28,7 @@ class Conductor {
     rtc::scoped_refptr<RtcPeer> CreatePeerConnection(PeerConfig peer_config);
     std::shared_ptr<PaCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
+    void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
 
   private:
     Args args;
@@ -47,6 +49,8 @@ class Conductor {
     void TransferFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void ControlCamera(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path);
+    void StartRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
+    void StopRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
@@ -60,6 +64,7 @@ class Conductor {
     rtc::scoped_refptr<ScaleTrackSource> video_track_source_;
 
     std::shared_ptr<UnixSocketServer> ipc_server_;
+    std::weak_ptr<RecorderManager> ondemand_recorder_;
 };
 
 #endif // CONDUCTOR_H_

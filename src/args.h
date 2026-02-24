@@ -10,6 +10,16 @@
 
 #include <linux/videodev2.h>
 
+enum RecordMode {
+    Background = 0,
+    OnDemand = 1,
+};
+
+enum RecordType {
+    Video = 0,
+    Snapshot = 1,
+};
+
 template <typename DEFAULT> struct TimeVal {
     TimeVal()
         : value(0) {}
@@ -111,9 +121,12 @@ struct Args {
     bool set_default_lens_position = false;
 
     // recording
-    std::string record = "both";
+    std::string record_type_str = "both";
+    int record_type = -1;
+    std::string record_mode_str = "both";
     int record_mode = -1;
     std::string record_path = "";
+    std::string record_ondemand_path = "";
     int file_duration = 60;
 
     // ipc

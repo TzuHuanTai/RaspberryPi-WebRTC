@@ -79,13 +79,40 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
     return instance;
 }
 
+std::shared_ptr<RecorderManager>
+RecorderManager::CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
+                                std::shared_ptr<PaCapturer> audio_src, Args config) {
+    auto instance = std::make_shared<RecorderManager>(config);
+    instance->auto_start_ = false;
+
+    if (video_src) {
+        instance->CreateVideoRecorder(video_src);
+        instance->SubscribeVideoSource(video_src);
+    }
+    if (audio_src) {
+        instance->CreateAudioRecorder(audio_src);
+        instance->SubscribeAudioSource(audio_src);
+    }
+
+    instance->worker_ = std::make_unique<Worker>("ondemand_rotation_worker", [config]() {
+        DEBUG_PRINT("Rotate on-demand files.");
+        while (!Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
+            Utils::RotateFiles(config.record_path);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(ROTATION_PERIOD));
+    });
+    instance->worker_->Run();
+
+    return instance;
+}
+
 void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capturer) {
     video_src_ = capturer;
     fps = capturer->fps();
     width = capturer->width(config.record_stream_idx);
     height = capturer->height(config.record_stream_idx);
     video_recorder = ([this, capturer]() -> std::unique_ptr<VideoRecorder> {
-        if (config.record_mode == RecordMode::Snapshot) {
+        if (config.record_type == RecordType::Snapshot) {
             return nullptr;
         }
         if (capturer->format() == V4L2_PIX_FMT_H264) {
@@ -103,7 +130,7 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capture
 
 void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) {
     audio_recorder = ([this, capturer]() -> std::unique_ptr<AudioRecorder> {
-        if (config.record_mode == RecordMode::Snapshot) {
+        if (config.record_type == RecordType::Snapshot) {
             return nullptr;
         } else {
             return AudioRecorder::Create(capturer->config().sample_rate);
@@ -114,7 +141,10 @@ void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) 
 RecorderManager::RecorderManager(Args config)
     : config(config),
       fmt_ctx(nullptr),
+      auto_start_(true),
+      header_written_(false),
       has_first_keyframe(false),
+      time_reset_pending_(false),
       record_path(config.record_path),
       elapsed_time_(0.0) {}
 
@@ -122,8 +152,9 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
     video_subscription_ = video_src->Subscribe(
         [this](V4L2FrameBufferRef buffer) {
             // waiting first keyframe to start recorders.
-            if (!has_first_keyframe && ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
-                                        video_src_->format() != V4L2_PIX_FMT_H264)) {
+            if (auto_start_ && !has_first_keyframe &&
+                ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
+                 video_src_->format() != V4L2_PIX_FMT_H264)) {
                 Start();
                 last_created_time_ = buffer->timestamp();
             }
@@ -132,7 +163,6 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
             if (has_first_keyframe && elapsed_time_ >= config.file_duration &&
                 ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
                  video_src_->format() != V4L2_PIX_FMT_H264)) {
-                last_created_time_ = buffer->timestamp();
                 Stop();
                 Start();
             }
@@ -141,8 +171,16 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
                 video_recorder->OnBuffer(buffer);
             }
 
-            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
-                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
+            // Sync last_created_time_ to V4L2 time base on first callback after Start()
+            if (time_reset_pending_) {
+                last_created_time_ = buffer->timestamp();
+                elapsed_time_ = 0.0;
+                time_reset_pending_ = false;
+            } else {
+                elapsed_time_ =
+                    (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
+                    (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
+            }
         },
         config.record_stream_idx);
 
@@ -172,7 +210,7 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src
 void RecorderManager::WriteIntoFile(AVPacket *pkt) {
     std::lock_guard<std::mutex> lock(ctx_mux);
 
-    if (!fmt_ctx)
+    if (!fmt_ctx || !has_first_keyframe)
         return;
 
     if (!header_written_) {
@@ -219,8 +257,9 @@ void RecorderManager::Start() {
     FileInfo new_file(record_path, CONTAINER_FORMAT);
     auto folder = new_file.GetFolderPath();
     Utils::CreateFolder(folder);
+    current_filepath_ = new_file.GetFullPath();
 
-    if (config.record_mode != RecordMode::Snapshot) {
+    if (config.record_type != RecordType::Snapshot) {
         std::lock_guard<std::mutex> lock(ctx_mux);
         fmt_ctx = RecUtil::CreateContainer(new_file.GetFullPath());
         if (fmt_ctx == nullptr) {
@@ -247,16 +286,19 @@ void RecorderManager::Start() {
         audio_recorder->Start();
     }
 
-    if (config.record_mode != RecordMode::Video) {
+    if (config.record_type != RecordType::Video) {
         auto image_path = ReplaceExtension(new_file.GetFullPath(), PREVIEW_IMAGE_EXTENSION);
         MakePreviewImage(image_path);
     }
 
     has_first_keyframe = true;
+    elapsed_time_ = 0.0;
+    time_reset_pending_ = true;
 }
 
 void RecorderManager::Stop() {
     has_first_keyframe = false;
+    current_filepath_.clear();
 
     if (video_recorder) {
         video_recorder->Stop();
@@ -280,6 +322,10 @@ RecorderManager::~RecorderManager() {
     video_recorder.reset();
     audio_recorder.reset();
 }
+
+std::string RecorderManager::current_filepath() const { return current_filepath_; }
+
+bool RecorderManager::is_recording() const { return has_first_keyframe.load(); }
 
 void RecorderManager::MakePreviewImage(std::string path) {
     std::thread([this, path]() {

@@ -13,14 +13,27 @@ int main(int argc, char *argv[]) {
     Parser::ParseArgs(argc, argv, args);
 
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);
-    std::unique_ptr<RecorderManager> recorder_mgr;
+    std::unique_ptr<RecorderManager> bg_recorder_mgr;
+    std::shared_ptr<RecorderManager> ondemand_recorder_mgr;
 
-    if (Utils::CreateFolder(args.record_path)) {
-        recorder_mgr =
+    // Background recorder
+    if ((args.record_mode == RecordMode::Background || args.record_mode == -1) &&
+        Utils::CreateFolder(args.record_path)) {
+        bg_recorder_mgr =
             RecorderManager::Create(conductor->VideoSource(), conductor->AudioSource(), args);
-        DEBUG_PRINT("Recorder is running!");
-    } else {
-        DEBUG_PRINT("Recorder is not started!");
+        DEBUG_PRINT("Background recorder is running!");
+    }
+
+    // On-demand recorder
+    if (args.record_mode == RecordMode::OnDemand || args.record_mode == -1) {
+        Args ondemand_args = args;
+        ondemand_args.record_path = args.record_ondemand_path;
+        if (Utils::CreateFolder(ondemand_args.record_path)) {
+            ondemand_recorder_mgr = RecorderManager::CreateOnDemand(
+                conductor->VideoSource(), conductor->AudioSource(), ondemand_args);
+            conductor->SetOnDemandRecorder(ondemand_recorder_mgr);
+            DEBUG_PRINT("On-demand recorder is ready.");
+        }
     }
 
     boost::asio::io_context ioc;
