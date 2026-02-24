@@ -224,6 +224,25 @@ void Conductor::InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer) {
         [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
             ControlCamera(datachannel, pkt);
         });
+    cmd_channel->RegisterHandler(
+        protocol::CommandType::START_RECORDING,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            StartRecording(datachannel, pkt);
+        });
+    cmd_channel->RegisterHandler(
+        protocol::CommandType::STOP_RECORDING,
+        [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet pkt) {
+            StopRecording(datachannel, pkt);
+        });
+
+    cmd_channel->OnClosed([this]() {
+        auto recorder = ondemand_recorder_.lock();
+        if (recorder && recorder->is_recording()) {
+            DEBUG_PRINT("Peer disconnected: Auto-stop on-demand recording when peer disconnects "
+                        "(kFailed / kClosed)");
+            recorder->Stop();
+        }
+    });
 }
 
 void Conductor::TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
@@ -341,6 +360,43 @@ void Conductor::ControlCamera(std::shared_ptr<RtcChannel> datachannel,
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }
+}
+
+void Conductor::SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder) {
+    ondemand_recorder_ = recorder;
+}
+
+void Conductor::StartRecording(std::shared_ptr<RtcChannel> datachannel,
+                               const protocol::Packet &pkt) {
+    auto recorder = ondemand_recorder_.lock();
+    if (!recorder) {
+        ERROR_PRINT("On-demand recorder is not set.");
+        return;
+    }
+    recorder->Start();
+    DEBUG_PRINT("On-demand recording started.");
+
+    protocol::RecordingResponse resp;
+    resp.set_is_recording(true);
+    resp.set_filepath(recorder->current_filepath());
+    datachannel->Send(resp);
+}
+
+void Conductor::StopRecording(std::shared_ptr<RtcChannel> datachannel,
+                              const protocol::Packet &pkt) {
+    auto recorder = ondemand_recorder_.lock();
+    if (!recorder) {
+        ERROR_PRINT("On-demand recorder is not set.");
+        return;
+    }
+    const std::string filepath = recorder->current_filepath();
+    recorder->Stop();
+    DEBUG_PRINT("On-demand recording stopped.");
+
+    protocol::RecordingResponse resp;
+    resp.set_is_recording(false);
+    resp.set_filepath(filepath);
+    datachannel->Send(resp);
 }
 
 void Conductor::InitializePeerConnectionFactory() {

@@ -16,11 +16,6 @@ extern "C" {
 #include "recorder/audio_recorder.h"
 #include "recorder/video_recorder.h"
 
-enum RecordMode {
-    Video,
-    Snapshot
-};
-
 class RecUtil {
   public:
     static AVFormatContext *CreateContainer(const std::string &full_path);
@@ -32,11 +27,16 @@ class RecorderManager {
     static std::unique_ptr<RecorderManager> Create(std::shared_ptr<VideoCapturer> video_src,
                                                    std::shared_ptr<PaCapturer> audio_src,
                                                    Args config);
+    static std::shared_ptr<RecorderManager> CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
+                                                           std::shared_ptr<PaCapturer> audio_src,
+                                                           Args config);
     RecorderManager(Args config);
     ~RecorderManager();
     void WriteIntoFile(AVPacket *pkt);
     void Start();
     void Stop();
+    bool is_recording() const;
+    std::string current_filepath() const;
 
   protected:
     std::mutex ctx_mux;
@@ -46,7 +46,7 @@ class RecorderManager {
     int height;
     std::string record_path;
     AVFormatContext *fmt_ctx;
-    bool has_first_keyframe;
+    std::atomic<bool> has_first_keyframe;
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
 
@@ -57,12 +57,15 @@ class RecorderManager {
 
   private:
     double elapsed_time_;
+    bool auto_start_;
+    std::atomic<bool> header_written_;
+    std::atomic<bool> time_reset_pending_;
     std::mutex rotation_mtx_;
     std::unique_ptr<Worker> worker_;
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
 
-    bool header_written_ = false;
+    std::string current_filepath_;
 
     Subscription audio_subscription_;
     Subscription video_subscription_;

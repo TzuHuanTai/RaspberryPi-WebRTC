@@ -38,6 +38,7 @@ class RtcChannel : public webrtc::DataChannelObserver,
     void RegisterHandler(CustomPayloadHandler func);
 
     void Send(const protocol::QueryFileResponse &response);
+    void Send(const protocol::RecordingResponse &response);
     void Send(Buffer image);
     void Send(std::ifstream &file);
     void Send(const std::string &message);

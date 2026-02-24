@@ -20,10 +20,16 @@ static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"yuyv", V4L2_PIX_FMT_YUYV},
 };
 
+static const std::unordered_map<std::string, int> record_type_table = {
+    {"both", -1},
+    {"video", RecordType::Video},
+    {"snapshot", RecordType::Snapshot},
+};
+
 static const std::unordered_map<std::string, int> record_mode_table = {
     {"both", -1},
-    {"video", RecordMode::Video},
-    {"snapshot", RecordMode::Snapshot},
+    {"background", RecordMode::Background},
+    {"on-demand", RecordMode::OnDemand},
 };
 
 static const std::unordered_map<std::string, int> ipc_mode_table = {
@@ -157,12 +163,17 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("lens-position", bpo::value<std::string>(&args.lens_position_)->default_value(args.lens_position_),
             "Set the lens to a particular focus position, \"0\" moves the lens to infinity, or \"default\" for the hyperfocal distance")
 #endif
-        ("record-mode", bpo::value<std::string>(&args.record)->default_value(args.record),
-            "Recording mode: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
+        ("record-type", bpo::value<std::string>(&args.record_type_str)->default_value(args.record_type_str),
+            "Recording type: 'video' to record MP4 files, 'snapshot' to save periodic JPEG images, "
             "or 'both' to do both simultaneously.")
+        ("record-mode", bpo::value<std::string>(&args.record_mode_str)->default_value(args.record_mode_str),
+            "Recording mode: 'background', 'on-demand' (DataChannel controlled), or 'both'.")
         ("record-path", bpo::value<std::string>(&args.record_path)->default_value(args.record_path),
-            "Set the path where recording video files will be saved. "
-            "If the value is empty or unavailable, the recorder will not start.")
+            "Set the path where background recording video files will be saved. "
+            "If the value is empty or unavailable, the background recorder will not start.")
+        ("record-ondemand-path", bpo::value<std::string>(&args.record_ondemand_path)->default_value(args.record_ondemand_path),
+            "Path for on-demand recordings triggered via DataChannel. "
+            "Defaults to ${record-path}/on-demand/ if not set.")
         ("file-duration", bpo::value<int>(&args.file_duration)->default_value(args.file_duration),
             "The duration (in seconds) of each video file, or the interval between snapshots.")
         ("jpeg-quality", bpo::value<int>(&args.jpeg_quality)->default_value(args.jpeg_quality),
@@ -308,8 +319,18 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
 
-    args.record_mode = ParseEnum(record_mode_table, args.record);
+    args.record_type = ParseEnum(record_type_table, args.record_type_str);
     args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);
+    args.record_mode = ParseEnum(record_mode_table, args.record_mode_str);
+
+    // Resolve on-demand path fallback
+    if (args.record_mode != RecordMode::Background && args.record_ondemand_path.empty() &&
+        !args.record_path.empty()) {
+        args.record_ondemand_path = args.record_path + "on-demand/";
+    }
+    if (!args.record_ondemand_path.empty() && args.record_ondemand_path.back() != '/') {
+        args.record_ondemand_path += '/';
+    }
 
     ParseDevice(args);
 }

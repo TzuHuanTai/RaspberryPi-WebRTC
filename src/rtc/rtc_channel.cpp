@@ -143,6 +143,21 @@ void RtcChannel::Send(const protocol::QueryFileResponse &response) {
     Send(protocol::CommandType::QUERY_FILE, (uint8_t *)body.c_str(), body.size());
 }
 
+void RtcChannel::Send(const protocol::RecordingResponse &response) {
+    protocol::Packet pkt;
+    auto cmd = response.is_recording() ? protocol::CommandType::START_RECORDING
+                                       : protocol::CommandType::STOP_RECORDING;
+    pkt.set_type(cmd);
+    *pkt.mutable_recording_response() = response;
+
+    std::string buf;
+    if (!pkt.SerializeToString(&buf)) {
+        ERROR_PRINT("Failed to serialize RecordingResponse");
+        return;
+    }
+    Send((uint8_t *)buf.data(), buf.size());
+}
+
 void RtcChannel::Send(Buffer image) {
     Send(protocol::CommandType::TAKE_SNAPSHOT, (uint8_t *)image.start.get(), image.length);
     DEBUG_PRINT("Image sent: %lu bytes", image.length);
