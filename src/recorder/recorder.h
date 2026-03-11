@@ -16,23 +16,27 @@ template <typename T> class Recorder {
   public:
     using OnPacketedFunc = std::function<void(AVPacket *pkt)>;
 
-    Recorder() = default;
-    ~Recorder() { Stop(); };
+    Recorder()
+        : encoder(nullptr),
+          st(nullptr) {}
+    virtual ~Recorder() = default;
 
     virtual void OnBuffer(T buffer) = 0;
-    virtual void OnStop(){};
     virtual void OnStart(){};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
+        if (!st) {
+            return false;
+        }
         st->time_base = encoder->time_base;
         st->avg_frame_rate = encoder->framerate;
         st->r_frame_rate = encoder->framerate;
         avcodec_parameters_from_context(st->codecpar, encoder);
 
-        return st != nullptr;
+        return true;
     }
 
     void OnPacketed(OnPacketedFunc fn) { on_packeted = fn; }
@@ -40,14 +44,13 @@ template <typename T> class Recorder {
     void Stop() {
         worker.reset();
         avcodec_free_context(&encoder);
-        OnStop();
     }
 
     void Start() {
+        OnStart();
         worker = std::make_unique<Worker>("Recorder", [this]() {
             ConsumeBuffer();
         });
-        OnStart();
         worker->Run();
     }
 

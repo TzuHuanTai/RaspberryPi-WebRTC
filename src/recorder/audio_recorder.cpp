@@ -32,7 +32,10 @@ void AudioRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->channels = channels;
 #endif
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-    avcodec_open2(encoder, codec, nullptr);
+    if (avcodec_open2(encoder, codec, nullptr) < 0) {
+        ERROR_PRINT("Failed to open audio codec: %s", encoder_name.c_str());
+        return;
+    }
 
     InitializeFrame();
 }
