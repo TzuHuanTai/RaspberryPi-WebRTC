@@ -239,12 +239,12 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
      * passive. */
     // modified_sdp_ = ModifySetupAttribute(sdp, "passive");
     modified_sdp_ = sdp;
-
+    webrtc::SdpParseError modified_desc_error_;
     modified_desc_ =
-        webrtc::CreateSessionDescription(desc->GetType(), modified_sdp_, modified_desc_error_);
+        webrtc::CreateSessionDescription(desc->GetType(), modified_sdp_, &modified_desc_error_);
     if (!modified_desc_) {
         ERROR_PRINT("Failed to create session description: %s",
-                    modified_desc_error_->description.c_str());
+                    modified_desc_error_.description.c_str());
         return;
     }
 
