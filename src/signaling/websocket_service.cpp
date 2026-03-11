@@ -196,14 +196,14 @@ void WebsocketService::Read() {
 
 void WebsocketService::OnMessage(const std::string &req) {
     DEBUG_PRINT("Received message: %s", req.c_str());
+    json jsonObj;
     try {
-        nlohmann::json jsonObj = nlohmann::json::parse(req.c_str());
+        jsonObj = json::parse(req);
     } catch (const std::exception &e) {
         ERROR_PRINT("Failed to parse message: %s", e.what());
         return;
     }
 
-    json jsonObj = json::parse(req.c_str());
     std::string action = jsonObj["action"];
     std::string message = jsonObj["message"];
 
