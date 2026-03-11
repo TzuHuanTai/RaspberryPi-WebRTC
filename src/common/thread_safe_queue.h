@@ -36,7 +36,7 @@ template <typename T> class ThreadSafeQueue {
             return !queue_.empty();
         });
 
-        if (!notified || queue_.empty()) {
+        if (!notified) {
             return std::nullopt;
         }
         T t = std::move(queue_.front());
