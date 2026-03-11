@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-    paths-ignore:
-      - 'doc/**'
-      - 'example/**'
-      - '.github/**'
-      - '.vscode/**'
-      - '*.md'
 
 jobs:
   prepare-env:
@@ -32,7 +26,6 @@ jobs:
 
           SECTOR_SIZE=512
           START_SECTOR=$(fdisk -l rpi-os.img | awk '/^rpi-os.img2/ { print $2 }')
-          OFFSET=$((START_SECTOR * SECTOR_SIZE))
           OFFSET=$((START_SECTOR * SECTOR_SIZE))
           echo "Mounting with offset=$OFFSET"
 
@@ -129,11 +122,8 @@ jobs:
         id: zip-binary
         run: |
           cd build
-          if [ "${{ matrix.build_type }}" == "Release" ]; then
-            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}.tar.gz"
-          else
-            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-env.outputs.raspios_version }}_debug.tar.gz"
-          fi
+          SUFFIX=$([ "${{ matrix.build_type }}" == "Release" ] && echo "" || echo "_debug")
+          FILENAME="pi-webrtc_${{ needs.prepare-env.outputs.raspios_version }}${SUFFIX}.tar.gz"
           sudo tar -czvf $FILENAME pi-webrtc
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 

@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v**-rc.[0-9]+'
-    paths-ignore:
-      - 'doc/**'
-      - 'example/**'
-      - '.github/**'
-      - '.vscode/**'
-      - '*.md'
 
 jobs:
   prepare-image:
@@ -188,11 +182,8 @@ jobs:
       - name: Zip binary
         id: zip-binary
         run: |
-          if [ "${{ matrix.build_type }}" == "Release" ]; then
-            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}.tar.gz"
-          else
-            FILENAME="pi-webrtc-${{ github.ref_name }}_${{ needs.prepare-image.outputs.raspios_version }}_debug.tar.gz"
-          fi
+          SUFFIX=$([ "${{ matrix.build_type }}" == "Release" ] && echo "" || echo "_debug")
+          FILENAME="pi-webrtc_${{ needs.prepare-image.outputs.raspios_version }}${SUFFIX}.tar.gz"
           sudo tar -czvf $FILENAME pi-webrtc
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
