@@ -284,10 +284,10 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
     int max_searching_folder = 10;
     for (int count = 0; count < max_searching_folder; count++) {
         // find in the same hour
-        auto files = GetFiles(hour_path.string(), ".mp4");
-        std::sort(files.begin(), files.end(), std::greater<>());
+        auto hour_files = GetFiles(hour_path.string(), ".mp4");
+        std::sort(hour_files.begin(), hour_files.end(), std::greater<>());
 
-        for (auto &p : files) {
+        for (auto &p : hour_files) {
             if (fs::file_time_type::clock::to_sys(p.first) < time_limit) {
                 return p.second.string();
             }
@@ -413,7 +413,9 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, i
 
     JSAMPROW row_pointer[1];
     int row_stride = width * 3;
-    uint8_t *rgb_data = (uint8_t *)malloc(width * height * 3);
+    std::unique_ptr<uint8_t, decltype(&free)> rgb_guard(
+        static_cast<uint8_t *>(malloc(width * height * 3)), free);
+    uint8_t *rgb_data = rgb_guard.get();
     libyuv::I420ToRGB24(yuv_data, width, yuv_data + width * height, width / 2,
                         yuv_data + width * height + (width * height / 4), width / 2, rgb_data,
                         width * 3, width, height);
@@ -427,7 +429,6 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, i
 
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
-    free(rgb_data);
 
     jpegBuffer.start = std::unique_ptr<uint8_t, FreeDeleter>(data);
     jpegBuffer.length = size;
@@ -466,11 +467,6 @@ uint32_t Utils::GetVideoDuration(const std::string &filePath) {
     if (avformat_find_stream_info(formatContext, nullptr) < 0) {
         std::cerr << "Could not find stream information" << std::endl;
         avformat_close_input(&formatContext);
-        return 0;
-    }
-
-    if (!formatContext) {
-        std::cerr << "Invalid format context!" << std::endl;
         return 0;
     }
 
