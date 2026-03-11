@@ -19,7 +19,7 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
     VideoRecorder(int width, int height, int fps, AVCodecID encoder_id);
     virtual ~VideoRecorder(){};
     void OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> buffer) override;
-    void OnStop() override final;
+    void OnStart() override final;
 
   protected:
     int fps;

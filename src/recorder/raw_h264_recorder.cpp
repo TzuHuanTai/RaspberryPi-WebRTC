@@ -17,13 +17,11 @@ RawH264Recorder::RawH264Recorder(int width, int height, int fps)
 
 RawH264Recorder::~RawH264Recorder() {}
 
-void RawH264Recorder::OnStart() {
+void RawH264Recorder::ReleaseEncoder() {
     has_sps_ = false;
     has_pps_ = false;
     has_first_keyframe_ = false;
 }
-
-void RawH264Recorder::ReleaseEncoder() {}
 
 void RawH264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     if (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_) {

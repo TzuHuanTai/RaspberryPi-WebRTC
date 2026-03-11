@@ -32,7 +32,7 @@ void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     }
 }
 
-void VideoRecorder::OnStop() {
+void VideoRecorder::OnStart() {
     {
         std::lock_guard<std::mutex> lock(encoder_mtx_);
         base_time_initialized = false;
