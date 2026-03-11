@@ -11,7 +11,6 @@ struct FreeDeleter {
         if (ptr) {
             free(ptr);
         }
-        ptr = nullptr;
     }
 };
 
@@ -59,7 +58,9 @@ class FileInfo {
         : root(root),
           extension(extension) {
         time_t now = time(0);
-        tm *ltm = localtime(&now);
+        tm ltm_buf{};
+        localtime_r(&now, &ltm_buf);
+        tm *ltm = &ltm_buf;
 
         std::string year = Utils::PrefixZero(1900 + ltm->tm_year, 4);
         std::string month = Utils::PrefixZero(1 + ltm->tm_mon, 2);
