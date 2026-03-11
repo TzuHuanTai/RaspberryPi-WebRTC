@@ -280,7 +280,6 @@ bool V4L2Util::MMap(int fd, V4L2BufferGroup *gbuffer) {
 
         if (MAP_FAILED == buffer->start) {
             perror("MAP FAILED");
-            munmap(buffer->start, buffer->length);
             buffer->start = nullptr;
             return false;
         }
