@@ -12,8 +12,10 @@ RtcChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel
 RtcChannel::RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
     : data_channel(data_channel),
       id_(Utils::GenerateUuid()),
-      label_(data_channel->label()) {
+      label_(data_channel->label()),
+      send_thread_running_(true) {
     data_channel->RegisterObserver(this);
+    send_thread_ = std::thread(&RtcChannel::SendLoop, this);
 }
 RtcChannel::~RtcChannel() { DEBUG_PRINT("datachannel (%s) is released!", label_.c_str()); }
 
@@ -28,6 +30,15 @@ void RtcChannel::OnStateChange() {
 }
 
 void RtcChannel::Terminate() {
+    {
+        std::lock_guard<std::mutex> lock(send_mutex_);
+        send_thread_running_ = false;
+    }
+    send_cv_.notify_all();
+    if (send_thread_.joinable()) {
+        send_thread_.join();
+    }
+
     data_channel->UnregisterObserver();
     data_channel->Close();
     if (on_closed_func_) {
@@ -120,17 +131,44 @@ void RtcChannel::Send(protocol::CommandType type, const uint8_t *data, size_t si
 }
 
 void RtcChannel::Send(const uint8_t *data, size_t size) {
-    if (data_channel->state() != webrtc::DataChannelInterface::kOpen) {
-        return;
+    // Enqueue the data and return immediately so the caller's thread
+    // (which may be a WebRTC signaling/network thread) is never blocked.
+    std::vector<uint8_t> buf(data, data + size);
+    {
+        std::lock_guard<std::mutex> lock(send_mutex_);
+        send_queue_.push_back(std::move(buf));
     }
+    send_cv_.notify_one();
+}
 
-    while (data_channel->buffered_amount() + size > data_channel->MaxSendQueueSize()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+void RtcChannel::SendLoop() {
+    while (true) {
+        std::vector<uint8_t> buf;
+        {
+            std::unique_lock<std::mutex> lock(send_mutex_);
+            send_cv_.wait(lock, [this] {
+                return !send_queue_.empty() || !send_thread_running_;
+            });
+            if (!send_thread_running_ && send_queue_.empty()) {
+                return;
+            }
+            buf = std::move(send_queue_.front());
+            send_queue_.pop_front();
+        }
+
+        while (data_channel->state() == webrtc::DataChannelInterface::kOpen &&
+               data_channel->buffered_amount() + buf.size() > data_channel->MaxSendQueueSize()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        if (data_channel->state() != webrtc::DataChannelInterface::kOpen) {
+            return;
+        }
+
+        rtc::CopyOnWriteBuffer buffer(buf.data(), buf.size());
+        webrtc::DataBuffer data_buffer(buffer, true);
+        data_channel->Send(data_buffer);
     }
-
-    rtc::CopyOnWriteBuffer buffer(data, size);
-    webrtc::DataBuffer data_buffer(buffer, true);
-    data_channel->Send(data_buffer);
 }
 
 void RtcChannel::Send(const protocol::QueryFileResponse &response) {

@@ -100,8 +100,12 @@ std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
 
     auto dc = result.MoveValue();
 
-    std::shared_ptr<RtcChannel> channel =
-        is_sfu_peer_ ? SfuChannel::Create(dc) : RtcChannel::Create(dc);
+    std::shared_ptr<RtcChannel> channel;
+    if (is_sfu_peer_) {
+        channel = SfuChannel::Create(dc);
+    } else {
+        channel = RtcChannel::Create(dc);
+    }
 
     if (mode == ChannelMode::Command) {
         DEBUG_PRINT("The Command data channel is established successfully.");
