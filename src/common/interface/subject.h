@@ -35,6 +35,9 @@ template <typename T> class Subject {
   public:
     using Callback = std::function<void(const T &)>;
 
+    Subject()
+        : alive_(std::make_shared<bool>(true)) {}
+
     Subscription Subscribe(Callback callback) {
         auto observer = std::make_shared<Observer>();
         observer->callback = std::move(callback);
@@ -44,10 +47,17 @@ template <typename T> class Subject {
             observers_.push_back(observer);
         }
 
-        return Subscription{[this, observer]() {
-            std::lock_guard<std::mutex> lock(mutex_);
-            observers_.erase(std::remove(observers_.begin(), observers_.end(), observer),
-                             observers_.end());
+        std::weak_ptr<bool> weak_alive = alive_;
+        auto *mutex_ptr = &mutex_;
+        auto *observers_ptr = &observers_;
+        return Subscription{[weak_alive, mutex_ptr, observers_ptr, observer]() {
+            if (weak_alive.expired()) {
+                return;
+            }
+            std::lock_guard<std::mutex> lock(*mutex_ptr);
+            observers_ptr->erase(
+                std::remove(observers_ptr->begin(), observers_ptr->end(), observer),
+                observers_ptr->end());
         }};
     }
 
@@ -73,6 +83,7 @@ template <typename T> class Subject {
         Callback callback;
     };
 
+    std::shared_ptr<bool> alive_;
     mutable std::mutex mutex_;
     std::vector<std::shared_ptr<Observer>> observers_;
 };
