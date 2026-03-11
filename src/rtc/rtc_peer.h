@@ -152,7 +152,6 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     std::thread sent_sdp_timeout_;
 
     std::string modified_sdp_;
-    webrtc::SdpParseError *modified_desc_error_;
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;
     std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
 
