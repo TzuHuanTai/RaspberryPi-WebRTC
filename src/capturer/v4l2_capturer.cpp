@@ -68,7 +68,7 @@ void V4L2Capturer::Initialize() {
             ERROR_PRINT("Unable to set repeat seq header");
         }
         if (!SetControls(V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0)) {
-            ERROR_PRINT("Unable to set H264 ;evel");
+            ERROR_PRINT("Unable to set H264 level");
         }
         if (!SetControls(V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60)) {
             ERROR_PRINT("Unable to set H264 I-frame period");
@@ -160,15 +160,17 @@ void V4L2Capturer::CaptureImage() {
     }
 
     auto buffer = V4L2Buffer::FromV4L2((uint8_t *)capture_.buffers[buf.index].start, buf, format_);
-
+    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer);
     if (hw_accel_ && format_ == V4L2_PIX_FMT_H264) {
-        has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
+        if ((buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0) {
+            has_first_keyframe_ = true;
+        }
         if (!has_first_keyframe_) {
+            V4L2Util::QueueBuffer(fd_, &buf);
             return;
         }
     }
 
-    frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, buffer);
     if (hw_accel_ && IsCompressedFormat()) {
         if (!decoder_) {
             decoder_ = V4L2Decoder::Create(width_, height_, format_, true);
