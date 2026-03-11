@@ -26,7 +26,10 @@ void UnixSocketServer::UnregisterPeerCallback(const std::string &id) {
 void UnixSocketServer::Write(const std::string &message) {
     std::lock_guard<std::mutex> lock(mutex_);
     for (const auto &[fd, _] : client_threads_) {
-        ::write(fd, message.c_str(), message.size());
+        ssize_t n = ::write(fd, message.c_str(), message.size());
+        if (n < 0) {
+            ERROR_PRINT("Failed to write to client fd=%d: %s", fd, strerror(errno));
+        }
     }
 }
 
