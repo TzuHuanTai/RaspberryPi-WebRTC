@@ -177,9 +177,10 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
                 elapsed_time_ = 0.0;
                 time_reset_pending_ = false;
             } else {
-                elapsed_time_ =
-                    (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
-                    (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
+                int64_t elapsed_us =
+                    (int64_t)(buffer->timestamp().tv_sec - last_created_time_.tv_sec) * 1000000LL +
+                    (int64_t)(buffer->timestamp().tv_usec - last_created_time_.tv_usec);
+                elapsed_time_ = elapsed_us / 1e6;
             }
         },
         config.record_stream_idx);
@@ -249,9 +250,7 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 
 void RecorderManager::Start() {
     if (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
-        auto task = std::async(std::launch::async, [this]() {
-            Utils::RotateFiles(record_path);
-        });
+        Utils::RotateFiles(record_path);
     }
 
     FileInfo new_file(record_path, CONTAINER_FORMAT);
@@ -328,14 +327,20 @@ std::string RecorderManager::current_filepath() const { return current_filepath_
 bool RecorderManager::is_recording() const { return has_first_keyframe.load(); }
 
 void RecorderManager::MakePreviewImage(std::string path) {
-    std::thread([this, path]() {
+    // Capture video_src_ by value (shared_ptr copy) so the thread holds its own
+    // reference, preventing use-after-free if RecorderManager is destroyed
+    // before the 3-second delay completes.
+    auto video_src = video_src_;
+    auto record_stream_idx = config.record_stream_idx;
+    auto jpeg_quality = config.jpeg_quality;
+    std::thread([video_src, path, record_stream_idx, jpeg_quality]() {
         std::this_thread::sleep_for(std::chrono::seconds(3));
-        if (video_src_ == nullptr) {
+        if (!video_src) {
             return;
         }
-        auto i420buff = video_src_->GetI420Frame(config.record_stream_idx);
+        auto i420buff = video_src->GetI420Frame(record_stream_idx);
         Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(), path,
-                               config.jpeg_quality);
+                               jpeg_quality);
     }).detach();
 }
 
