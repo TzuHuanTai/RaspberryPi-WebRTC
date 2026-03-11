@@ -1,8 +1,11 @@
 #ifndef DATA_CHANNEL_H_
 #define DATA_CHANNEL_H_
 
+#include <condition_variable>
+#include <deque>
 #include <fstream>
 #include <map>
+#include <thread>
 #include <vector>
 
 #include "proto/packet.pb.h"
@@ -58,6 +61,13 @@ class RtcChannel : public webrtc::DataChannelObserver,
     std::vector<Subscription> subscriptions_;
     std::map<protocol::CommandType, Subject<protocol::Packet>> observers_map_;
 
+    std::deque<std::vector<uint8_t>> send_queue_;
+    std::mutex send_mutex_;
+    std::condition_variable send_cv_;
+    std::thread send_thread_;
+    bool send_thread_running_ = false;
+
+    void SendLoop();
     void Send(protocol::CommandType type, const uint8_t *data, size_t size);
 };
 

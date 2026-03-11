@@ -143,7 +143,8 @@ std::string Utils::ToBase64(const std::string &binary_file) {
 std::string Utils::ReadFileInBinary(const std::string &file_path) {
     std::ifstream file(file_path, std::ios::binary);
     if (!file) {
-        throw std::runtime_error("Unable to open file");
+        std::cerr << "Could not open file: " << file_path << std::endl;
+        return {};
     }
 
     std::ostringstream ss;
