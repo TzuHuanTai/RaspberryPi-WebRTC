@@ -64,6 +64,7 @@ void LibcameraCapturer::InitCamera() {
         camera_config_->orientation = libcamera::Orientation::Rotate270;
     }
 
+    controls_ = libcamera::ControlList(camera_->controls());
     int64_t frame_time = 1000000 / fps_;
     controls_.set(libcamera::controls::FrameDurationLimits,
                   libcamera::Span<const int64_t, 2>({frame_time, frame_time}));
@@ -328,9 +329,7 @@ void LibcameraCapturer::StartCapture() {
 
     AllocateBuffer();
 
-    controls_ = libcamera::ControlList(camera_->controls());
-
-    ret = camera_->start(controls_.empty() ? nullptr : &controls_);
+    ret = camera_->start(&controls_);
     if (ret) {
         ERROR_PRINT("Failed to start capturing");
         exit(1);
