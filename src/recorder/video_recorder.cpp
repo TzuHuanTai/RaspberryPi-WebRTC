@@ -11,6 +11,7 @@ VideoRecorder::VideoRecorder(int width, int height, int fps, AVCodecID encoder_i
       width(width),
       height(height),
       encoder_id(encoder_id),
+      frame_buffer_queue(fps),
       base_time_initialized(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
@@ -28,7 +29,7 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
 
 void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
     if (!frame_buffer_queue.push(frame_buffer->Clone())) {
-        INFO_PRINT("frame_buffer_queue skip a frame due to overloaded queue.\n");
+        DEBUG_PRINT("Skip a frame because the buffer is full.");
     }
 }
 
