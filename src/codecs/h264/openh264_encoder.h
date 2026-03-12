@@ -25,6 +25,7 @@ class Openh264Encoder {
     int bitrate_;
     ISVCEncoder *encoder_;
     SSourcePicture src_pic_;
+    std::vector<uint8_t> encoded_buf_;
 };
 
 #endif // OPENH264_ENCODER_
