@@ -32,8 +32,9 @@ void Openh264Encoder::Init() {
     SEncParamExt encoder_param;
     encoder_->GetDefaultParams(&encoder_param);
     encoder_param.iUsageType = CAMERA_VIDEO_REAL_TIME;
-    encoder_param.iTemporalLayerNum = 0;
-    encoder_param.uiIntraPeriod = 60;
+    encoder_param.iTemporalLayerNum = 1;
+    encoder_param.uiIntraPeriod = fps_;
+    encoder_param.uiMaxNalSize = 0;
     encoder_param.iRCMode = RC_BITRATE_MODE;
     encoder_param.bEnableFrameSkip = true;
     encoder_param.iMinQp = 18;
@@ -42,9 +43,15 @@ void Openh264Encoder::Init() {
     encoder_param.iTargetBitrate = bitrate_;
     encoder_param.iMaxBitrate = bitrate_ * 1.2;
 
+    encoder_param.iMultipleThreadIdc = 4;
+    encoder_param.iComplexityMode = LOW_COMPLEXITY;
+    encoder_param.iEntropyCodingModeFlag = 0;
+
     encoder_param.iSpatialLayerNum = 1;
     SSpatialLayerConfig *spartialLayerConfiguration = &encoder_param.sSpatialLayers[0];
-    spartialLayerConfiguration->uiProfileIdc = PRO_HIGH;
+    spartialLayerConfiguration->sSliceArgument.uiSliceMode = SM_FIXEDSLCNUM_SLICE;
+    spartialLayerConfiguration->sSliceArgument.uiSliceNum = 4;
+    spartialLayerConfiguration->uiProfileIdc = PRO_BASELINE;
     encoder_param.iPicWidth = spartialLayerConfiguration->iVideoWidth = width_;
     encoder_param.iPicHeight = spartialLayerConfiguration->iVideoHeight = height_;
     encoder_param.fMaxFrameRate = spartialLayerConfiguration->fFrameRate = fps_;
@@ -84,7 +91,10 @@ void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> fra
             }
         }
 
-        std::vector<uint8_t> encoded_buf(required_capacity);
+        if (encoded_buf_.capacity() < required_capacity) {
+            encoded_buf_.reserve(required_capacity);
+        }
+        encoded_buf_.resize(required_capacity);
 
         int encoded_size = 0;
         for (int i = 0; i < info.iLayerNum; i++) {
@@ -94,11 +104,11 @@ void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> fra
                 layer_len += layer->pNalLengthInByte[nal];
             }
 
-            memcpy(encoded_buf.data() + encoded_size, layer->pBsBuf, layer_len);
+            memcpy(encoded_buf_.data() + encoded_size, layer->pBsBuf, layer_len);
             encoded_size += layer_len;
         }
 
         bool is_keyframe = (info.eFrameType == videoFrameTypeIDR);
-        on_capture(encoded_buf.data(), encoded_size, is_keyframe);
+        on_capture(encoded_buf_.data(), encoded_size, is_keyframe);
     }
 }
