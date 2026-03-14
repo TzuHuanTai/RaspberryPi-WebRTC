@@ -15,7 +15,7 @@ jobs:
     steps:
     - name: Download prebuilt library
       run: |
-        wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz
+        wget https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/6613/libwebrtc-arm64.tar.gz
         tar -xzf libwebrtc-arm64.tar.gz
         sudo mkdir -p /usr/local/include/webrtc
         sudo mv include/* /usr/local/include/webrtc

@@ -29,7 +29,7 @@
     To check out the m115 (stable) version:
 
     ```
-    git checkout -b local-5790 branch-heads/5790
+    git checkout -b local-6613 branch-heads/6613
     git gc --aggressive
     gclient sync -D --force --reset --with_branch_heads --no-history
     ```

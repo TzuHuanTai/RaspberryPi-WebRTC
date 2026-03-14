@@ -19,7 +19,6 @@
 #include <modules/audio_device/linux/audio_device_alsa_linux.h>
 #include <modules/audio_device/linux/audio_device_pulse_linux.h>
 #include <modules/audio_processing/include/audio_processing.h>
-#include <pc/video_track_source_proxy.h>
 #include <rtc_base/ssl_adapter.h>
 
 #if defined(USE_LIBCAMERA_CAPTURE)
@@ -31,7 +30,7 @@
 #include "capturer/v4l2_capturer.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "customized_video_encoder_factory.h"
+#include "rtc/custom_video_encoder_factory.h"
 #include "track/v4l2dma_track_source.h"
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
@@ -99,9 +98,8 @@ void Conductor::InitializeTracks() {
             }
         })();
 
-        auto video_source = webrtc::VideoTrackSourceProxy::Create(
-            signaling_thread_.get(), worker_thread_.get(), video_track_source_);
-        video_track_ = peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
+        video_track_ =
+            peer_connection_factory_->CreateVideoTrack(video_track_source_, "video_track");
     }
 }
 
@@ -416,44 +414,29 @@ void Conductor::InitializePeerConnectionFactory() {
         DEBUG_PRINT("signaling thread start: success!");
     }
 
-    webrtc::PeerConnectionFactoryDependencies dependencies;
-    dependencies.network_thread = network_thread_.get();
-    dependencies.worker_thread = worker_thread_.get();
-    dependencies.signaling_thread = signaling_thread_.get();
-    dependencies.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
-    dependencies.call_factory = webrtc::CreateCallFactory();
-    dependencies.event_log_factory =
-        std::make_unique<webrtc::RtcEventLogFactory>(dependencies.task_queue_factory.get());
-    dependencies.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
-
-    cricket::MediaEngineDependencies media_dependencies;
-    media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
-
     webrtc::AudioDeviceModule::AudioLayer audio_layer = webrtc::AudioDeviceModule::kLinuxPulseAudio;
     if (args.no_audio) {
         audio_layer = webrtc::AudioDeviceModule::kDummyAudio;
     }
-    media_dependencies.adm =
-        webrtc::AudioDeviceModule::Create(audio_layer, dependencies.task_queue_factory.get());
-    if (media_dependencies.adm->Init() != 0) {
+
+    auto task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+    auto adm = webrtc::AudioDeviceModule::Create(audio_layer, task_queue_factory.get());
+    if (adm->Init() != 0) {
         ERROR_PRINT("Failed to initialize AudioDeviceModule.\n"
                     "If your system does not have PulseAudio installed, please either:\n"
                     "   - Install PulseAudio, or\n"
                     "   - Run with `--no-audio` to disable audio support.\n");
         std::exit(EXIT_FAILURE);
     }
-    media_dependencies.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
-    media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
-    media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
-    media_dependencies.audio_mixer = nullptr;
-    media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args);
-    media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-        webrtc::OpenH264DecoderTemplateAdapter, webrtc::LibvpxVp8DecoderTemplateAdapter,
-        webrtc::LibvpxVp9DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>();
-    media_dependencies.trials = dependencies.trials.get();
-    dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
-    peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
+    peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
+        network_thread_.get(), worker_thread_.get(), signaling_thread_.get(), adm,
+        webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
+        CreateCustomVideoEncoderFactory(args),
+        std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+            webrtc::OpenH264DecoderTemplateAdapter, webrtc::LibvpxVp8DecoderTemplateAdapter,
+            webrtc::LibvpxVp9DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>(),
+        nullptr, webrtc::AudioProcessingBuilder().Create());
 }
 
 void Conductor::InitializeIpcServer() {

@@ -59,7 +59,7 @@ jobs:
               protobuf-compiler \
               libprotobuf-dev &&
             cd /app &&
-            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/5790/libwebrtc-arm64.tar.gz &&
+            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Build/releases/download/6613/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             mkdir -p /usr/local/include/webrtc &&
             mv include/* /usr/local/include/webrtc &&
