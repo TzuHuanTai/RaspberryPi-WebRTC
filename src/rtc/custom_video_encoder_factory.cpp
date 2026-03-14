@@ -1,4 +1,4 @@
-#include "rtc/customized_video_encoder_factory.h"
+#include "rtc/custom_video_encoder_factory.h"
 
 #if defined(USE_RPI_HW_ENCODER)
 #include "codecs/v4l2/v4l2_h264_encoder.h"
@@ -6,17 +6,19 @@
 #include "codecs/jetson/jetson_video_encoder.h"
 #endif
 
+#include <absl/strings/match.h>
+#include <media/base/media_constants.h>
 #include <modules/video_coding/codecs/av1/av1_svc_config.h>
 #include <modules/video_coding/codecs/av1/libaom_av1_encoder.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
 #include <modules/video_coding/codecs/vp8/include/vp8.h>
 #include <modules/video_coding/codecs/vp9/include/vp9.h>
 
-std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomizedVideoEncoderFactory(Args args) {
-    return std::make_unique<CustomizedVideoEncoderFactory>(args);
+std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomVideoEncoderFactory(const Args &args) {
+    return std::make_unique<CustomVideoEncoderFactory>(args);
 }
 
-std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedFormats() const {
+std::vector<webrtc::SdpVideoFormat> CustomVideoEncoderFactory::GetSupportedFormats() const {
     std::vector<webrtc::SdpVideoFormat> supported_codecs;
 
     if (args_.hw_accel) {
@@ -43,7 +45,7 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
                                                     webrtc::H264Level::kLevel4, "0"));
         // av1
         supported_codecs.push_back(
-            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
+            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::CodecParameterMap(),
                                    webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
 #endif
     } else {
@@ -55,7 +57,7 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
                                 std::end(supported_vp9_formats));
         // av1
         supported_codecs.push_back(
-            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
+            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::CodecParameterMap(),
                                    webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
         // sw h264
         auto supported_h264_formats = webrtc::SupportedH264Codecs(true);
@@ -67,7 +69,8 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
 }
 
 std::unique_ptr<webrtc::VideoEncoder>
-CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
+CustomVideoEncoderFactory::Create(const webrtc::Environment &env,
+                                  const webrtc::SdpVideoFormat &format) {
 #if defined(USE_JETSON_HW_ENCODER)
     if (args_.hw_accel) {
         return JetsonVideoEncoder::Create(args_);
@@ -80,13 +83,14 @@ CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &
             return V4L2H264Encoder::Create(args_);
         }
 #endif
-        return webrtc::H264Encoder::Create(cricket::VideoCodec(format));
+        auto settings = webrtc::H264EncoderSettings::Parse(format);
+        return webrtc::CreateH264Encoder(env, settings);
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
-        return webrtc::VP8Encoder::Create();
+        return webrtc::CreateVp8Encoder(env);
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName)) {
-        return webrtc::VP9Encoder::Create(cricket::VideoCodec(format));
+        return webrtc::CreateVp9Encoder(env);
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kAv1CodecName)) {
-        return webrtc::CreateLibaomAv1Encoder();
+        return webrtc::CreateLibaomAv1Encoder(env);
     }
 
     return nullptr;

@@ -109,7 +109,7 @@ jobs:
             libmosquitto-dev \
             protobuf-compiler \
             libprotobuf-dev && \
-            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Builder/releases/download/5790/libwebrtc-arm64.tar.gz &&
+            wget -q https://github.com/TzuHuanTai/Native-WebRTC-Builder/releases/download/6613/libwebrtc-arm64.tar.gz &&
             tar -xzf libwebrtc-arm64.tar.gz &&
             sudo mkdir -p /usr/local/include/webrtc &&
             sudo mv include/* /usr/local/include/webrtc &&
