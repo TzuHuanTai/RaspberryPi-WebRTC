@@ -5,11 +5,11 @@
 const int CHUNK_SIZE = 64 * 1024; // 64KB
 
 std::shared_ptr<RtcChannel>
-RtcChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
+RtcChannel::Create(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
     return std::make_shared<RtcChannel>(std::move(data_channel));
 }
 
-RtcChannel::RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
+RtcChannel::RtcChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
     : data_channel(data_channel),
       id_(Utils::GenerateUuid()),
       label_(data_channel->label()),
@@ -165,7 +165,7 @@ void RtcChannel::SendLoop() {
             return;
         }
 
-        rtc::CopyOnWriteBuffer buffer(buf.data(), buf.size());
+        webrtc::CopyOnWriteBuffer buffer(buf.data(), buf.size());
         webrtc::DataBuffer data_buffer(buffer, true);
         data_channel->Send(data_buffer);
     }

@@ -22,7 +22,7 @@ template <typename T> class Recorder {
     virtual ~Recorder() = default;
 
     virtual void OnBuffer(T buffer) = 0;
-    virtual void OnStart(){};
+    virtual void OnStart() {};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         avcodec_free_context(&encoder);

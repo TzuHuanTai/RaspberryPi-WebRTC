@@ -11,7 +11,7 @@ std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomVideoEncoderFactory(con
 class CustomVideoEncoderFactory : public webrtc::VideoEncoderFactory {
   public:
     CustomVideoEncoderFactory(const Args &args)
-        : args_(args){};
+        : args_(args) {};
     ~CustomVideoEncoderFactory() = default;
 
     std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;

@@ -1,10 +1,12 @@
 #include "rtc/conductor.h"
 
-#include <algorithm>
-
+#include <api/audio/builtin_audio_processing_builder.h>
+#include <api/audio/create_audio_device_module.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
-#include <api/create_peerconnection_factory.h>
+#include <api/create_modular_peer_connection_factory.h>
+#include <api/enable_media.h>
+#include <api/environment/environment_factory.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/task_queue/default_task_queue_factory.h>
 #include <api/video_codecs/video_decoder_factory.h>
@@ -52,7 +54,11 @@ Conductor::~Conductor() {
     video_track_ = nullptr;
     video_capture_source_ = nullptr;
     peer_connection_factory_ = nullptr;
-    rtc::CleanupSSL();
+
+    network_thread_->Stop();
+    worker_thread_->Stop();
+    signaling_thread_->Stop();
+    webrtc::CleanupSSL();
 }
 
 Args Conductor::config() const { return args; }
@@ -64,7 +70,7 @@ std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_cap
 void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr && !args.no_audio) {
         audio_capture_source_ = PaCapturer::Create(args);
-        auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
+        auto options = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
 
@@ -90,7 +96,7 @@ void Conductor::InitializeTracks() {
             return nullptr;
         })();
 
-        video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
+        video_track_source_ = ([this]() -> webrtc::scoped_refptr<ScaleTrackSource> {
             if (args.hw_accel) {
                 return V4L2DmaTrackSource::Create(video_capture_source_);
             } else {
@@ -103,7 +109,7 @@ void Conductor::InitializeTracks() {
     }
 }
 
-void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
+void Conductor::AddTracks(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
     if (!peer_connection->GetSenders().empty()) {
         DEBUG_PRINT("Already add tracks.");
         return;
@@ -129,7 +135,7 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     }
 }
 
-rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
+webrtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
     server.uri = args.stun_url;
@@ -163,7 +169,7 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config) {
     return peer;
 }
 
-void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer) {
+void Conductor::InitializeDataChannels(webrtc::scoped_refptr<RtcPeer> peer) {
     if (peer->isSfuPeer() && !peer->isPublisher()) {
         peer->SetOnDataChannelCallback([this](std::shared_ptr<RtcChannel> channel) {
             DEBUG_PRINT("Remote channel (%s) from sfu subscriber peer [%s]",
@@ -200,7 +206,7 @@ void Conductor::InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer) {
     }
 }
 
-void Conductor::InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer) {
+void Conductor::InitializeCommandChannel(webrtc::scoped_refptr<RtcPeer> peer) {
     auto cmd_channel = peer->CreateDataChannel(ChannelMode::Command);
     cmd_channel->RegisterHandler(
         protocol::CommandType::TAKE_SNAPSHOT,
@@ -398,30 +404,26 @@ void Conductor::StopRecording(std::shared_ptr<RtcChannel> datachannel,
 }
 
 void Conductor::InitializePeerConnectionFactory() {
-    rtc::InitializeSSL();
+    webrtc::InitializeSSL();
 
-    network_thread_ = rtc::Thread::CreateWithSocketServer();
-    worker_thread_ = rtc::Thread::Create();
-    signaling_thread_ = rtc::Thread::Create();
+    network_thread_ = webrtc::Thread::CreateWithSocketServer();
+    worker_thread_ = webrtc::Thread::Create();
+    signaling_thread_ = webrtc::Thread::Create();
 
-    if (network_thread_->Start()) {
-        DEBUG_PRINT("network thread start: success!");
-    }
-    if (worker_thread_->Start()) {
-        DEBUG_PRINT("worker thread start: success!");
-    }
-    if (signaling_thread_->Start()) {
-        DEBUG_PRINT("signaling thread start: success!");
+    for (auto *thread : {network_thread_.get(), worker_thread_.get(), signaling_thread_.get()}) {
+        if (!thread->Start()) {
+            ERROR_PRINT("Thread start failed!");
+            std::exit(EXIT_FAILURE);
+        }
     }
 
-    webrtc::AudioDeviceModule::AudioLayer audio_layer = webrtc::AudioDeviceModule::kLinuxPulseAudio;
-    if (args.no_audio) {
-        audio_layer = webrtc::AudioDeviceModule::kDummyAudio;
-    }
+    webrtc::Environment env = webrtc::CreateEnvironment();
 
-    auto task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
-    auto adm = webrtc::AudioDeviceModule::Create(audio_layer, task_queue_factory.get());
-    if (adm->Init() != 0) {
+    auto audio_layer = args.no_audio ? webrtc::AudioDeviceModule::kDummyAudio
+                                     : webrtc::AudioDeviceModule::kLinuxPulseAudio;
+
+    auto adm = webrtc::CreateAudioDeviceModule(env, audio_layer);
+    if (!adm || adm->Init() != 0) {
         ERROR_PRINT("Failed to initialize AudioDeviceModule.\n"
                     "If your system does not have PulseAudio installed, please either:\n"
                     "   - Install PulseAudio, or\n"
@@ -429,14 +431,23 @@ void Conductor::InitializePeerConnectionFactory() {
         std::exit(EXIT_FAILURE);
     }
 
-    peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
-        network_thread_.get(), worker_thread_.get(), signaling_thread_.get(), adm,
-        webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
-        CreateCustomVideoEncoderFactory(args),
-        std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-            webrtc::OpenH264DecoderTemplateAdapter, webrtc::LibvpxVp8DecoderTemplateAdapter,
-            webrtc::LibvpxVp9DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>(),
-        nullptr, webrtc::AudioProcessingBuilder().Create());
+    webrtc::PeerConnectionFactoryDependencies deps;
+    deps.env = std::move(env);
+    deps.network_thread = network_thread_.get();
+    deps.worker_thread = worker_thread_.get();
+    deps.signaling_thread = signaling_thread_.get();
+    deps.adm = adm;
+    deps.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
+    deps.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
+    deps.video_encoder_factory = CreateCustomVideoEncoderFactory(args);
+    deps.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+        webrtc::OpenH264DecoderTemplateAdapter, webrtc::LibvpxVp8DecoderTemplateAdapter,
+        webrtc::LibvpxVp9DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>();
+    deps.audio_processing_builder = std::make_unique<webrtc::BuiltinAudioProcessingBuilder>();
+
+    webrtc::EnableMedia(deps);
+
+    peer_connection_factory_ = webrtc::CreateModularPeerConnectionFactory(std::move(deps));
 }
 
 void Conductor::InitializeIpcServer() {

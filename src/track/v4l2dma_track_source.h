@@ -6,7 +6,8 @@
 
 class V4L2DmaTrackSource : public ScaleTrackSource {
   public:
-    static rtc::scoped_refptr<V4L2DmaTrackSource> Create(std::shared_ptr<VideoCapturer> capturer);
+    static webrtc::scoped_refptr<V4L2DmaTrackSource>
+    Create(std::shared_ptr<VideoCapturer> capturer);
     V4L2DmaTrackSource(std::shared_ptr<VideoCapturer> capturer);
     ~V4L2DmaTrackSource();
     void StartTrack() override;

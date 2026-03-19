@@ -19,7 +19,7 @@ class SignalingService {
         Connect();
     }
 
-    rtc::scoped_refptr<RtcPeer> CreatePeer(PeerConfig config = PeerConfig{}) {
+    webrtc::scoped_refptr<RtcPeer> CreatePeer(PeerConfig config = PeerConfig{}) {
         if (!conductor) {
             ERROR_PRINT("Conductor is not initialized.");
             return nullptr;
@@ -32,7 +32,7 @@ class SignalingService {
         return peer;
     }
 
-    rtc::scoped_refptr<RtcPeer> GetPeer(const std::string &peer_id) {
+    webrtc::scoped_refptr<RtcPeer> GetPeer(const std::string &peer_id) {
         auto it = peer_map_.find(peer_id);
         if (it != peer_map_.end()) {
             return it->second;
@@ -43,7 +43,9 @@ class SignalingService {
     void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); }
 
   protected:
-    std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> &GetPeerMap() { return peer_map_; }
+    std::unordered_map<std::string, webrtc::scoped_refptr<RtcPeer>> &GetPeerMap() {
+        return peer_map_;
+    }
 
     virtual void RefreshPeerMap() {
         auto pm_it = peer_map_.begin();
@@ -65,7 +67,7 @@ class SignalingService {
 
   private:
     std::unique_ptr<Worker> worker_;
-    std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
+    std::unordered_map<std::string, webrtc::scoped_refptr<RtcPeer>> peer_map_;
 };
 
 #endif

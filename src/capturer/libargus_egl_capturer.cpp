@@ -308,7 +308,8 @@ void StreamHandler::CaptureImage() {
     Next(frame_buffer_);
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> LibargusEglCapturer::GetI420Frame(int stream_idx) {
+webrtc::scoped_refptr<webrtc::I420BufferInterface>
+LibargusEglCapturer::GetI420Frame(int stream_idx) {
     if (stream_idx <= 0 || stream_idx >= num_streams_) {
         return stream_handlers_[0]->GetFrameBuffer()->ToI420();
     }

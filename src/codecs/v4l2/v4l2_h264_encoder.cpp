@@ -3,6 +3,7 @@
 #include "common/v4l2_frame_buffer.h"
 
 #include <modules/video_coding/include/video_codec_interface.h>
+#include <modules/video_coding/include/video_error_codes.h>
 
 std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
     return std::make_unique<V4L2H264Encoder>(args);
@@ -49,7 +50,7 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
     if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
         return WEBRTC_VIDEO_CODEC_OK;
     }
-    rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
+    webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
 
     if (frame_buffer->type() != webrtc::VideoFrameBuffer::Type::kNative) {
         return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;

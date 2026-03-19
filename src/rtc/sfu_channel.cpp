@@ -5,11 +5,11 @@
 #include "common/logging.h"
 
 std::shared_ptr<SfuChannel>
-SfuChannel::Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
+SfuChannel::Create(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
     return std::make_shared<SfuChannel>(std::move(data_channel));
 }
 
-SfuChannel::SfuChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
+SfuChannel::SfuChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
     : RtcChannel(data_channel),
       topic_("ipc_topic") {}
 
@@ -55,7 +55,7 @@ void SfuChannel::SendUserData(const std::string &topic, const uint8_t *data, siz
         return;
     }
 
-    rtc::CopyOnWriteBuffer buffer(serialized.data(), serialized.size());
+    webrtc::CopyOnWriteBuffer buffer(serialized.data(), serialized.size());
     webrtc::DataBuffer data_buffer(buffer, true);
     data_channel->Send(data_buffer);
 

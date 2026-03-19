@@ -43,8 +43,8 @@ class WebsocketService : public SignalingService {
     beast::flat_buffer buffer_;
     std::deque<std::string> write_queue_;
     std::mutex write_mutex_;
-    rtc::scoped_refptr<RtcPeer> pub_peer_;
-    rtc::scoped_refptr<RtcPeer> sub_peer_;
+    webrtc::scoped_refptr<RtcPeer> pub_peer_;
+    webrtc::scoped_refptr<RtcPeer> sub_peer_;
     boost::asio::steady_timer ping_timer_;
 
     WebSocketVariant InitWebSocket(net::io_context &ioc);

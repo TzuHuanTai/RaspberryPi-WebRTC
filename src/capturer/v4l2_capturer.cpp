@@ -192,7 +192,7 @@ void V4L2Capturer::CaptureImage() {
 
 bool V4L2Capturer::SetControls(int key, int value) { return V4L2Util::SetExtCtrl(fd_, key, value); }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame(int stream_idx) {
+webrtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
 }
 

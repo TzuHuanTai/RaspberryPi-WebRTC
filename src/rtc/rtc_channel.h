@@ -23,9 +23,9 @@ class RtcChannel : public webrtc::DataChannelObserver,
     using CustomPayloadHandler = std::function<void(const std::string &)>;
 
     static std::shared_ptr<RtcChannel>
-    Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+    Create(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
-    RtcChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+    RtcChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
     ~RtcChannel();
 
     std::string id() const;
@@ -47,7 +47,7 @@ class RtcChannel : public webrtc::DataChannelObserver,
     void Send(const std::string &message);
 
   protected:
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
+    webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
 
     virtual void Send(const uint8_t *data, size_t size);
     void Next(const std::string &message);

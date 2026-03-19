@@ -13,11 +13,11 @@ Worker::~Worker() {
 }
 
 void Worker::Run() {
-    thread_ = rtc::PlatformThread::SpawnJoinable(
+    thread_ = webrtc::PlatformThread::SpawnJoinable(
         [this]() {
             this->Thread();
         },
-        name_, rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
+        name_, webrtc::ThreadAttributes().SetPriority(webrtc::ThreadPriority::kHigh));
 }
 
 void Worker::Thread() {

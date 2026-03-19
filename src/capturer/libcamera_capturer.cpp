@@ -311,7 +311,7 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     camera_->queueRequest(request);
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> LibcameraCapturer::GetI420Frame(int stream_idx) {
+webrtc::scoped_refptr<webrtc::I420BufferInterface> LibcameraCapturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
 }
 

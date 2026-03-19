@@ -20,7 +20,7 @@ class VideoCapturer {
     virtual uint32_t format() const = 0;
     virtual Args config() const = 0;
     virtual void StartCapture() = 0;
-    virtual rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) = 0;
+    virtual webrtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) = 0;
     virtual bool SetControls(int key, int value) { return false; };
     virtual Subscription Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
                                    int stream_idx = 0) = 0;

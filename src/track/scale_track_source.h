@@ -6,16 +6,16 @@
 
 #include "capturer/video_capturer.h"
 
-class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
+class ScaleTrackSource : public webrtc::AdaptedVideoTrackSource {
   public:
-    static rtc::scoped_refptr<ScaleTrackSource> Create(std::shared_ptr<VideoCapturer> capturer);
+    static webrtc::scoped_refptr<ScaleTrackSource> Create(std::shared_ptr<VideoCapturer> capturer);
     ScaleTrackSource(std::shared_ptr<VideoCapturer> capturer);
     ~ScaleTrackSource();
 
     SourceState state() const override;
     bool remote() const override;
     bool is_screencast() const override;
-    absl::optional<bool> needs_denoising() const override;
+    std::optional<bool> needs_denoising() const override;
     virtual void StartTrack();
 
   protected:
@@ -23,11 +23,11 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
     int height;
     int stream_idx;
     std::shared_ptr<VideoCapturer> capturer;
-    rtc::TimestampAligner timestamp_aligner;
+    webrtc::TimestampAligner timestamp_aligner;
 
   private:
     Subscription subscription_;
-    void OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer);
+    void OnFrameCaptured(webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer);
 };
 
 #endif

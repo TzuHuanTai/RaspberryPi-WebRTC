@@ -13,14 +13,14 @@
 
 class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
   public:
-    static rtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, int size,
-                                                      uint32_t format);
-    static rtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, V4L2Buffer buffer);
+    static webrtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, int size,
+                                                         uint32_t format);
+    static webrtc::scoped_refptr<V4L2FrameBuffer> Create(int width, int height, V4L2Buffer buffer);
 
     Type type() const override;
     int width() const override;
     int height() const override;
-    rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
+    webrtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
     uint32_t format() const;
     uint32_t size() const;
@@ -33,7 +33,7 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
     int GetDmaFd() const;
     void SetDmaFd(int fd);
     void SetTimestamp(timeval timestamp);
-    rtc::scoped_refptr<V4L2FrameBuffer> Clone() const;
+    webrtc::scoped_refptr<V4L2FrameBuffer> Clone() const;
 
   protected:
     V4L2FrameBuffer(int width, int height, int size, uint32_t format);

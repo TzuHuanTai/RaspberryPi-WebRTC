@@ -47,10 +47,10 @@ class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
         : on_success_(std::move(on_success)),
           on_failure_(std::move(on_failure)) {}
 
-    static rtc::scoped_refptr<SetSessionDescription> Create(OnSuccessFunc on_success,
-                                                            OnFailureFunc on_failure) {
-        return rtc::make_ref_counted<SetSessionDescription>(std::move(on_success),
-                                                            std::move(on_failure));
+    static webrtc::scoped_refptr<SetSessionDescription> Create(OnSuccessFunc on_success,
+                                                               OnFailureFunc on_failure) {
+        return webrtc::make_ref_counted<SetSessionDescription>(std::move(on_success),
+                                                               std::move(on_failure));
     }
 
   protected:
@@ -99,7 +99,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
   public:
     using OnRtcChannelCallback = std::function<void(std::shared_ptr<RtcChannel>)>;
 
-    static rtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
+    static webrtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
 
     RtcPeer(PeerConfig config);
     ~RtcPeer();
@@ -111,9 +111,9 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     bool isConnected() const;
     std::string id() const;
 
-    void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
-    void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
-    rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
+    void SetSink(webrtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
+    void SetPeer(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
+    webrtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     std::shared_ptr<RtcChannel> CreateDataChannel(ChannelMode mode);
     std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
     void SetOnDataChannelCallback(OnRtcChannelCallback callback);
@@ -126,13 +126,13 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
   private:
     // PeerConnectionObserver implementation.
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
-    void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
+    void OnDataChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
     void
     OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
     void
     OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
-    void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override;
+    void OnTrack(webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override;
 
     // CreateSessionDescriptionObserver implementation.
     void OnSuccess(webrtc::SessionDescriptionInterface *desc) override;
@@ -159,8 +159,8 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     std::shared_ptr<RtcChannel> cmd_channel_;
     std::shared_ptr<RtcChannel> lossy_channel_;
     std::shared_ptr<RtcChannel> reliable_channel_;
-    rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
-    rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
+    webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
+    webrtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };
 
 #endif // RTC_PEER_H_

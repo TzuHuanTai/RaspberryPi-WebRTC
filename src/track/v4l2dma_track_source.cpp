@@ -7,9 +7,9 @@
 #endif
 #include "common/logging.h"
 
-rtc::scoped_refptr<V4L2DmaTrackSource>
+webrtc::scoped_refptr<V4L2DmaTrackSource>
 V4L2DmaTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
-    auto obj = rtc::make_ref_counted<V4L2DmaTrackSource>(std::move(capturer));
+    auto obj = webrtc::make_ref_counted<V4L2DmaTrackSource>(std::move(capturer));
     obj->StartTrack();
     return obj;
 }
@@ -31,9 +31,9 @@ void V4L2DmaTrackSource::StartTrack() {
 }
 
 void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
-    const int64_t timestamp_us = rtc::TimeMicros();
+    const int64_t timestamp_us = webrtc::TimeMicros();
     const int64_t translated_timestamp_us =
-        timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+        timestamp_aligner.TranslateTimestamp(timestamp_us, webrtc::TimeMicros());
 
     if (capturer->config().no_adaptive) {
         OnFrame(webrtc::VideoFrame::Builder()
