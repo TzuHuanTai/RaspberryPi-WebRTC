@@ -11,14 +11,14 @@
 // Aligning pointer to 64 bytes for improved performance, e.g. use SIMD.
 static const int kBufferAlignment = 64;
 
-rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int height, int size,
-                                                            uint32_t format) {
-    return rtc::make_ref_counted<V4L2FrameBuffer>(width, height, size, format);
+webrtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int height, int size,
+                                                               uint32_t format) {
+    return webrtc::make_ref_counted<V4L2FrameBuffer>(width, height, size, format);
 }
 
-rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int height,
-                                                            V4L2Buffer buffer) {
-    return rtc::make_ref_counted<V4L2FrameBuffer>(width, height, buffer);
+webrtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Create(int width, int height,
+                                                               V4L2Buffer buffer) {
+    return webrtc::make_ref_counted<V4L2FrameBuffer>(width, height, buffer);
 }
 
 V4L2FrameBuffer::V4L2FrameBuffer(int width, int height, uint32_t format, int size, uint32_t flags,
@@ -54,8 +54,9 @@ uint32_t V4L2FrameBuffer::size() const { return size_; }
 uint32_t V4L2FrameBuffer::flags() const { return flags_; }
 timeval V4L2FrameBuffer::timestamp() const { return timestamp_; }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2FrameBuffer::ToI420() {
-    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
+webrtc::scoped_refptr<webrtc::I420BufferInterface> V4L2FrameBuffer::ToI420() {
+    webrtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(
+        webrtc::I420Buffer::Create(width_, height_));
     i420_buffer->InitializeData();
 
     const uint8_t *src = static_cast<const uint8_t *>(Data());
@@ -104,8 +105,8 @@ void V4L2FrameBuffer::SetDmaFd(int fd) {
 
 void V4L2FrameBuffer::SetTimestamp(timeval timestamp) { timestamp_ = timestamp; }
 
-rtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Clone() const {
-    auto clone = rtc::make_ref_counted<V4L2FrameBuffer>(width_, height_, size_, format_);
+webrtc::scoped_refptr<V4L2FrameBuffer> V4L2FrameBuffer::Clone() const {
+    auto clone = webrtc::make_ref_counted<V4L2FrameBuffer>(width_, height_, size_, format_);
 
     memcpy(clone->MutableData(), Data(), size_);
 

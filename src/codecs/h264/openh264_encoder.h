@@ -14,7 +14,7 @@ class Openh264Encoder {
     Openh264Encoder(EncoderConfig config);
     ~Openh264Encoder();
     void Init();
-    void Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
+    void Encode(webrtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
                 std::function<void(uint8_t *, int, bool is_keyframe)> on_capture);
 
   private:

@@ -9,9 +9,9 @@
 
 static const int kBufferAlignment = 64;
 
-rtc::scoped_refptr<ScaleTrackSource>
+webrtc::scoped_refptr<ScaleTrackSource>
 ScaleTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
-    auto obj = rtc::make_ref_counted<ScaleTrackSource>(std::move(capturer));
+    auto obj = webrtc::make_ref_counted<ScaleTrackSource>(std::move(capturer));
     obj->StartTrack();
     return obj;
 }
@@ -28,16 +28,17 @@ ScaleTrackSource::~ScaleTrackSource() {
 
 void ScaleTrackSource::StartTrack() {
     subscription_ = capturer->Subscribe(
-        [this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
+        [this](webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
             OnFrameCaptured(frame_buffer);
         },
         stream_idx);
 }
 
-void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
-    const int64_t timestamp_us = rtc::TimeMicros();
+void ScaleTrackSource::OnFrameCaptured(
+    webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
+    const int64_t timestamp_us = webrtc::TimeMicros();
     const int64_t translated_timestamp_us =
-        timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+        timestamp_aligner.TranslateTimestamp(timestamp_us, webrtc::TimeMicros());
 
     int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
     if (capturer->config().no_adaptive) {
@@ -48,7 +49,7 @@ void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuff
         return;
     }
 
-    rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = frame_buffer;
+    webrtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = frame_buffer;
 
     if (adapted_width != width || adapted_height != height) {
         int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
@@ -73,4 +74,4 @@ bool ScaleTrackSource::remote() const { return false; }
 
 bool ScaleTrackSource::is_screencast() const { return false; }
 
-absl::optional<bool> ScaleTrackSource::needs_denoising() const { return false; }
+std::optional<bool> ScaleTrackSource::needs_denoising() const { return false; }

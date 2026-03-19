@@ -39,7 +39,7 @@ class JetsonEncoder : public IFrameProcessor {
     static bool EncoderCapturePlaneDqCallback(struct v4l2_buffer *v4l2_buf, NvBuffer *buffer,
                                               NvBuffer *shared_buffer, void *arg);
     void ConvertI420ToYUV420M(NvBuffer *nv_buffer,
-                              rtc::scoped_refptr<webrtc::I420BufferInterface> i420_buffer);
+                              webrtc::scoped_refptr<webrtc::I420BufferInterface> i420_buffer);
     uint32_t DisableAV1IVF();
 };
 

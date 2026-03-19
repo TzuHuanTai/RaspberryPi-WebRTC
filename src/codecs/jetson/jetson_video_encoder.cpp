@@ -3,6 +3,7 @@
 #include "common/v4l2_frame_buffer.h"
 
 #include <modules/video_coding/include/video_codec_interface.h>
+#include <modules/video_coding/include/video_error_codes.h>
 
 std::unique_ptr<webrtc::VideoEncoder> JetsonVideoEncoder::Create(Args args) {
     return std::make_unique<JetsonVideoEncoder>(args);
@@ -46,7 +47,7 @@ int32_t JetsonVideoEncoder::Encode(const webrtc::VideoFrame &frame,
     if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
         return WEBRTC_VIDEO_CODEC_OK;
     }
-    rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
+    webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
     auto v4l2_frame_buffer = V4L2FrameBufferRef(static_cast<V4L2FrameBuffer *>(frame_buffer.get()));
 
     if (!encoder_) {

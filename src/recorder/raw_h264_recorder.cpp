@@ -13,7 +13,7 @@ RawH264Recorder::RawH264Recorder(int width, int height, int fps)
     : VideoRecorder(width, height, fps, AV_CODEC_ID_H264),
       has_sps_(false),
       has_pps_(false),
-      has_first_keyframe_(false){};
+      has_first_keyframe_(false) {};
 
 RawH264Recorder::~RawH264Recorder() {}
 

@@ -28,7 +28,7 @@ class V4L2Capturer : public VideoCapturer {
     bool SetControls(int key, int value) override;
     void StartCapture() override;
 
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
+    webrtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
     Subscription Subscribe(Subject<V4L2FrameBufferRef>::Callback callback,
                            int stream_idx = 0) override;
 

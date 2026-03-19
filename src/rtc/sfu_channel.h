@@ -16,9 +16,9 @@
 class SfuChannel : public RtcChannel {
   public:
     static std::shared_ptr<SfuChannel>
-    Create(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+    Create(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
-    SfuChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+    SfuChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
     ~SfuChannel();
 
     void OnMessage(const webrtc::DataBuffer &buffer) override;

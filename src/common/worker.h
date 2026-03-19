@@ -17,7 +17,7 @@ class Worker {
     std::atomic<bool> abort_;
     std::string name_;
     std::function<void()> executing_function_;
-    rtc::PlatformThread thread_;
+    webrtc::PlatformThread thread_;
 
     void Thread();
 };

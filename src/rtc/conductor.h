@@ -25,7 +25,7 @@ class Conductor {
     ~Conductor();
 
     Args config() const;
-    rtc::scoped_refptr<RtcPeer> CreatePeerConnection(PeerConfig peer_config);
+    webrtc::scoped_refptr<RtcPeer> CreatePeerConnection(PeerConfig peer_config);
     std::shared_ptr<PaCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
     void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
@@ -36,14 +36,14 @@ class Conductor {
     void InitializePeerConnectionFactory();
     void InitializeTracks();
     void InitializeIpcServer();
-    void InitializeDataChannels(rtc::scoped_refptr<RtcPeer> peer);
-    void InitializeCommandChannel(rtc::scoped_refptr<RtcPeer> peer);
+    void InitializeDataChannels(webrtc::scoped_refptr<RtcPeer> peer);
+    void InitializeCommandChannel(webrtc::scoped_refptr<RtcPeer> peer);
 
     void BindIpcToDataChannel(std::shared_ptr<RtcChannel> channel);
     void BindIpcToDataChannelSender(std::shared_ptr<RtcChannel> channel);
     void BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel);
 
-    void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
+    void AddTracks(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void QueryFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void TransferFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
@@ -52,16 +52,16 @@ class Conductor {
     void StartRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void StopRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
 
-    std::unique_ptr<rtc::Thread> network_thread_;
-    std::unique_ptr<rtc::Thread> worker_thread_;
-    std::unique_ptr<rtc::Thread> signaling_thread_;
+    std::unique_ptr<webrtc::Thread> network_thread_;
+    std::unique_ptr<webrtc::Thread> worker_thread_;
+    std::unique_ptr<webrtc::Thread> signaling_thread_;
 
     std::shared_ptr<PaCapturer> audio_capture_source_;
     std::shared_ptr<VideoCapturer> video_capture_source_;
-    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
-    rtc::scoped_refptr<ScaleTrackSource> video_track_source_;
+    webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
+    webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
+    webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
+    webrtc::scoped_refptr<ScaleTrackSource> video_track_source_;
 
     std::shared_ptr<UnixSocketServer> ipc_server_;
     std::weak_ptr<RecorderManager> ondemand_recorder_;

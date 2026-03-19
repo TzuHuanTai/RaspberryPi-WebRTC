@@ -291,7 +291,7 @@ bool JetsonEncoder::EncoderCapturePlaneDqCallback(struct v4l2_buffer *v4l2_buf, 
 }
 
 void JetsonEncoder::ConvertI420ToYUV420M(
-    NvBuffer *nv_buffer, rtc::scoped_refptr<webrtc::I420BufferInterface> i420_buffer) {
+    NvBuffer *nv_buffer, webrtc::scoped_refptr<webrtc::I420BufferInterface> i420_buffer) {
     for (uint32_t p = 0; p < nv_buffer->n_planes; p++) {
         const uint8_t *src_addr;
         int stride;

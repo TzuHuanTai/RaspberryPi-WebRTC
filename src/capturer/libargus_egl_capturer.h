@@ -76,7 +76,7 @@ class LibargusEglCapturer : public VideoCapturer {
     uint32_t format() const override;
     Args config() const override;
 
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
+    webrtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame(int stream_idx = 0) override;
     void StartCapture() override;
 
     // Sub stream for AI processing

@@ -64,7 +64,7 @@ void Openh264Encoder::Init() {
     }
 }
 
-void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
+void Openh264Encoder::Encode(webrtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
                              std::function<void(uint8_t *, int, bool)> on_capture) {
     src_pic_ = {0};
     src_pic_.iPicWidth = config_.width;

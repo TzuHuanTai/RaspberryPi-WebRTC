@@ -5,8 +5,8 @@
 
 #include "rtc/sfu_channel.h"
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
-    return rtc::make_ref_counted<RtcPeer>(std::move(config));
+webrtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
+    return webrtc::make_ref_counted<RtcPeer>(std::move(config));
 }
 
 RtcPeer::RtcPeer(PeerConfig config)
@@ -69,15 +69,17 @@ bool RtcPeer::isPublisher() const { return is_publisher_; }
 
 bool RtcPeer::isConnected() const { return is_connected_.load(); }
 
-void RtcPeer::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
+void RtcPeer::SetSink(webrtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
     custom_video_sink_ = std::move(video_sink_obj);
 }
 
-void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) {
+void RtcPeer::SetPeer(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) {
     peer_connection_ = std::move(peer);
 }
 
-rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
+webrtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() {
+    return peer_connection_;
+}
 
 std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
     struct webrtc::DataChannelInit init;
@@ -170,7 +172,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
     }
 }
 
-void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
+void RtcPeer::OnDataChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
     DEBUG_PRINT("On remote DataChannel => %s", channel->label().c_str());
 
     if (!on_data_channel_) {
@@ -225,13 +227,12 @@ void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     }
 }
 
-void RtcPeer::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
-    if (transceiver->receiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO &&
-        custom_video_sink_) {
+void RtcPeer::OnTrack(webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
+    if (transceiver->receiver()->media_type() == webrtc::MediaType::VIDEO && custom_video_sink_) {
         auto track = transceiver->receiver()->track();
         auto remote_video_track = static_cast<webrtc::VideoTrackInterface *>(track.get());
         DEBUG_PRINT("OnTrack => custom sink(%s) is added!", track->id().c_str());
-        remote_video_track->AddOrUpdateSink(custom_video_sink_, rtc::VideoSinkWants());
+        remote_video_track->AddOrUpdateSink(custom_video_sink_, webrtc::VideoSinkWants());
     }
 }
 
@@ -298,7 +299,7 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
         return;
     }
 
-    absl::optional<webrtc::SdpType> type_maybe = webrtc::SdpTypeFromString(sdp_type);
+    std::optional<webrtc::SdpType> type_maybe = webrtc::SdpTypeFromString(sdp_type);
     if (!type_maybe) {
         ERROR_PRINT("Unknown SDP type: %s", sdp_type.c_str());
         return;
