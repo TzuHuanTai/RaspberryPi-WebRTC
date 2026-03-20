@@ -3,18 +3,18 @@ name: clang-format Check
 on:
   push:
     paths-ignore:
-      - 'doc/**'
-      - 'example/**'
-      - '.github/**'
-      - '.vscode/**'
-      - '*.md'
+      - "doc/**"
+      - "example/**"
+      - ".github/**"
+      - ".vscode/**"
+      - "*.md"
   pull_request:
     paths-ignore:
-      - 'doc/**'
-      - 'example/**'
-      - '.github/**'
-      - '.vscode/**'
-      - '*.md'
+      - "doc/**"
+      - "example/**"
+      - ".github/**"
+      - ".vscode/**"
+      - "*.md"
 
 jobs:
   formatting-check:
@@ -23,16 +23,12 @@ jobs:
     strategy:
       matrix:
         path:
-          - 'src'
-          - 'test'
+          - "src"
+          - "test"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install clang-format-14
-        run: sudo apt-get install -y clang-format-14
-
       - name: Run clang-format style check for C/C++/Protobuf programs.
-        run: |
-          find ${{ matrix.path }} \
-            \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -o -name '*.proto' \) \
-            | xargs clang-format-14 --dry-run --Werror
+        uses: jidicula/clang-format-action@v4.18.0
+        with:
+          clang-format-version: '20'
+          check-path: ${{ matrix.path }}
