@@ -8,7 +8,7 @@ set(COMMON_FILES
     ${PROJECT_SOURCE_DIR}/v4l2_frame_buffer.cpp
     ${PROJECT_SOURCE_DIR}/utils.cpp
     ${PROJECT_SOURCE_DIR}/v4l2_utils.cpp
-    ${PROJECT_SOURCE_DIR}//worker.cpp
+    ${PROJECT_SOURCE_DIR}/worker.cpp
 )
 
 if(JETSON_PLATFORM)
@@ -29,9 +29,10 @@ endif()
 
 # Use libyuv in libwebrtc.a
 target_link_libraries(${PROJECT_NAME}
-    avutil
+    ${WEBRTC_LIBRARY}
     avformat
+    avcodec
+    avutil
     uuid
     ${JPEG_LIBRARIES}
-    ${WEBRTC_LIBRARY}
 )
