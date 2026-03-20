@@ -1,6 +1,5 @@
 project(recorder)
 
-set(FFMPEG_LINK_LIBS avformat)
 
 set(RECORDER_FILES
     ${PROJECT_SOURCE_DIR}/audio_recorder.cpp
@@ -24,4 +23,4 @@ endif()
 
 add_library(${PROJECT_NAME} ${RECORDER_FILES})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC capturer v4l2_codecs h264_codecs ${FFMPEG_LINK_LIBS})
+target_link_libraries(${PROJECT_NAME} PUBLIC capturer v4l2_codecs h264_codecs)

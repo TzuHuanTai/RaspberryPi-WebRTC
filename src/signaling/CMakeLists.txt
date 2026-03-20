@@ -15,5 +15,4 @@ add_library(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC
     rtc
     ${MOSQUITTO_LIBS}
-    ${WEBRTC_LIBRARY}
 )
