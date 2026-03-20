@@ -6,11 +6,48 @@
 3. Prepare the MQTT development library.
     * Follow [BUILD_MOSQUITTO](BUILD_MOSQUITTO.md) to compile `mosquitto`.
     * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommended)
-4. Install essential packages
+4. Install essential packages (Note: Protobuf will be built from source later)
     ```bash
-    sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev libcamera-dev libmosquitto-dev protobuf-compiler libprotobuf-dev
+    sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev libcamera-dev libmosquitto-dev
     ```
-5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include`
+5. Install clang-20 and lld-20 (or newer versions). Set them as default using `update-alternatives`:
+    ```bash
+    wget https://apt.llvm.org/llvm.sh
+    chmod +x llvm.sh
+    sudo ./llvm.sh 20
+    sudo apt install lld-20 clang-format-20
+    sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+    sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+    sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-20 100
+    sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
+    ```
+6. Build and install Protobuf v31.1 (or newer versions) from source code.
+    ```bash
+    # Clone the specific version tag
+    git clone -b v31.1 https://github.com/protocolbuffers/protobuf.git
+    cd protobuf
+    
+    # Update submodules (Crucial for Abseil dependencies in newer Protobuf versions)
+    git submodule update --init --recursive
+    
+    # Configure and build
+    cmake -S . -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -Dprotobuf_BUILD_TESTS=OFF \
+        -Dprotobuf_BUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr/local
+    cmake --build build -j$(nproc)
+    
+    # Install to local environment
+    sudo cmake --install build
+    
+    # Update shared library cache
+    sudo ldconfig
+    
+    # Verify installation
+    protoc --version
+    ```
+7. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include`
     ```bash
     sudo mkdir -p /usr/local/include/nlohmann
     sudo curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o /usr/local/include/nlohmann/json.hpp
@@ -28,7 +65,7 @@ Build on raspberry pi and it'll output a `pi-webrtc` file in `/build`.
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/usr/local
+cmake .. -DCMAKE_BUILD_TYPE=Debug
 make -j
 ```
 

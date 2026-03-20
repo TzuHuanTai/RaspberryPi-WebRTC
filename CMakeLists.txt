@@ -1,26 +1,51 @@
 cmake_minimum_required(VERSION 3.18)
+
+# Set compilers natively
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
+
 project(pi-webrtc)
 
+# General Project Configuration
 set(CMAKE_CXX_STANDARD 20)
+find_package(Threads REQUIRED)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(BUILD_TEST "" CACHE STRING "test")
 
+# Global Compiler and Linker Options
+add_compile_options(-pipe)
+
+# Clang-specific options
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-rtlib=compiler-rt)
+    add_link_options(-fuse-ld=lld -rtlib=compiler-rt)
+endif()
+
+add_compile_definitions(
+    NDEBUG
+    WEBRTC_POSIX
+    WEBRTC_LINUX
+    WEBRTC_USE_H264
+    OPENSSL_IS_BORINGSSL
+)
+
+# Build Type Configuration
 string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
 if(NOT BUILD_TYPE_LOWER OR BUILD_TYPE_LOWER STREQUAL "debug")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
     add_compile_options(-g)
-    add_definitions(-DDEBUG_MODE)
+    add_compile_definitions(DEBUG_MODE)
     find_library(PROFILER_LIB profiler)
     if(PROFILER_LIB)
         message(STATUS "Profiler library found: ${PROFILER_LIB}")
-        add_link_options(-lprofiler)
     else()
         message(STATUS "Profiler library not found")
     endif()
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+    add_compile_options(-O2)
 endif()
 
-# Detect platform if not provided
+# Detect Platform
 if(NOT DEFINED PLATFORM)
     if(EXISTS "/etc/nv_tegra_release")
         set(PLATFORM "jetson")
@@ -52,38 +77,31 @@ else()
     message(FATAL_ERROR "Unknown PLATFORM: ${PLATFORM}")
 endif()
 
+# Dependencies Validation
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
-set(WEBRTC_LIBRARY
-    /usr/local/lib/libwebrtc.a
-    avcodec
+find_library(WEBRTC_LIBRARY_PATH webrtc PATHS /usr/local/lib REQUIRED)
+
+# Create an IMPORTED target for WebRTC
+add_library(WebRTC::WebRTC STATIC IMPORTED)
+set_target_properties(WebRTC::WebRTC PROPERTIES
+    IMPORTED_LOCATION "${WEBRTC_LIBRARY_PATH}"
 )
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+# Mark WebRTC includes as SYSTEM to suppress internal warnings
+target_include_directories(WebRTC::WebRTC SYSTEM INTERFACE
+    "${WEBRTC_INCLUDE_DIR}"
+    "${WEBRTC_INCLUDE_DIR}/third_party/abseil-cpp"
+    "${WEBRTC_INCLUDE_DIR}/third_party/libyuv/include"
+    "${WEBRTC_INCLUDE_DIR}/third_party/boringssl/src/include"
+    "${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler"
+)
+set(WEBRTC_LIBRARY WebRTC::WebRTC)
 
 message(STATUS "BUILD_TEST: ${BUILD_TEST}")
 message(STATUS "WEBRTC_INCLUDE_DIR: ${WEBRTC_INCLUDE_DIR}")
-message(STATUS "WEBRTC_LIBRARY: ${WEBRTC_LIBRARY}")
+message(STATUS "WEBRTC_LIBRARY: ${WEBRTC_LIBRARY_PATH}")
 
-add_compile_definitions(
-    NDEBUG
-    WEBRTC_POSIX
-    WEBRTC_LINUX
-    WEBRTC_USE_H264
-    OPENSSL_IS_BORINGSSL
-)
-
-add_compile_options(
-    -pipe
-)
-
-include_directories(
-    ./src
-    ${WEBRTC_INCLUDE_DIR}
-    ${WEBRTC_INCLUDE_DIR}/third_party/abseil-cpp
-    ${WEBRTC_INCLUDE_DIR}/third_party/libyuv/include
-    ${WEBRTC_INCLUDE_DIR}/third_party/boringssl/src/include
-    ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
-)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_subdirectory(src/capturer)
 add_subdirectory(src/codecs/h264)
