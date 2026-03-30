@@ -5,6 +5,8 @@
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 
+#include <atomic>
+
 #include "args.h"
 #include "codecs/jetson/jetson_encoder.h"
 
@@ -30,7 +32,7 @@ class JetsonVideoEncoder : public webrtc::VideoEncoder {
     std::string name_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
-    webrtc::EncodedImageCallback *callback_;
+    std::atomic<webrtc::EncodedImageCallback *> callback_;
     webrtc::BitrateAdjuster bitrate_adjuster_;
     std::unique_ptr<JetsonEncoder> encoder_;
 
