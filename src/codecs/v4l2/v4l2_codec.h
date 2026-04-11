@@ -1,7 +1,7 @@
 #ifndef V4L2_CODEC_
 #define V4L2_CODEC_
 
-#include "common/interface/processor.h"
+#include "codecs/frame_processor.h"
 #include "common/thread_safe_queue.h"
 #include "common/v4l2_utils.h"
 #include "common/worker.h"
@@ -23,7 +23,7 @@ class V4L2Codec : public IFrameProcessor {
     bool SetupCaptureBuffer(int width, int height, uint32_t pix_fmt, v4l2_memory memory,
                             int buffer_num, bool exp_dmafd = false);
     bool SubscribeEvent(uint32_t ev_type);
-    virtual void HandleEvent();
+    void HandleEvent();
     void Start();
 
   private:

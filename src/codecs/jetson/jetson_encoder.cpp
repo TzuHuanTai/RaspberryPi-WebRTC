@@ -10,40 +10,22 @@ const int BUFFER_NUM = 4;
 
 static std::atomic<uint32_t> global_enc_id{0};
 
-/* Only accept V4L2_PIX_FMT_YUV420M (multi-pnale yuv420) or dma source input */
-std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(int width, int height, uint32_t dst_pix_fmt,
-                                                     bool is_dma_src) {
-    JetsonEncoderConfig config = {
-        .width = width,
-        .height = height,
-        .is_dma_src = is_dma_src,
-        .dst_pix_fmt = dst_pix_fmt,
-    };
-    return Create(config);
-}
-
-std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(JetsonEncoderConfig config) {
+std::unique_ptr<JetsonEncoder> JetsonEncoder::Create(EncoderConfig config) {
     char auto_name[16];
     snprintf(auto_name, sizeof(auto_name), "enc%d", global_enc_id.fetch_add(1) % 10);
     auto ptr = std::make_unique<JetsonEncoder>(config, auto_name);
+    if (!ptr->Initialize()) {
+        return nullptr;
+    }
     ptr->Start();
     return ptr;
 }
 
-JetsonEncoder::JetsonEncoder(JetsonEncoderConfig config, const char *name)
+JetsonEncoder::JetsonEncoder(EncoderConfig config, const char *name)
     : abort_(true),
       encoder_(nullptr),
       name_(name),
-      width_(config.width),
-      height_(config.height),
-      framerate_(config.fps),
-      bitrate_bps_(config.bitrate),
-      i_interval_(config.i_interval),
-      idr_interval_(config.idr_interval),
-      src_pix_fmt_(V4L2_PIX_FMT_NV12M),
-      dst_pix_fmt_(config.dst_pix_fmt),
-      is_dma_src_(config.is_dma_src),
-      rate_control_mode_(config.rc_mode) {}
+      config_(config) {}
 
 JetsonEncoder::~JetsonEncoder() {
     abort_ = true;
@@ -71,25 +53,26 @@ bool JetsonEncoder::CreateVideoEncoder() {
     if (!encoder_)
         ORIGINATE_ERROR("Could not create encoder");
 
-    ret = encoder_->setCapturePlaneFormat(dst_pix_fmt_, width_, height_, 2 * 1024 * 1024);
+    ret = encoder_->setCapturePlaneFormat(config_.dst_pix_fmt, config_.width, config_.height,
+                                          2 * 1024 * 1024);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set capture plane format");
 
-    if (dst_pix_fmt_ == V4L2_PIX_FMT_AV1) {
+    if (config_.dst_pix_fmt == V4L2_PIX_FMT_AV1) {
         ret = DisableAV1IVF();
         if (ret < 0)
             ORIGINATE_ERROR("Could not disable IVF headers for AV1 codec");
     }
 
-    ret = encoder_->setOutputPlaneFormat(src_pix_fmt_, width_, height_);
+    ret = encoder_->setOutputPlaneFormat(V4L2_PIX_FMT_NV12M, config_.width, config_.height);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set output plane format");
 
-    ret = encoder_->setBitrate(bitrate_bps_);
+    ret = encoder_->setBitrate(config_.bitrate);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set bitrate");
 
-    if (dst_pix_fmt_ == V4L2_PIX_FMT_H264) {
+    if (config_.dst_pix_fmt == V4L2_PIX_FMT_H264) {
         ret = encoder_->setProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
         ret = encoder_->setLevel(V4L2_MPEG_VIDEO_H264_LEVEL_5_1); // 4k60fps needs level 5.2
         if (ret < 0)
@@ -108,19 +91,19 @@ bool JetsonEncoder::CreateVideoEncoder() {
     if (ret < 0)
         ORIGINATE_ERROR("Could not insert SPS PPS at every IDR");
 
-    ret = encoder_->setRateControlMode(rate_control_mode_);
+    ret = encoder_->setRateControlMode(config_.rc_mode);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set rate control mode");
 
-    ret = encoder_->setIDRInterval(idr_interval_);
+    ret = encoder_->setIDRInterval(config_.idr_interval);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set IDR interval");
 
-    ret = encoder_->setIFrameInterval(i_interval_);
+    ret = encoder_->setIFrameInterval(config_.keyframe_interval);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set I-frame interval");
 
-    ret = encoder_->setFrameRate(framerate_, 1);
+    ret = encoder_->setFrameRate(config_.fps, 1);
     if (ret < 0)
         ORIGINATE_ERROR("Could not set encoder framerate");
 
@@ -130,7 +113,7 @@ bool JetsonEncoder::CreateVideoEncoder() {
 
     /* Query, Export and Map the output plane buffers so that we can read
        raw data into the buffers */
-    if (is_dma_src_) {
+    if (config_.is_dma_src) {
         INFO_PRINT("Set output dma buffer parameters");
         ret = encoder_->output_plane.reqbufs(V4L2_MEMORY_DMABUF, BUFFER_NUM);
         if (ret)
@@ -171,17 +154,17 @@ bool JetsonEncoder::PrepareCaptureBuffer() {
 }
 
 void JetsonEncoder::SetFps(int adjusted_fps) {
-    if (framerate_ != adjusted_fps) {
-        framerate_ = adjusted_fps;
-        int ret = encoder_->setFrameRate(framerate_, 1);
+    if (config_.fps != adjusted_fps) {
+        config_.fps = adjusted_fps;
+        int ret = encoder_->setFrameRate(config_.fps, 1);
         if (ret < 0)
-            ERROR_PRINT("Could not set encoder framerate to %d", framerate_);
+            ERROR_PRINT("Could not set encoder framerate to %d", config_.fps);
     }
 }
 
 void JetsonEncoder::SetBitrate(int adjusted_bitrate_bps) {
-    if (bitrate_bps_ != adjusted_bitrate_bps) {
-        bitrate_bps_ = adjusted_bitrate_bps;
+    if (config_.bitrate != adjusted_bitrate_bps) {
+        config_.bitrate = adjusted_bitrate_bps;
         encoder_->setBitrate(adjusted_bitrate_bps);
     }
 }
@@ -192,10 +175,15 @@ void JetsonEncoder::ForceKeyFrame() {
         ERROR_PRINT("Could not force set encoder to key frame");
 }
 
-void JetsonEncoder::Start() {
-    if (!CreateVideoEncoder())
-        ERROR_PRINT("Failed to create video m_VideoEncoderoder");
+bool JetsonEncoder::Initialize() {
+    if (!CreateVideoEncoder()) {
+        ERROR_PRINT("Failed to create video encoder");
+        return false;
+    }
+    return true;
+}
 
+void JetsonEncoder::Start() {
     /* Stream on */
     int e = encoder_->output_plane.setStreamStatus(true);
     if (e < 0)
@@ -249,7 +237,7 @@ void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
         v4l2_output_buf.index = nv_buffer->index;
     }
 
-    if (is_dma_src_) {
+    if (config_.is_dma_src) {
         v4l2_output_buf.m.planes[0].m.fd = frame_buffer->GetDmaFd();
         v4l2_output_buf.m.planes[0].bytesused = 1; // byteused must be non-zero
     } else {
@@ -279,9 +267,9 @@ bool JetsonEncoder::EncoderCapturePlaneDqCallback(struct v4l2_buffer *v4l2_buf, 
     if (item) {
         auto v4l2buffer = V4L2Buffer::FromCapturedPlane(
             buffer->planes[0].data, buffer->planes[0].bytesused, buffer->planes[0].fd,
-            v4l2_buf->flags, thiz->dst_pix_fmt_);
+            v4l2_buf->flags, thiz->config_.dst_pix_fmt);
         auto encoded_frame_buffer =
-            V4L2FrameBuffer::Create(thiz->width_, thiz->height_, v4l2buffer);
+            V4L2FrameBuffer::Create(thiz->config_.width, thiz->config_.height, v4l2buffer);
         auto task = item.value();
         task(encoded_frame_buffer);
     }

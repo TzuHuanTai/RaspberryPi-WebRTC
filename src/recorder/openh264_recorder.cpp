@@ -1,7 +1,5 @@
 #include "recorder/openh264_recorder.h"
 
-#include <linux/videodev2.h>
-
 std::unique_ptr<Openh264Recorder> Openh264Recorder::Create(int width, int height, int fps) {
     return std::make_unique<Openh264Recorder>(width, height, fps);
 }
@@ -9,9 +7,17 @@ std::unique_ptr<Openh264Recorder> Openh264Recorder::Create(int width, int height
 Openh264Recorder::Openh264Recorder(int width, int height, int fps)
     : VideoRecorder(width, height, fps, AV_CODEC_ID_H264) {}
 
-void Openh264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+void Openh264Recorder::Encode(V4L2FrameBufferRef frame_buffer) {
     if (!encoder_) {
-        encoder_ = Openh264Encoder::Create(width, height, fps);
+        EncoderConfig config = {
+            .width = width,
+            .height = height,
+            .fps = fps,
+            .bitrate = static_cast<int>(width * height * fps * 0.1),
+            .keyframe_interval = fps,
+            .rc_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
+        };
+        encoder_ = Openh264Encoder::Create(config);
     }
 
     auto i420_buffer = frame_buffer->ToI420();

@@ -54,9 +54,12 @@ int32_t JetsonVideoEncoder::Encode(const webrtc::VideoFrame &frame,
         if (codec_fmt == 0) {
             return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
         }
-        encoder_ =
-            JetsonEncoder::Create(width_, height_, codec_fmt,
-                                  frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative);
+        EncoderConfig config;
+        config.width = width_;
+        config.height = height_;
+        config.dst_pix_fmt = codec_fmt;
+        config.is_dma_src = frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative;
+        encoder_ = JetsonEncoder::Create(config);
     }
 
     if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {

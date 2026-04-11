@@ -11,7 +11,7 @@ class RawH264Recorder : public VideoRecorder {
 
   protected:
     void ReleaseEncoder() override;
-    void Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) override;
+    void Encode(V4L2FrameBufferRef frame_buffer) override;
 
   private:
     bool has_sps_;

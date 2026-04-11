@@ -54,6 +54,6 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
                     timeval timestamp);
 };
 
-#endif // V4L2_FRAME_BUFFER_H_
+using V4L2FrameBufferRef = webrtc::scoped_refptr<V4L2FrameBuffer>;
 
-using V4L2FrameBufferRef = rtc::scoped_refptr<V4L2FrameBuffer>;
+#endif // V4L2_FRAME_BUFFER_H_

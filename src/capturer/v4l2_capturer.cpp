@@ -173,7 +173,7 @@ void V4L2Capturer::CaptureImage() {
 
     if (hw_accel_ && IsCompressedFormat()) {
         if (!decoder_) {
-            decoder_ = V4L2Decoder::Create(width_, height_, format_, true);
+            decoder_ = V4L2Decoder::Create({width_, height_, format_, true});
         }
 
         decoder_->EmplaceBuffer(frame_buffer_, [this, buffer](V4L2FrameBufferRef decoded_buffer) {

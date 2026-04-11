@@ -23,7 +23,7 @@ void RawH264Recorder::ReleaseEncoder() {
     has_first_keyframe_ = false;
 }
 
-void RawH264Recorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+void RawH264Recorder::Encode(V4L2FrameBufferRef frame_buffer) {
     if (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_) {
         CheckNALUnits(frame_buffer->Data(), frame_buffer->size());
         if (has_sps_ && has_pps_) {

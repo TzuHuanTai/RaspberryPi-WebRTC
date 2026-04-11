@@ -10,17 +10,17 @@ std::unique_ptr<JetsonRecorder> JetsonRecorder::Create(int width, int height, in
 JetsonRecorder::JetsonRecorder(int width, int height, int fps)
     : VideoRecorder(width, height, fps, AV_CODEC_ID_AV1) {}
 
-void JetsonRecorder::Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+void JetsonRecorder::Encode(V4L2FrameBufferRef frame_buffer) {
     if (!encoder_) {
-        JetsonEncoderConfig config = {
+        EncoderConfig config = {
             .width = width,
             .height = height,
-            .is_dma_src = true,
-            .dst_pix_fmt = V4L2_PIX_FMT_AV1,
             .fps = fps,
             .bitrate = static_cast<int>(width * height * fps * bpp_factor),
-            .i_interval = 0,
+            .keyframe_interval = 0,
             .idr_interval = fps,
+            .is_dma_src = true,
+            .dst_pix_fmt = V4L2_PIX_FMT_AV1,
             .rc_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
         };
 

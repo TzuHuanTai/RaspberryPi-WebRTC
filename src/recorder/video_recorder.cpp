@@ -27,7 +27,7 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+void VideoRecorder::OnBuffer(V4L2FrameBufferRef frame_buffer) {
     if (!frame_buffer_queue.push(frame_buffer->Clone())) {
         DEBUG_PRINT("Skip a frame because the buffer is full.");
     }

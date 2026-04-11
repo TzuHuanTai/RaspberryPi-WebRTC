@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 
-#include "common/interface/processor.h"
+#include "codecs/frame_processor.h"
 #include "common/thread_safe_queue.h"
 #include "common/v4l2_utils.h"
 #include "common/worker.h"
@@ -18,30 +18,27 @@ class JetsonScaler : public IFrameProcessor {
         std::function<void()> callback;
     };
 
-    static std::unique_ptr<JetsonScaler> Create(int src_width, int src_height, int dst_width,
-                                                int dst_height);
+    static std::unique_ptr<JetsonScaler> Create(ScalerConfig config);
 
-    JetsonScaler();
+    JetsonScaler(ScalerConfig config);
     ~JetsonScaler() override;
 
     void EmplaceBuffer(V4L2FrameBufferRef buffer,
                        std::function<void(V4L2FrameBufferRef)> on_capture) override;
 
   protected:
+    bool Initialize() override;
     void CaptureBuffer();
     void Start();
 
   private:
-    int dst_width_;
-    int dst_height_;
+    ScalerConfig config_;
     int num_buffer_;
     std::atomic<bool> abort_;
     std::unique_ptr<Worker> worker_;
     NvBufSurf::NvCommonTransformParams transform_params_;
     ThreadSafeQueue<int> free_buffers_;
     ThreadSafeQueue<CaptureTask> capturing_tasks_;
-
-    bool Configure(int src_width, int src_height, int dst_width, int dst_height);
 };
 
 #endif
