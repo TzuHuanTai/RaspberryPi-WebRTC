@@ -6,9 +6,9 @@
 3. Prepare the MQTT development library.
     * Follow [BUILD_MOSQUITTO](BUILD_MOSQUITTO.md) to compile `mosquitto`.
     * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommended)
-4. Install essential packages (Note: Protobuf will be built from source later)
+4. Install essential packages
     ```bash
-    sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev libcamera-dev libmosquitto-dev
+    sudo apt install cmake clang clang-format lld mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev libcamera-dev libmosquitto-dev
     ```
 5. Install clang-20 and lld-20 (or newer versions). Set them as default using `update-alternatives`:
     ```bash
@@ -21,31 +21,20 @@
     sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-20 100
     sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
     ```
-6. Build and install Protobuf v31.1 (or newer versions) from source code.
+6. Install Protobuf compiler (protoc) v33.0 to match the protobuf bundled in libwebrtc.a.
     ```bash
-    # Clone the specific version tag
-    git clone -b v31.1 https://github.com/protocolbuffers/protobuf.git
-    cd protobuf
-    
-    # Update submodules (Crucial for Abseil dependencies in newer Protobuf versions)
-    git submodule update --init --recursive
-    
-    # Configure and build
-    cmake -S . -B build \
-        -DCMAKE_BUILD_TYPE=Release \
-        -Dprotobuf_BUILD_TESTS=OFF \
-        -Dprotobuf_BUILD_SHARED_LIBS=ON \
-        -DCMAKE_INSTALL_PREFIX=/usr/local
-    cmake --build build -j$(nproc)
-    
-    # Install to local environment
-    sudo cmake --install build
-    
-    # Update shared library cache
-    sudo ldconfig
-    
+    # Download pre-built protoc v33.0 (adjust the URL for your architecture)
+    # For arm64:
+    curl -sLO https://github.com/protocolbuffers/protobuf/releases/download/v33.0/protoc-33.0-linux-aarch_64.zip
+
+    unzip protoc-33.0-linux-aarch_64.zip -d protoc-33.0
+
+    # Install protoc binary and well-known proto includes
+    sudo cp protoc-33.0/bin/protoc /usr/local/bin/protoc
+    sudo cp -r protoc-33.0/include/* /usr/local/include/
+
     # Verify installation
-    protoc --version
+    protoc --version  # should print "libprotoc 33.0"
     ```
 7. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include`
     ```bash

@@ -26,10 +26,12 @@ bool V4L2Decoder::Initialize() {
     if (!SetupOutputBuffer(config_.width, config_.height, config_.src_pix_fmt, V4L2_MEMORY_MMAP,
                            BUFFER_NUM)) {
         ERROR_PRINT("Could not setup output buffer");
+        return false;
     }
     if (!SetupCaptureBuffer(config_.width, config_.height, V4L2_PIX_FMT_YUV420, V4L2_MEMORY_MMAP,
                             BUFFER_NUM, config_.is_dma_dst)) {
         ERROR_PRINT("Could not setup capture buffer");
+        return false;
     }
 
     if (!SubscribeEvent(V4L2_EVENT_SOURCE_CHANGE)) {
@@ -37,7 +39,6 @@ bool V4L2Decoder::Initialize() {
     }
     if (!SubscribeEvent(V4L2_EVENT_EOS)) {
         ERROR_PRINT("Could not subscribe EOS event");
-        return false;
     }
 
     return true;

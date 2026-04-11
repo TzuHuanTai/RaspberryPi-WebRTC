@@ -12,7 +12,7 @@ Turn Raspberry Pi or NVIDIA Jetson into a low-latency<b> ~200ms </b> WebRTC stre
 
 
 <p align="center">
-    <a href="https://chromium.googlesource.com/external/webrtc/+/branch-heads/6613"><img src="https://img.shields.io/badge/libwebrtc-m128.6613-red.svg" alt="WebRTC Version"></a>
+    <a href="https://chromium.googlesource.com/external/webrtc/+/branch-heads/7680"><img src="https://img.shields.io/badge/libwebrtc-m146.7680-red.svg" alt="WebRTC Version"></a>
     <img src="https://img.shields.io/github/downloads/TzuHuanTai/RaspberryPi_WebRTC/total.svg?color=yellow" alt="Download">
     <img src="https://img.shields.io/badge/C%2B%2B-20-brightgreen?logo=cplusplus">
     <img src="https://img.shields.io/github/v/release/TzuHuanTai/RaspberryPi_WebRTC?color=blue" alt="Release">
@@ -58,7 +58,7 @@ Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash **Lite
 
 ```bash
 sudo apt update
-sudo apt install libmosquitto1 pulseaudio libavformat61 libswscale8 libprotobuf32t64
+sudo apt install libmosquitto1 pulseaudio libavformat61 libswscale8
 ```
 
 ### 3. Download Binary

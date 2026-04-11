@@ -130,8 +130,8 @@ bool V4L2Util::SubscribeEvent(int fd, uint32_t type) {
 bool V4L2Util::SetFps(int fd, v4l2_buf_type type, uint32_t fps) {
     struct v4l2_streamparm streamparms = {};
     streamparms.type = type;
-    streamparms.parm.capture.timeperframe.numerator = 1;
-    streamparms.parm.capture.timeperframe.denominator = fps;
+    streamparms.parm.output.timeperframe.numerator = 1;
+    streamparms.parm.output.timeperframe.denominator = fps;
     if (ioctl(fd, VIDIOC_S_PARM, &streamparms) < 0) {
         ERROR_PRINT("fd(%d) set fps(%d): %s", fd, fps, strerror(errno));
         return false;
