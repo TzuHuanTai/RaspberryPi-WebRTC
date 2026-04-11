@@ -1,23 +1,25 @@
 project(rtc)
 
-find_package(Protobuf REQUIRED)
-
-# enable proto3 optional or not
-set(PROTO_OPTIONAL_FLAG "")
-if(Protobuf_PROTOC_EXECUTABLE)
-  execute_process(
-    COMMAND ${Protobuf_PROTOC_EXECUTABLE} --version
-    OUTPUT_VARIABLE PROTOC_VERSION_RAW
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" PROTOC_VERSION ${PROTOC_VERSION_RAW})
-  message(STATUS "Found protoc version: ${PROTOC_VERSION}")
-
-  if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.12.0")
-    set(PROTO_OPTIONAL_FLAG "--experimental_allow_proto3_optional")
-    message(STATUS "Enabled proto3 optional support.")
-  endif()
+# Use protoc matching WebRTC's bundled protobuf (v33) to avoid version conflicts
+find_program(PROTOC_EXECUTABLE protoc)
+if(NOT PROTOC_EXECUTABLE)
+  message(FATAL_ERROR "protoc not found. Install protoc v33 matching WebRTC's bundled protobuf.")
 endif()
+execute_process(
+  COMMAND ${PROTOC_EXECUTABLE} --version
+  OUTPUT_VARIABLE PROTOC_VERSION_RAW
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REGEX MATCH "[0-9]+\\.[0-9]+" PROTOC_VERSION "${PROTOC_VERSION_RAW}")
+message(STATUS "Using protoc: ${PROTOC_EXECUTABLE} (${PROTOC_VERSION_RAW})")
+if(PROTOC_VERSION VERSION_LESS "33.0")
+  message(FATAL_ERROR "protoc >= 33.0 is required to match WebRTC's bundled protobuf, found ${PROTOC_VERSION}")
+endif()
+
+# well-known proto include path (e.g. google/protobuf/empty.proto)
+get_filename_component(PROTOC_DIR ${PROTOC_EXECUTABLE} DIRECTORY)
+get_filename_component(PROTOC_PREFIX ${PROTOC_DIR} DIRECTORY)
+set(PROTOC_INCLUDE_DIR "${PROTOC_PREFIX}/include")
 
 # path of the proto files
 set(PROTO_SRC_DIRS
@@ -28,6 +30,24 @@ set(PROTO_OUT_DIR "${CMAKE_SOURCE_DIR}/proto")
 file(MAKE_DIRECTORY ${PROTO_OUT_DIR})
 
 set(PROTO_SRCS "")
+
+# Generate well-known types not included in libwebrtc.a (Timestamp, Duration)
+set(WELL_KNOWN_PROTOS timestamp duration)
+foreach(wk_name ${WELL_KNOWN_PROTOS})
+  set(wk_proto "${PROTOC_INCLUDE_DIR}/google/protobuf/${wk_name}.proto")
+  set(wk_cc "${PROTO_OUT_DIR}/google/protobuf/${wk_name}.pb.cc")
+  set(wk_h "${PROTO_OUT_DIR}/google/protobuf/${wk_name}.pb.h")
+  add_custom_command(
+    OUTPUT ${wk_cc} ${wk_h}
+    COMMAND ${PROTOC_EXECUTABLE}
+    ARGS --cpp_out=lite:${PROTO_OUT_DIR}
+    -I ${PROTOC_INCLUDE_DIR}
+    ${wk_proto}
+    DEPENDS ${wk_proto}
+  )
+  list(APPEND PROTO_SRCS ${wk_cc})
+endforeach()
+
 foreach(PROTO_SRC_DIR ${PROTO_SRC_DIRS})
   # collect all .proto
   file(GLOB PROTO_FILES "${PROTO_SRC_DIR}/*.proto")
@@ -41,10 +61,10 @@ foreach(PROTO_SRC_DIR ${PROTO_SRC_DIRS})
 
     add_custom_command(
       OUTPUT ${proto_cc} ${proto_h}
-      COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-      ARGS ${PROTO_OPTIONAL_FLAG}
-      --cpp_out=${PROTO_OUT_DIR}
+      COMMAND ${PROTOC_EXECUTABLE}
+      ARGS --cpp_out=lite:${PROTO_OUT_DIR}
       -I ${PROTO_SRC_DIR}
+      -I ${PROTOC_INCLUDE_DIR}
       ${proto_file}
       DEPENDS ${proto_file}
     )
@@ -68,7 +88,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} PUBLIC
   track
   ipc
-  protobuf::libprotobuf
+  ${WEBRTC_LIBRARY}
 )
 
 if(USE_JETSON_HW_ENCODER)

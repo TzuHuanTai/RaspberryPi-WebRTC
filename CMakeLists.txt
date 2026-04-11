@@ -92,6 +92,7 @@ target_include_directories(WebRTC::WebRTC SYSTEM INTERFACE
     "${WEBRTC_INCLUDE_DIR}"
     "${WEBRTC_INCLUDE_DIR}/third_party/abseil-cpp"
     "${WEBRTC_INCLUDE_DIR}/third_party/libyuv/include"
+    "${WEBRTC_INCLUDE_DIR}/third_party/protobuf/src"
     "${WEBRTC_INCLUDE_DIR}/third_party/boringssl/src/include"
     "${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler"
 )

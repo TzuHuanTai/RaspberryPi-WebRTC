@@ -26,51 +26,12 @@
     gclient sync -D
     ```
 
-    To check out the m115 (stable) version:
+    To check out the m146 (stable) version:
 
     ```
-    git checkout -b local-6613 branch-heads/6613
+    git checkout -b local-7680 branch-heads/7680
     git gc --aggressive
     gclient sync -D --force --reset --with_branch_heads --no-history
-    ```
-
-- Download a Specific `clang` Version (Optional)
-
-    Sometimes the clang version installed via sudo apt install llvm may be too old and unable to recognize specific flags. You can download a newer version manually:
-
-    ```bash
-    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.6/clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
-    tar Jxvf clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
-    echo 'export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
-    source ~/.bashrc
-    ```
-
-- Update `ninja` in the `depot_tools` (Optional)
-
-    If the existing version of ninja in depot_tools is too old, you can update it manually:
-
-    ``` bash
-    git clone https://github.com/martine/ninja.git;
-    cd ninja;
-    ./configure.py --bootstrap;
-    mv /home/pi/depot_tools/ninja /home/pi/depot_tools/ninja_org;
-    cp /home/pi/ninja/ninja /home/pi/depot_tools/ninja;
-    ```
-
-- Update `gn` in the `depot_tools` (Optional)
-
-    If the gn tool is outdated and causes issues during the build, you can update it:
-
-    ``` bash
-    git clone https://gn.googlesource.com/gn;
-    cd gn;
-    sed -i -e "s/-Wl,--icf=all//" build/gen.py;
-    python build/gen.py;
-    ninja -C out;
-    sudo mv /home/pi/webrtc-checkout/src/buildtools/linux64/gn /home/pi/webrtc-checkout/src/buildtools/linux64/gn_org;
-    cp /home/pi/gn/out/gn /home/pi/webrtc-checkout/src/buildtools/linux64/gn;
-    sudo mv /home/pi/depot_tools/gn /home/pi/depot_tools/gn_org;
-    cp /home/pi/gn/out/gn /home/pi/depot_tools/gn;
     ```
 
 ## Compile `libwebrtc.a`
@@ -95,8 +56,6 @@
     proprietary_codecs=true 
     clang_use_chrome_plugins=false'
     ```
-> [!NOTE]
-> If you are using a custom clang version, add the flag: `clang_base_path="/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu"`.
 
 - ### Step 2: Build
 

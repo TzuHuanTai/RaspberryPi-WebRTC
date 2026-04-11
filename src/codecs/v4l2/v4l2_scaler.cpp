@@ -27,6 +27,7 @@ bool V4L2Scaler::Initialize() {
     if (!SetupOutputBuffer(config_.src_width, config_.src_height, config_.src_pix_fmt, src_memory,
                            BUFFER_NUM)) {
         ERROR_PRINT("Could not setup output buffer");
+        return false;
     }
     if (!SetupCaptureBuffer(config_.dst_width, config_.dst_height, V4L2_PIX_FMT_YUV420,
                             V4L2_MEMORY_MMAP, BUFFER_NUM, config_.is_dma_dst)) {

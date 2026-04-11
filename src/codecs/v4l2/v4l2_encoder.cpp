@@ -23,6 +23,18 @@ bool V4L2Encoder::Initialize() {
         return false;
     }
 
+    auto src_memory = config_.is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
+    if (!SetupOutputBuffer(config_.width, config_.height, config_.src_pix_fmt, src_memory,
+                           BUFFER_NUM)) {
+        ERROR_PRINT("Could not setup output buffer");
+        return false;
+    }
+    if (!SetupCaptureBuffer(config_.width, config_.height, V4L2_PIX_FMT_H264, V4L2_MEMORY_MMAP,
+                            BUFFER_NUM)) {
+        ERROR_PRINT("Could not setup capture buffer");
+        return false;
+    }
+
     SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     SetLevel(V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     SetIFrameInterval(config_.keyframe_interval);
@@ -38,17 +50,6 @@ bool V4L2Encoder::Initialize() {
 
     if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true)) {
         ERROR_PRINT("Could not set repeat seq header");
-    }
-
-    auto src_memory = config_.is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
-    if (!SetupOutputBuffer(config_.width, config_.height, config_.src_pix_fmt, src_memory,
-                           BUFFER_NUM)) {
-        ERROR_PRINT("Could not setup output buffer");
-    }
-    if (!SetupCaptureBuffer(config_.width, config_.height, V4L2_PIX_FMT_H264, V4L2_MEMORY_MMAP,
-                            BUFFER_NUM)) {
-        ERROR_PRINT("Could not setup capture buffer");
-        return false;
     }
 
     return true;
