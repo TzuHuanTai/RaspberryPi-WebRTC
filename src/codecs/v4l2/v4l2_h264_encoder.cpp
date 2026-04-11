@@ -58,9 +58,13 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
     auto v4l2_frame_buffer = V4L2FrameBufferRef(static_cast<V4L2FrameBuffer *>(frame_buffer.get()));
 
     if (!encoder_) {
-        encoder_ =
-            V4L2Encoder::Create(width_, height_, V4L2_PIX_FMT_YUV420,
-                                frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative);
+        EncoderConfig config;
+        config.width = width_;
+        config.height = height_;
+        config.src_pix_fmt = V4L2_PIX_FMT_YUV420;
+        config.is_dma_src = frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative;
+        config.keyframe_interval = 600;
+        encoder_ = V4L2Encoder::Create(config);
     }
 
     if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {

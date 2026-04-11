@@ -1,7 +1,7 @@
 #ifndef V4L2DMA_TRACK_SOURCE_H_
 #define V4L2DMA_TRACK_SOURCE_H_
 
-#include "common/interface/processor.h"
+#include "codecs/frame_processor.h"
 #include "track/scale_track_source.h"
 
 class V4L2DmaTrackSource : public ScaleTrackSource {

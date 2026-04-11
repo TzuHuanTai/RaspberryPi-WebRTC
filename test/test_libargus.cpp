@@ -8,8 +8,6 @@
 #include <string>
 #include <unistd.h>
 
-using namespace Argus;
-
 int main() {
     std::mutex mtx;
     std::condition_variable cond_var;
@@ -22,7 +20,7 @@ int main() {
 
     auto start_time = std::chrono::steady_clock::now();
     auto record_start_time = start_time;
-    auto observer = capturer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    auto observer = capturer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
         if (is_finished) {
             return;
         }

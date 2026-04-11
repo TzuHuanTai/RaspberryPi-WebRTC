@@ -5,11 +5,14 @@
 
 class V4L2Decoder : public V4L2Codec {
   public:
-    static std::unique_ptr<V4L2Decoder> Create(int width, int height, uint32_t src_pix_fmt,
-                                               bool is_dma_dst);
+    static std::unique_ptr<V4L2Decoder> Create(DecoderConfig config);
+    V4L2Decoder(DecoderConfig config);
+
+  protected:
+    bool Initialize() override;
 
   private:
-    void Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst);
+    DecoderConfig config_;
 };
 
 #endif // V4L2_DECODER_H_

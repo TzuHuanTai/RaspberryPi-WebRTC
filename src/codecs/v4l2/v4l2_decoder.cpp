@@ -4,24 +4,31 @@
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
-std::unique_ptr<V4L2Decoder> V4L2Decoder::Create(int width, int height, uint32_t src_pix_fmt,
-                                                 bool is_dma_dst) {
-    auto decoder = std::make_unique<V4L2Decoder>();
-    decoder->Configure(width, height, src_pix_fmt, is_dma_dst);
+std::unique_ptr<V4L2Decoder> V4L2Decoder::Create(DecoderConfig config) {
+    auto decoder = std::make_unique<V4L2Decoder>(config);
+    if (!decoder->Initialize()) {
+        return nullptr;
+    }
     decoder->Start();
     return decoder;
 }
 
-void V4L2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst) {
+V4L2Decoder::V4L2Decoder(DecoderConfig config)
+    : V4L2Codec(),
+      config_(config) {}
+
+bool V4L2Decoder::Initialize() {
     if (!Open(DECODER_FILE)) {
         ERROR_PRINT("Unable to turn on decoder: %s", DECODER_FILE);
+        return false;
     }
 
-    if (!SetupOutputBuffer(width, height, src_pix_fmt, V4L2_MEMORY_MMAP, BUFFER_NUM)) {
+    if (!SetupOutputBuffer(config_.width, config_.height, config_.src_pix_fmt, V4L2_MEMORY_MMAP,
+                           BUFFER_NUM)) {
         ERROR_PRINT("Could not setup output buffer");
     }
-    if (!SetupCaptureBuffer(width, height, V4L2_PIX_FMT_YUV420, V4L2_MEMORY_MMAP, BUFFER_NUM,
-                            is_dma_dst)) {
+    if (!SetupCaptureBuffer(config_.width, config_.height, V4L2_PIX_FMT_YUV420, V4L2_MEMORY_MMAP,
+                            BUFFER_NUM, config_.is_dma_dst)) {
         ERROR_PRINT("Could not setup capture buffer");
     }
 
@@ -30,5 +37,8 @@ void V4L2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is
     }
     if (!SubscribeEvent(V4L2_EVENT_EOS)) {
         ERROR_PRINT("Could not subscribe EOS event");
+        return false;
     }
+
+    return true;
 }

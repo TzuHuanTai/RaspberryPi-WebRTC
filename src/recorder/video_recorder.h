@@ -14,11 +14,11 @@ extern "C" {
 #include "common/v4l2_frame_buffer.h"
 #include "recorder/recorder.h"
 
-class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
+class VideoRecorder : public Recorder<V4L2FrameBufferRef> {
   public:
     VideoRecorder(int width, int height, int fps, AVCodecID encoder_id);
-    virtual ~VideoRecorder(){};
-    void OnBuffer(rtc::scoped_refptr<V4L2FrameBuffer> buffer) override;
+    virtual ~VideoRecorder() {};
+    void OnBuffer(V4L2FrameBufferRef buffer) override;
     void OnStart() override final;
 
   protected:
@@ -26,10 +26,10 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4L2FrameBuffer>> {
     int width;
     int height;
     AVCodecID encoder_id;
-    ThreadSafeQueue<rtc::scoped_refptr<V4L2FrameBuffer>> frame_buffer_queue;
+    ThreadSafeQueue<V4L2FrameBufferRef> frame_buffer_queue;
 
     virtual void ReleaseEncoder() = 0;
-    virtual void Encode(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) = 0;
+    virtual void Encode(V4L2FrameBufferRef frame_buffer) = 0;
 
     bool ConsumeBuffer() override;
     void OnEncoded(uint8_t *start, uint32_t length, timeval timestamp, uint32_t flags = 0);

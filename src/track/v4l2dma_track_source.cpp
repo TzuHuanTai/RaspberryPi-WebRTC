@@ -52,10 +52,10 @@ void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
             config_width_ = adapted_width;
             config_height_ = adapted_height;
 #if defined(USE_RPI_HW_ENCODER)
-            scaler = V4L2Scaler::Create(width, height, frame_buffer->format(), config_width_,
-                                        config_height_, is_dma_src_, true);
+            scaler = V4L2Scaler::Create({width, height, config_width_, config_height_,
+                                         frame_buffer->format(), is_dma_src_, true});
 #elif defined(USE_JETSON_HW_ENCODER)
-            scaler = JetsonScaler::Create(width, height, config_width_, config_height_);
+            scaler = JetsonScaler::Create({width, height, config_width_, config_height_});
 #endif
             DEBUG_PRINT("New scaler is set: %dx%d -> %dx%d", width, height, config_width_,
                         config_height_);

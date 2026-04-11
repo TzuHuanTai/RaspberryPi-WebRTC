@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
     Args args{
         .camera_id = 1, .fps = 15, .width = 640, .height = 480, .format = V4L2_PIX_FMT_YUV420};
 
-    auto scaler = V4L2Scaler::Create(args.width, args.height, V4L2_PIX_FMT_YUV420, scaled_width,
-                                     scaled_height, false, false);
+    auto scaler = V4L2Scaler::Create(
+        {args.width, args.height, scaled_width, scaled_height, V4L2_PIX_FMT_YUV420, false, false});
 
     auto capturer = V4L2Capturer::Create(args);
     auto observer = capturer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {

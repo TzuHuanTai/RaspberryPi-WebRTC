@@ -40,10 +40,8 @@ class StreamHandler : public Subject<V4L2FrameBufferRef> {
     uint32_t height() const { return size_.height(); }
     Argus::Size2D<uint32_t> GetSize() const { return size_; }
 
-    void SetFrameBuffer(rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
-        frame_buffer_ = frame_buffer;
-    }
-    rtc::scoped_refptr<V4L2FrameBuffer> GetFrameBuffer() { return frame_buffer_; }
+    void SetFrameBuffer(V4L2FrameBufferRef frame_buffer) { frame_buffer_ = frame_buffer; }
+    V4L2FrameBufferRef GetFrameBuffer() { return frame_buffer_; }
     void SetOutputStream(Argus::OutputStream *stream) { output_stream_ = stream; }
     void StartCapture();
 
@@ -58,7 +56,7 @@ class StreamHandler : public Subject<V4L2FrameBufferRef> {
     EGLStream::IFrameConsumer *i_consumer_ = nullptr;
 
     std::unique_ptr<Worker> worker_;
-    rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer_;
+    V4L2FrameBufferRef frame_buffer_;
 
     void CaptureImage();
     void DestroyNvBufferFromFd();

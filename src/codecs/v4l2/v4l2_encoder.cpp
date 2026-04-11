@@ -3,45 +3,55 @@
 
 const char *ENCODER_FILE = "/dev/video11";
 const int BUFFER_NUM = 2;
-const int KEY_FRAME_INTERVAL = 600;
 
-std::unique_ptr<V4L2Encoder> V4L2Encoder::Create(int width, int height, uint32_t src_pix_fmt,
-                                                 bool is_dma_src) {
-    auto encoder = std::make_unique<V4L2Encoder>();
-    encoder->Configure(width, height, src_pix_fmt, is_dma_src);
+std::unique_ptr<V4L2Encoder> V4L2Encoder::Create(EncoderConfig config) {
+    auto encoder = std::make_unique<V4L2Encoder>(config);
+    if (!encoder->Initialize()) {
+        return nullptr;
+    }
     encoder->Start();
     return encoder;
 }
 
-V4L2Encoder::V4L2Encoder()
+V4L2Encoder::V4L2Encoder(EncoderConfig config)
     : V4L2Codec(),
-      framerate_(30),
-      bitrate_bps_(2 * 1024 * 1024) {}
+      config_(config) {}
 
-void V4L2Encoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_src) {
+bool V4L2Encoder::Initialize() {
     if (!Open(ENCODER_FILE)) {
         ERROR_PRINT("Unable to turn on encoder: %s", ENCODER_FILE);
+        return false;
     }
 
     SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     SetLevel(V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
-    SetIFrameInterval(KEY_FRAME_INTERVAL);
+    SetIFrameInterval(config_.keyframe_interval);
+    SetRateControlMode(config_.rc_mode);
 
-    if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_)) {
+    if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_BITRATE, config_.bitrate)) {
         ERROR_PRINT("Could not set bitrate");
+    }
+
+    if (!V4L2Codec::SetFps(config_.fps)) {
+        ERROR_PRINT("Failed to set output fps: %d", config_.fps);
     }
 
     if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true)) {
         ERROR_PRINT("Could not set repeat seq header");
     }
 
-    auto src_memory = is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
-    if (!SetupOutputBuffer(width, height, src_pix_fmt, src_memory, BUFFER_NUM)) {
+    auto src_memory = config_.is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
+    if (!SetupOutputBuffer(config_.width, config_.height, config_.src_pix_fmt, src_memory,
+                           BUFFER_NUM)) {
         ERROR_PRINT("Could not setup output buffer");
     }
-    if (!SetupCaptureBuffer(width, height, V4L2_PIX_FMT_H264, V4L2_MEMORY_MMAP, BUFFER_NUM)) {
+    if (!SetupCaptureBuffer(config_.width, config_.height, V4L2_PIX_FMT_H264, V4L2_MEMORY_MMAP,
+                            BUFFER_NUM)) {
         ERROR_PRINT("Could not setup capture buffer");
+        return false;
     }
+
+    return true;
 }
 
 void V4L2Encoder::ForceKeyFrame() {
@@ -62,10 +72,10 @@ void V4L2Encoder::SetProfile(uint32_t profile) {
 }
 
 void V4L2Encoder::SetFps(uint32_t adjusted_fps) {
-    if (framerate_ != adjusted_fps) {
-        framerate_ = adjusted_fps;
-        if (!V4L2Codec::SetFps(framerate_)) {
-            ERROR_PRINT("Failed to set output fps: %d", framerate_);
+    if (config_.fps != adjusted_fps) {
+        config_.fps = adjusted_fps;
+        if (!V4L2Codec::SetFps(config_.fps)) {
+            ERROR_PRINT("Failed to set output fps: %d", config_.fps);
         }
     }
 }
@@ -88,10 +98,10 @@ void V4L2Encoder::SetBitrate(uint32_t adjusted_bitrate_bps) {
         adjusted_bitrate_bps = (adjusted_bitrate_bps / 25000) * 25000;
     }
 
-    if (bitrate_bps_ != adjusted_bitrate_bps) {
-        bitrate_bps_ = adjusted_bitrate_bps;
-        if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_)) {
-            ERROR_PRINT("Failed to set bitrate: %d bps", bitrate_bps_);
+    if (config_.bitrate != adjusted_bitrate_bps) {
+        config_.bitrate = adjusted_bitrate_bps;
+        if (!SetExtCtrl(V4L2_CID_MPEG_VIDEO_BITRATE, config_.bitrate)) {
+            ERROR_PRINT("Failed to set bitrate: %d bps", config_.bitrate);
         }
     }
 }

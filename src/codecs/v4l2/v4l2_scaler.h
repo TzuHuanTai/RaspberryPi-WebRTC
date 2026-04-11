@@ -5,13 +5,15 @@
 
 class V4L2Scaler : public V4L2Codec {
   public:
-    static std::unique_ptr<V4L2Scaler> Create(int src_width, int src_height, uint32_t src_pix_fmt,
-                                              int dst_width, int dst_height, bool is_dma_src,
-                                              bool is_dma_dst);
+    static std::unique_ptr<V4L2Scaler> Create(ScalerConfig config);
+
+    V4L2Scaler(ScalerConfig config);
+
+  protected:
+    bool Initialize() override;
 
   private:
-    void Configure(int src_width, int src_height, uint32_t src_pix_fmt, int dst_width,
-                   int dst_height, bool is_drm_src, bool is_drm_dst);
+    ScalerConfig config_;
 };
 
 #endif // V4L2_SCALER_H_

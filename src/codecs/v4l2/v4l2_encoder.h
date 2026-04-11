@@ -6,11 +6,12 @@
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 
+#include "codecs/frame_processor.h"
+
 class V4L2Encoder : public V4L2Codec {
   public:
-    static std::unique_ptr<V4L2Encoder> Create(int width, int height, uint32_t src_pix_fmt,
-                                               bool is_dma_src);
-    V4L2Encoder();
+    static std::unique_ptr<V4L2Encoder> Create(EncoderConfig config);
+    V4L2Encoder(EncoderConfig config);
 
     void ForceKeyFrame();
     void SetLevel(uint32_t level);
@@ -20,11 +21,11 @@ class V4L2Encoder : public V4L2Codec {
     void SetIFrameInterval(uint32_t interval);
     void SetBitrate(uint32_t adjusted_bitrate_bps);
 
-  private:
-    int framerate_;
-    int bitrate_bps_;
+  protected:
+    bool Initialize() override;
 
-    void Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_src);
+  private:
+    EncoderConfig config_;
 };
 
 #endif // V4L2_ENCODER_H_

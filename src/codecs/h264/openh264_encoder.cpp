@@ -3,17 +3,14 @@
 #include "common/logging.h"
 #include "common/utils.h"
 
-std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(int width, int height, int fps) {
-    auto ptr = std::make_unique<Openh264Encoder>(width, height, fps);
+std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(EncoderConfig config) {
+    auto ptr = std::make_unique<Openh264Encoder>(config);
     ptr->Init();
     return ptr;
 }
 
-Openh264Encoder::Openh264Encoder(int width, int height, int fps)
-    : fps_(fps),
-      width_(width),
-      height_(height),
-      bitrate_(width_ * height_ * fps_ * 0.1),
+Openh264Encoder::Openh264Encoder(EncoderConfig config)
+    : config_(config),
       encoder_(nullptr) {}
 
 Openh264Encoder::~Openh264Encoder() {
@@ -33,15 +30,16 @@ void Openh264Encoder::Init() {
     encoder_->GetDefaultParams(&encoder_param);
     encoder_param.iUsageType = CAMERA_VIDEO_REAL_TIME;
     encoder_param.iTemporalLayerNum = 1;
-    encoder_param.uiIntraPeriod = fps_;
+    encoder_param.uiIntraPeriod = config_.keyframe_interval;
     encoder_param.uiMaxNalSize = 0;
-    encoder_param.iRCMode = RC_BITRATE_MODE;
+    encoder_param.iRCMode =
+        (config_.rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ? RC_QUALITY_MODE : RC_BITRATE_MODE;
     encoder_param.bEnableFrameSkip = true;
     encoder_param.iMinQp = 18;
     encoder_param.iMaxQp = 40;
-    encoder_param.fMaxFrameRate = fps_;
-    encoder_param.iTargetBitrate = bitrate_;
-    encoder_param.iMaxBitrate = bitrate_ * 1.2;
+    encoder_param.fMaxFrameRate = config_.fps;
+    encoder_param.iTargetBitrate = config_.bitrate;
+    encoder_param.iMaxBitrate = config_.bitrate * 1.2;
 
     encoder_param.iMultipleThreadIdc = 4;
     encoder_param.iComplexityMode = LOW_COMPLEXITY;
@@ -52,11 +50,12 @@ void Openh264Encoder::Init() {
     spartialLayerConfiguration->sSliceArgument.uiSliceMode = SM_FIXEDSLCNUM_SLICE;
     spartialLayerConfiguration->sSliceArgument.uiSliceNum = 4;
     spartialLayerConfiguration->uiProfileIdc = PRO_BASELINE;
-    encoder_param.iPicWidth = spartialLayerConfiguration->iVideoWidth = width_;
-    encoder_param.iPicHeight = spartialLayerConfiguration->iVideoHeight = height_;
-    encoder_param.fMaxFrameRate = spartialLayerConfiguration->fFrameRate = fps_;
-    encoder_param.iTargetBitrate = spartialLayerConfiguration->iSpatialBitrate = bitrate_;
-    encoder_param.iMaxBitrate = spartialLayerConfiguration->iMaxSpatialBitrate = bitrate_ * 1.2;
+    encoder_param.iPicWidth = spartialLayerConfiguration->iVideoWidth = config_.width;
+    encoder_param.iPicHeight = spartialLayerConfiguration->iVideoHeight = config_.height;
+    encoder_param.fMaxFrameRate = spartialLayerConfiguration->fFrameRate = config_.fps;
+    encoder_param.iTargetBitrate = spartialLayerConfiguration->iSpatialBitrate = config_.bitrate;
+    encoder_param.iMaxBitrate = spartialLayerConfiguration->iMaxSpatialBitrate =
+        config_.bitrate * 1.2;
 
     rv = encoder_->InitializeExt(&encoder_param);
     if (rv != 0) {
@@ -68,8 +67,8 @@ void Openh264Encoder::Init() {
 void Openh264Encoder::Encode(rtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,
                              std::function<void(uint8_t *, int, bool)> on_capture) {
     src_pic_ = {0};
-    src_pic_.iPicWidth = width_;
-    src_pic_.iPicHeight = height_;
+    src_pic_.iPicWidth = config_.width;
+    src_pic_.iPicHeight = config_.height;
     src_pic_.iColorFormat = videoFormatI420;
     src_pic_.iStride[0] = frame_buffer->StrideY();
     src_pic_.iStride[1] = frame_buffer->StrideU();

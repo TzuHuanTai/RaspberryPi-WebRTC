@@ -3,19 +3,18 @@
 
 #include <chrono>
 
-std::unique_ptr<JetsonScaler> JetsonScaler::Create(int src_width, int src_height, int dst_width,
-                                                   int dst_height) {
-    auto scaler = std::make_unique<JetsonScaler>();
-    if (!scaler->Configure(src_width, src_height, dst_width, dst_height)) {
+std::unique_ptr<JetsonScaler> JetsonScaler::Create(ScalerConfig config) {
+    auto scaler = std::make_unique<JetsonScaler>(config);
+    if (!scaler->Initialize()) {
         return nullptr;
     }
-
     scaler->Start();
     return scaler;
 }
 
-JetsonScaler::JetsonScaler()
-    : num_buffer_(2),
+JetsonScaler::JetsonScaler(ScalerConfig config)
+    : config_(config),
+      num_buffer_(2),
       abort_(false),
       free_buffers_(num_buffer_),
       capturing_tasks_(num_buffer_) {}
@@ -40,34 +39,33 @@ JetsonScaler::~JetsonScaler() {
     DEBUG_PRINT("~JetsonScaler");
 }
 
-bool JetsonScaler::Configure(int src_width, int src_height, int dst_width, int dst_height) {
-    dst_width_ = dst_width;
-    dst_height_ = dst_height;
-
+bool JetsonScaler::Initialize() {
     memset(&transform_params_, 0, sizeof(transform_params_));
     transform_params_.src_top = 0;
     transform_params_.src_left = 0;
-    transform_params_.src_width = src_width;
-    transform_params_.src_height = src_height;
+    transform_params_.src_width = config_.src_width;
+    transform_params_.src_height = config_.src_height;
     transform_params_.dst_top = 0;
     transform_params_.dst_left = 0;
-    transform_params_.dst_width = dst_width;
-    transform_params_.dst_height = dst_height;
+    transform_params_.dst_width = config_.dst_width;
+    transform_params_.dst_height = config_.dst_height;
     transform_params_.flip = NvBufSurfTransform_None;
     transform_params_.filter = NvBufSurfTransformInter_Nearest;
 
     for (int i = 0; i < num_buffer_; ++i) {
         int dmafd;
-        NvBufSurf::NvCommonAllocateParams cParams;
-        cParams.width = dst_width;
-        cParams.height = dst_height;
+        NvBufSurf::NvCommonAllocateParams cParams{};
+        cParams.width = config_.dst_width;
+        cParams.height = config_.dst_height;
         cParams.layout = NVBUF_LAYOUT_BLOCK_LINEAR;
         cParams.colorFormat = NVBUF_COLOR_FORMAT_NV12;
         cParams.memtag = NvBufSurfaceTag_VIDEO_ENC;
         cParams.memType = NVBUF_MEM_SURFACE_ARRAY;
 
-        if (NvBufSurf::NvAllocate(&cParams, 1, &dmafd) < 0)
+        if (NvBufSurf::NvAllocate(&cParams, 1, &dmafd) < 0) {
+            ERROR_PRINT("Failed to allocate NvBuffer");
             return false;
+        }
 
         free_buffers_.push(dmafd);
     }
@@ -108,7 +106,8 @@ void JetsonScaler::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
     task.callback = [this, dst_dma_fd, on_capture]() {
         auto v4l2_buffer =
             V4L2Buffer::FromCapturedPlane(nullptr, 0, dst_dma_fd, 0, V4L2_PIX_FMT_NV12);
-        auto scaled_frame = V4L2FrameBuffer::Create(dst_width_, dst_height_, v4l2_buffer);
+        auto scaled_frame =
+            V4L2FrameBuffer::Create(config_.dst_width, config_.dst_height, v4l2_buffer);
         on_capture(scaled_frame);
         free_buffers_.push(dst_dma_fd);
     };

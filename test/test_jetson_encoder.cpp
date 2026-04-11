@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/libargus_buffer_capturer.h"
+#include "capturer/libargus_egl_capturer.h"
 #include "codecs/jetson/jetson_encoder.h"
 
 #include <chrono>
@@ -24,15 +24,16 @@ int main(int argc, char *argv[]) {
         .hw_accel = false, // hw will use dma fd
     };
 
-    auto capturer = LibargusBufferCapturer::Create(args);
-    auto encoder = JetsonEncoder::Create(args.width, args.height, V4L2_PIX_FMT_H264, false);
+    auto capturer = LibargusEglCapturer::Create(args);
+    auto encoder = JetsonEncoder::Create(
+        {.width = args.width, .height = args.height, .dst_pix_fmt = V4L2_PIX_FMT_H264});
 
     int cam_frame_count = 0;
     auto cam_start_time = std::chrono::steady_clock::now();
     int frame_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 
-    auto observer = capturer->Subscribe([&](rtc::scoped_refptr<V4L2FrameBuffer> frame_buffer) {
+    auto observer = capturer->Subscribe([&](V4L2FrameBufferRef frame_buffer) {
         auto cam_current_time = std::chrono::steady_clock::now();
         cam_frame_count++;
 
