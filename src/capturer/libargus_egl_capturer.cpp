@@ -1,13 +1,64 @@
 #include "libargus_egl_capturer.h"
 
+#include <cstdlib>
 #include <iostream>
+#include <string>
 #include <sys/mman.h>
 
 #include "common/utils.h"
 
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
 
+namespace {
+
+bool IsForwardedX11Display(const char *display) {
+    if (!display || !display[0]) {
+        return false;
+    }
+
+    const std::string value(display);
+    return value.rfind("localhost:", 0) == 0 || value.rfind("127.0.0.1:", 0) == 0 ||
+           value.rfind("[::1]:", 0) == 0;
+}
+
+void DisableForwardedX11DisplayForHeadlessArgus() {
+    const char *display = std::getenv("DISPLAY");
+    if (!display || !display[0]) {
+        return;
+    }
+
+    const bool in_ssh_session =
+        std::getenv("SSH_CONNECTION") || std::getenv("SSH_CLIENT") || std::getenv("SSH_TTY");
+    if (!in_ssh_session || !IsForwardedX11Display(display)) {
+        return;
+    }
+
+    INFO_PRINT(
+        "Detected SSH X11 forwarding via DISPLAY=%s; clearing DISPLAY for headless libargus/EGL.",
+        display);
+    unsetenv("DISPLAY");
+}
+
+std::string BuildCreateOutputStreamError() {
+    const char *display = std::getenv("DISPLAY");
+    std::string message = "Failed to create Argus EGL output stream";
+    if (display && display[0]) {
+        message += " (DISPLAY=";
+        message += display;
+        message += ")";
+    } else {
+        message += " (DISPLAY is unset)";
+    }
+    message += ". If this process is started through SSH with X11 forwarding, disable forwarding "
+               "or leave DISPLAY unset.";
+    return message;
+}
+
+} // namespace
+
 std::shared_ptr<LibargusEglCapturer> LibargusEglCapturer::Create(Args args) {
+    DisableForwardedX11DisplayForHeadlessArgus();
+
     auto ptr = std::make_shared<LibargusEglCapturer>(args);
     ptr->Initialize();
     ptr->StartCapture();
@@ -226,6 +277,9 @@ void LibargusEglCapturer::InitStreams() {
         iegl_stream_settings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
         iegl_stream_settings->setResolution(stream_handlers_[i]->GetSize());
         output_streams_[i].reset(icapture_session_->createOutputStream(stream_settings.get()));
+        if (!output_streams_[i]) {
+            throw std::runtime_error(BuildCreateOutputStreamError());
+        }
         stream_handlers_[i]->SetOutputStream(output_streams_[i].get());
     }
 
