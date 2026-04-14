@@ -15,3 +15,6 @@ build
 proto
 
 !/doc/*.jpg
+
+# local config files
+config/*.local.yml
