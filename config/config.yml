@@ -1,0 +1,40 @@
+# pi-webrtc configuration file
+# All long-form CLI options are supported as YAML keys (without the leading --).
+# Command-line arguments always take priority over values defined here.
+# Boolean flags use true/false.
+
+# ── Video input ──────────────────────────────────────────────────────────────
+camera: libcamera:0
+fps: 60
+width: 1920
+height: 1080
+
+# ── Hardware / encoding ──────────────────────────────────────────────────────
+hw-accel: true # Set to false if using Raspberry Pi 5 (Not hardware encoding capable)
+no-adaptive: false
+
+# ── Audio ────────────────────────────────────────────────────────────────────
+no-audio: true
+
+# ── Device identity ──────────────────────────────────────────────────────────
+uid: your-device-uid
+
+# ── MQTT signaling ───────────────────────────────────────────────────────────
+use-mqtt: true
+mqtt-host: your-mqtt-broker.example.com
+mqtt-port: 8883
+mqtt-username: your-mqtt-username
+mqtt-password: your-mqtt-password
+
+# ── WebSocket signaling ──────────────────────────────────────────────────────
+use-websocket: true
+use-tls: true
+ws-host: your-sfu-host.example.com
+ws-key: your-api-key
+ws-room: your-room-name
+
+# ── IPC ──────────────────────────────────────────────────────────────────────
+enable-ipc: true
+
+# ── Recording ────────────────────────────────────────────────────────────────
+record-path: /path/to/recording/output

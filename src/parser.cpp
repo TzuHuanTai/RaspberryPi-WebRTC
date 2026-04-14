@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <boost/program_options.hpp>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <yaml-cpp/yaml.h>
 
 #if defined(USE_LIBCAMERA_CAPTURE)
 #include <libcamera/libcamera.h>
@@ -223,13 +225,45 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("ws-room", bpo::value<std::string>(&args.ws_room)->default_value(args.ws_room),
             "The room name to join on the SFU server.")
         ("ws-key", bpo::value<std::string>(&args.ws_key)->default_value(args.ws_key),
-            "The API key used to authenticate with the SFU server.");
+            "The API key used to authenticate with the SFU server.")
+        ("config", bpo::value<std::string>()->default_value(""),
+            "Path to a YAML configuration file. All CLI options can be specified as YAML keys. "
+            "Command-line arguments take priority over values in the config file.");
     // clang-format on
 
     bpo::variables_map vm;
     try {
+        // Store CLI arguments first so they take priority over config file values
         bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
+
+        // Load YAML config file if --config was provided
+        const std::string config_path = vm["config"].as<std::string>();
+        if (!config_path.empty()) {
+            YAML::Node yaml = YAML::LoadFile(config_path);
+            if (!yaml.IsMap()) {
+                std::cerr << "Config file '" << config_path << "' must be a YAML mapping."
+                          << std::endl;
+                exit(1);
+            }
+            // Convert YAML map to boost config-file (INI-style key=value).
+            // bpo::store will not overwrite keys already set by the CLI above.
+            std::istringstream ini;
+            std::string ini_str;
+            for (auto it = yaml.begin(); it != yaml.end(); ++it) {
+                if (it->second.IsScalar()) {
+                    ini_str +=
+                        it->first.as<std::string>() + "=" + it->second.as<std::string>() + "\n";
+                }
+            }
+            ini.str(ini_str);
+            // allow_unregistered=true so unknown YAML keys don't cause errors
+            bpo::store(bpo::parse_config_file(ini, opts, /*allow_unregistered=*/true), vm);
+        }
+
         bpo::notify(vm);
+    } catch (const YAML::Exception &ex) {
+        std::cerr << "Error loading config file: " << ex.what() << std::endl;
+        exit(1);
     } catch (const bpo::error &ex) {
         std::cerr << "Error parsing arguments: " << ex.what() << std::endl;
         exit(1);
