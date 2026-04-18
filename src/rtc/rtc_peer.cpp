@@ -1,7 +1,8 @@
 #include "rtc/rtc_peer.h"
 
-#include <chrono>
 #include <regex>
+
+#include <rtc_base/thread.h>
 
 #include "rtc/sfu_channel.h"
 
@@ -14,9 +15,7 @@ RtcPeer::RtcPeer(PeerConfig config)
       timeout_(config.timeout),
       is_sfu_peer_(config.is_sfu_peer),
       is_publisher_(config.is_publisher),
-      has_candidates_in_sdp_(config.has_candidates_in_sdp),
-      is_connected_(false),
-      is_complete_(false) {}
+      has_candidates_in_sdp_(config.has_candidates_in_sdp) {}
 
 RtcPeer::~RtcPeer() {
     Terminate();
@@ -34,13 +33,6 @@ void RtcPeer::CreateOffer() {
 void RtcPeer::Terminate() {
     is_connected_.store(false);
     is_complete_.store(true);
-
-    if (peer_timeout_.joinable()) {
-        peer_timeout_.join();
-    }
-    if (sent_sdp_timeout_.joinable()) {
-        sent_sdp_timeout_.join();
-    }
 
     on_local_sdp_fn_ = nullptr;
     on_local_ice_fn_ = nullptr;
@@ -161,14 +153,28 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
     signaling_state_ = new_state;
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
+    is_negotiating_.store(
+        new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveLocalOffer ||
+        new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer);
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
-        peer_timeout_ = std::thread([this]() {
-            std::this_thread::sleep_for(std::chrono::seconds(timeout_));
-            if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
-                DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
-                peer_connection_->Close();
-            }
-        });
+        // Cancel any previous timeout and schedule a new one on the signaling thread.
+        peer_timeout_safety_ = webrtc::ScopedTaskSafetyDetached();
+        webrtc::Thread::Current()->PostDelayedTask(
+            webrtc::SafeTask(
+                peer_timeout_safety_.flag(),
+                [this]() {
+                    if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
+                        DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
+                        peer_connection_->Close();
+                    }
+                }),
+            webrtc::TimeDelta::Seconds(timeout_));
+    } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kStable &&
+               is_connected_.load() && !needs_renegotiation_ && !is_sfu_peer_) {
+        // Renegotiation completed — clean up signaling callbacks
+        DEBUG_PRINT("Renegotiation completed, cleaning up signaling callbacks.");
+        on_local_ice_fn_ = nullptr;
+        on_local_sdp_fn_ = nullptr;
     }
 }
 
@@ -204,8 +210,15 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         is_connected_.store(true);
-        on_local_ice_fn_ = nullptr;
-        on_local_sdp_fn_ = nullptr;
+        if (needs_renegotiation_ &&
+            signaling_state_ == webrtc::PeerConnectionInterface::SignalingState::kStable) {
+            needs_renegotiation_ = false;
+            DEBUG_PRINT("Triggering renegotiation for un-negotiated tracks.");
+            CreateOffer();
+        } else if (!needs_renegotiation_ && !is_sfu_peer_) {
+            on_local_ice_fn_ = nullptr;
+            on_local_sdp_fn_ = nullptr;
+        }
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
         peer_connection_->Close();
@@ -227,6 +240,20 @@ void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     }
 }
 
+void RtcPeer::OnRenegotiationNeeded() {
+    if (is_sfu_peer_) {
+        return; // SFU controls negotiation; never renegotiate from client side.
+    }
+    DEBUG_PRINT("OnRenegotiationNeeded for peer %s", id_.c_str());
+    needs_renegotiation_ = true;
+    if (is_connected_.load() &&
+        signaling_state_ == webrtc::PeerConnectionInterface::SignalingState::kStable) {
+        needs_renegotiation_ = false;
+        DEBUG_PRINT("Triggering renegotiation (already connected and stable).");
+        CreateOffer();
+    }
+}
+
 void RtcPeer::OnTrack(webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
     if (transceiver->receiver()->media_type() == webrtc::MediaType::VIDEO && custom_video_sink_) {
         auto track = transceiver->receiver()->track();
@@ -245,6 +272,8 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     // modified_sdp_ = ModifySetupAttribute(sdp, "passive");
     modified_sdp_ = sdp;
     webrtc::SdpParseError modified_desc_error_;
+    // Release previous description — PeerConnection took ownership via SetLocalDescription.
+    modified_desc_.release();
     modified_desc_ =
         webrtc::CreateSessionDescription(desc->GetType(), modified_sdp_, &modified_desc_error_);
     if (!modified_desc_) {
@@ -268,22 +297,21 @@ void RtcPeer::EmitLocalSdp(int delay_sec) {
         return;
     }
 
-    if (sent_sdp_timeout_.joinable()) {
-        sent_sdp_timeout_.join();
-    }
+    // Cancel any previously scheduled SDP emit.
+    sdp_emit_safety_ = webrtc::ScopedTaskSafetyDetached();
 
     auto send_sdp = [this]() {
         std::string type = webrtc::SdpTypeToString(modified_desc_->GetType());
         modified_desc_->ToString(&modified_sdp_);
         on_local_sdp_fn_(id_, modified_sdp_, type);
-        on_local_sdp_fn_ = nullptr;
     };
 
     if (delay_sec > 0) {
-        sent_sdp_timeout_ = std::thread([this, send_sdp, delay_sec]() {
-            std::this_thread::sleep_for(std::chrono::seconds(delay_sec));
-            send_sdp();
-        });
+        webrtc::Thread::Current()->PostDelayedTask(webrtc::SafeTask(sdp_emit_safety_.flag(),
+                                                                    [this, send_sdp]() {
+                                                                        send_sdp();
+                                                                    }),
+                                                   webrtc::TimeDelta::Seconds(delay_sec));
     } else {
         send_sdp();
     }
@@ -295,7 +323,7 @@ void RtcPeer::OnFailure(webrtc::RTCError error) {
 }
 
 void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) {
-    if (is_connected_.load()) {
+    if (!is_negotiating_.load() && sdp_type != "offer") {
         return;
     }
 
@@ -326,7 +354,7 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
 
 void RtcPeer::SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
                            const std::string &candidate) {
-    if (is_connected_.load()) {
+    if (is_connected_.load() && !is_negotiating_.load()) {
         return;
     }
 

@@ -2,10 +2,10 @@
 #define RTC_PEER_H_
 
 #include <atomic>
-#include <thread>
 
 #include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
+#include <api/task_queue/pending_task_safety_flag.h>
 #include <api/video/video_sink_interface.h>
 
 #include "args.h"
@@ -132,6 +132,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void
     OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
+    void OnRenegotiationNeeded() override;
     void OnTrack(webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override;
 
     // CreateSessionDescriptionObserver implementation.
@@ -146,10 +147,12 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     bool is_sfu_peer_;
     bool is_publisher_;
     bool has_candidates_in_sdp_;
-    std::atomic<bool> is_connected_;
-    std::atomic<bool> is_complete_;
-    std::thread peer_timeout_;
-    std::thread sent_sdp_timeout_;
+    bool needs_renegotiation_ = false;
+    std::atomic<bool> is_connected_ = false;
+    std::atomic<bool> is_complete_ = false;
+    std::atomic<bool> is_negotiating_ = false;
+    webrtc::ScopedTaskSafetyDetached peer_timeout_safety_;
+    webrtc::ScopedTaskSafetyDetached sdp_emit_safety_;
 
     std::string modified_sdp_;
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;

@@ -22,21 +22,7 @@ MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
       password_(args.mqtt_password),
-      sdp_base_topic_(GetTopic("sdp")),
-      ice_base_topic_(GetTopic("ice")),
       connection_(nullptr) {}
-
-std::string MqttService::GetTopic(const std::string &topic, const std::string &client_id) const {
-    std::string result;
-    if (!uid_.empty()) {
-        result = uid_ + "/";
-    }
-    result += topic;
-    if (!client_id.empty()) {
-        result += "/" + client_id;
-    }
-    return result;
-}
 
 MqttService::~MqttService() { Disconnect(); }
 
@@ -66,19 +52,22 @@ void MqttService::OnRemoteIce(const std::string &peer_id, const std::string &mes
     }
 }
 
-void MqttService::AnswerLocalSdp(const std::string &peer_id, const std::string &sdp,
-                                 const std::string &type) {
-    DEBUG_PRINT("Answer local [%s] SDP: %s", type.c_str(), sdp.c_str());
+void MqttService::OnLocalSdp(const std::string &peer_id, const std::string &sdp,
+                             const std::string &type) {
+    DEBUG_PRINT("Sent local [%s] SDP: %s", type.c_str(), sdp.c_str());
     nlohmann::json jsonData;
     jsonData["type"] = type;
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
-
-    Publish(GetTopic("sdp", peer_id_to_client_id_[peer_id]), jsonString);
+    if (type == "offer") {
+        Publish(GetTopic(TopicType::Offer, peer_id_to_client_id_[peer_id]), jsonString);
+    } else if (type == "answer") {
+        Publish(GetTopic(TopicType::Answer, peer_id_to_client_id_[peer_id]), jsonString);
+    }
 }
 
-void MqttService::AnswerLocalIce(const std::string &peer_id, const std::string &sdp_mid,
-                                 const int sdp_mline_index, const std::string &candidate) {
+void MqttService::OnLocalIce(const std::string &peer_id, const std::string &sdp_mid,
+                             const int sdp_mline_index, const std::string &candidate) {
     DEBUG_PRINT("Sent local ICE:  %s, %d, %s", sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
@@ -86,7 +75,7 @@ void MqttService::AnswerLocalIce(const std::string &peer_id, const std::string &
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    Publish(GetTopic("ice", peer_id_to_client_id_[peer_id]), jsonString);
+    Publish(GetTopic(TopicType::Ice, peer_id_to_client_id_[peer_id]), jsonString);
 }
 
 void MqttService::Disconnect() {
@@ -143,8 +132,9 @@ void MqttService::Unsubscribe(const std::string &topic) {
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int rc) {
     if (rc == 0) {
         INFO_PRINT("MQTT connected to broker %s:%d", hostname_.c_str(), port_);
-        Subscribe(sdp_base_topic_ + "/+/offer");
-        Subscribe(ice_base_topic_ + "/+/offer");
+        Subscribe(GetTopic(TopicType::Offer, "+"));
+        Subscribe(GetTopic(TopicType::Answer, "+"));
+        Subscribe(GetTopic(TopicType::Ice, "+"));
         INFO_PRINT("MQTT service is ready.");
     } else {
         ERROR_PRINT("MQTT connect failed: %s", mosquitto_strerror(rc));
@@ -158,10 +148,20 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
     std::string topic(message->topic);
     std::string payload(static_cast<char *>(message->payload));
+    TopicType topic_type = FindTopicType(topic);
+    if (topic_type == TopicType::Unknown) {
+        ERROR_PRINT("Unknown MQTT topic: %s", topic.c_str());
+        return;
+    }
 
-    auto client_id = GetClientId(topic);
+    auto client_id = FindClientId(topic);
+    if (client_id.empty()) {
+        ERROR_PRINT("Missing client id in MQTT topic: %s", topic.c_str());
+        return;
+    }
 
-    if (topic.starts_with(sdp_base_topic_)) {
+    if (topic_type == TopicType::Offer) {
+        // Initial offer from client: create a new peer
         auto peer = CreatePeer();
         if (!peer) {
             ERROR_PRINT("Failed to create peer.");
@@ -170,40 +170,59 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
         peer->OnLocalSdp(
             [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
-                AnswerLocalSdp(peer_id, sdp, type);
+                OnLocalSdp(peer_id, sdp, type);
             });
         peer->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
                                 int sdp_mline_index, const std::string &candidate) {
-            AnswerLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
+            OnLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
         });
 
         client_id_to_peer_id_[client_id] = peer->id();
         peer_id_to_client_id_[peer->id()] = client_id;
 
         OnRemoteSdp(client_id_to_peer_id_[client_id], payload);
-    } else if (topic.starts_with(ice_base_topic_)) {
-        OnRemoteIce(client_id_to_peer_id_[client_id], payload);
+    } else if (topic_type == TopicType::Answer) {
+        // Renegotiation: client answer to the existing peer
+        auto it = client_id_to_peer_id_.find(client_id);
+        if (it != client_id_to_peer_id_.end()) {
+            DEBUG_PRINT("Received renegotiation answer from client: %s", client_id.c_str());
+            OnRemoteSdp(it->second, payload);
+        } else {
+            ERROR_PRINT("Renegotiation answer from unknown client: %s", client_id.c_str());
+        }
+    } else if (topic_type == TopicType::Ice) {
+        auto it = client_id_to_peer_id_.find(client_id);
+        if (it != client_id_to_peer_id_.end()) {
+            OnRemoteIce(it->second, payload);
+        } else {
+            ERROR_PRINT("ICE candidate from unknown client: %s", client_id.c_str());
+        }
     }
 }
 
-std::string MqttService::GetClientId(std::string &topic) {
-    std::string base_topic;
-    if (topic.find(sdp_base_topic_) == 0) {
-        base_topic = sdp_base_topic_;
-    } else if (topic.find(ice_base_topic_) == 0) {
-        base_topic = ice_base_topic_;
-    } else {
+std::string MqttService::FindClientId(const std::string &topic) const {
+    TopicType topic_type = FindTopicType(topic);
+    if (topic_type == TopicType::Unknown) {
         return "";
     }
-    size_t base_length = base_topic.length();
-    size_t start_pos = base_length + 1; // skip the trailing "/" of base_topic
-    size_t end_pos = topic.find('/', start_pos);
 
-    if (end_pos != std::string::npos) {
-        return topic.substr(start_pos, end_pos - start_pos);
+    std::string base_topic = GetTopic(topic_type);
+    if (topic.length() <= base_topic.length() || topic[base_topic.length()] != '/') {
+        return "";
     }
 
-    return "";
+    size_t start_pos = base_topic.length() + 1; // skip the trailing "/" of base_topic
+    size_t end_pos = topic.find('/', start_pos);
+
+    if (start_pos >= topic.length()) {
+        return "";
+    }
+
+    if (end_pos == std::string::npos) {
+        return topic.substr(start_pos);
+    }
+
+    return topic.substr(start_pos, end_pos - start_pos);
 }
 
 void MqttService::RefreshPeerMap() {
@@ -281,4 +300,41 @@ void MqttService::Connect() {
     if (rc != MOSQ_ERR_SUCCESS) {
         ERROR_PRINT("mosquitto_connect_async: %s", mosquitto_strerror(rc));
     }
+}
+
+// MQTT topic format:
+// `{uid}/{type}/{client_id}` for client-specific messages, `{uid}/{type}` for broadcast messages
+std::string MqttService::GetTopic(TopicType type, const std::string &client_id) const {
+    if (client_id.empty()) {
+        return uid_ + "/" + TopicTypeToString(type);
+    }
+
+    return uid_ + "/" + TopicTypeToString(type) + "/" + client_id;
+}
+
+std::string MqttService::TopicTypeToString(TopicType type) const {
+    switch (type) {
+        case TopicType::Offer:
+            return "offer";
+        case TopicType::Answer:
+            return "answer";
+        case TopicType::Ice:
+            return "ice";
+        default:
+            return "unknown";
+    }
+}
+
+MqttService::TopicType MqttService::FindTopicType(const std::string &topic) const {
+    if (topic.starts_with(GetTopic(TopicType::Offer) + "/")) {
+        return TopicType::Offer;
+    }
+    if (topic.starts_with(GetTopic(TopicType::Answer) + "/")) {
+        return TopicType::Answer;
+    }
+    if (topic.starts_with(GetTopic(TopicType::Ice) + "/")) {
+        return TopicType::Ice;
+    }
+
+    return TopicType::Unknown;
 }
