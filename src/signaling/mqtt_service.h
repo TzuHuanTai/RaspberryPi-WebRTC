@@ -15,6 +15,13 @@ class MqttService : public SignalingService {
     MqttService(Args args, std::shared_ptr<Conductor> conductor);
     ~MqttService();
 
+    enum class TopicType {
+        Offer,
+        Answer,
+        Ice,
+        Unknown
+    };
+
   protected:
     void Connect() override;
     void Disconnect() override;
@@ -26,8 +33,6 @@ class MqttService : public SignalingService {
     std::string hostname_;
     std::string username_;
     std::string password_;
-    std::string sdp_base_topic_;
-    std::string ice_base_topic_;
     struct mosquitto *connection_;
 
     std::unordered_map<std::string, std::string> client_id_to_peer_id_;
@@ -35,18 +40,19 @@ class MqttService : public SignalingService {
 
     void OnRemoteSdp(const std::string &peer_id, const std::string &message);
     void OnRemoteIce(const std::string &peer_id, const std::string &message);
-    void AnswerLocalSdp(const std::string &peer_id, const std::string &sdp,
-                        const std::string &type);
-    void AnswerLocalIce(const std::string &peer_id, const std::string &sdp_mid,
-                        const int sdp_mline_index, const std::string &candidate);
+    void OnLocalSdp(const std::string &peer_id, const std::string &sdp, const std::string &type);
+    void OnLocalIce(const std::string &peer_id, const std::string &sdp_mid,
+                    const int sdp_mline_index, const std::string &candidate);
 
     void Subscribe(const std::string &topic);
     void Unsubscribe(const std::string &topic);
     void Publish(const std::string &topic, const std::string &msg);
     void OnConnect(struct mosquitto *mosq, void *obj, int rc);
     void OnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
-    std::string GetClientId(std::string &topic);
-    std::string GetTopic(const std::string &topic, const std::string &client_id = "") const;
+    std::string FindClientId(const std::string &topic) const;
+    std::string GetTopic(TopicType type, const std::string &client_id = "") const;
+    std::string TopicTypeToString(TopicType type) const;
+    TopicType FindTopicType(const std::string &topic) const;
 };
 
 #endif

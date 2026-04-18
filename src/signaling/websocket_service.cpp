@@ -250,9 +250,9 @@ void WebsocketService::OnMessage(const std::string &req) {
 
         pub_peer_->CreateOffer();
 
-    } else if (action == "offer" && sub_peer_ && !sub_peer_->isConnected()) {
+    } else if (action == "offer" && sub_peer_) {
         sub_peer_->SetRemoteSdp(message, "offer");
-    } else if (action == "answer" && pub_peer_ && !pub_peer_->isConnected()) {
+    } else if (action == "answer" && pub_peer_) {
         pub_peer_->SetRemoteSdp(message, "answer");
     } else if (action == "trickle") {
         OnRemoteIce(message);
