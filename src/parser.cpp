@@ -122,8 +122,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Recording stream index, 0: main stream, 1: sub stream")
         ("live-stream", bpo::value<int>(&args.live_stream_idx)->default_value(args.live_stream_idx),
             "Live stream index, 0: main stream, 1: sub stream")
-        ("ai-stream", bpo::value<int>(&args.ai_stream_idx)->default_value(args.ai_stream_idx),
-            "AI stream index, 0: main stream, 1: sub stream")
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
@@ -282,13 +280,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                       << "Set to " << args.sub_width << "x" << args.sub_height << std::endl;
         }
         args.num_streams += 1;
-        std::cout << "Sub stream is enabled with resolution: " << args.sub_width << "x"
-                  << args.sub_height << std::endl;
     } else {
         args.record_stream_idx = 0;
         args.live_stream_idx = 0;
-        args.ai_stream_idx = 0;
-        std::cout << "Sub stream is not enabled." << std::endl;
     }
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
