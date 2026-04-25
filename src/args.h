@@ -78,7 +78,6 @@ struct Args {
     // stream usage, 0: main stream, 1: sub stream
     int record_stream_idx = 0; // recording stream index
     int live_stream_idx = 0;   // webrtc live stream index
-    int ai_stream_idx = 0;     // ai stream index
 
     // audio input
     int sample_rate = 44100;
