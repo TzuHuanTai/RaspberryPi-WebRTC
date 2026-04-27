@@ -5,6 +5,7 @@ find_package(PkgConfig REQUIRED)
 set(CAPTURE_FILES
     v4l2_capturer.cpp
     pa_capturer.cpp
+    alsa_capturer.cpp
 )
 
 if(USE_LIBARGUS_CAPTURE)
@@ -62,6 +63,7 @@ endif()
 
 pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
 pkg_check_modules(PULSE_SIMPLE REQUIRED IMPORTED_TARGET libpulse-simple)
+pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 message(STATUS "PulseAudio library found:")
 message(STATUS "    PULSE libs: ${PULSE_LINK_LIBRARIES}")
 message(STATUS "    PULSE_SIMPLE libs: ${PULSE_SIMPLE_LINK_LIBRARIES}")
@@ -71,6 +73,7 @@ add_library(${PROJECT_NAME} ${CAPTURE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${PULSE_INCLUDE_DIRS}
     ${PULSE_SIMPLE_INCLUDE_DIRS}
+    ${ALSA_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
@@ -78,6 +81,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     ${WEBRTC_LIBRARY}
     ${PULSE_LINK_LIBRARIES}
     ${PULSE_SIMPLE_LINK_LIBRARIES}
+    ${ALSA_LINK_LIBRARIES}
 )
 
 if(USE_LIBARGUS_CAPTURE)

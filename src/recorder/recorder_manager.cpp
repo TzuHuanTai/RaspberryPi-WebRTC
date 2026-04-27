@@ -54,7 +54,7 @@ void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
 }
 
 std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCapturer> video_src,
-                                                         std::shared_ptr<PaCapturer> audio_src,
+                                                         std::shared_ptr<AudioCapturer> audio_src,
                                                          Args config) {
     auto instance = std::make_unique<RecorderManager>(config);
 
@@ -63,7 +63,7 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
         instance->SubscribeVideoSource(video_src);
     }
     if (audio_src) {
-        instance->CreateAudioRecorder(audio_src);
+        instance->CreateAudioRecorder();
         instance->SubscribeAudioSource(audio_src);
     }
 
@@ -81,7 +81,7 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
 
 std::shared_ptr<RecorderManager>
 RecorderManager::CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
-                                std::shared_ptr<PaCapturer> audio_src, Args config) {
+                                std::shared_ptr<AudioCapturer> audio_src, Args config) {
     auto instance = std::make_shared<RecorderManager>(config);
     instance->auto_start_ = false;
 
@@ -90,7 +90,7 @@ RecorderManager::CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
         instance->SubscribeVideoSource(video_src);
     }
     if (audio_src) {
-        instance->CreateAudioRecorder(audio_src);
+        instance->CreateAudioRecorder();
         instance->SubscribeAudioSource(audio_src);
     }
 
@@ -128,12 +128,12 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capture
     })();
 }
 
-void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) {
-    audio_recorder = ([this, capturer]() -> std::unique_ptr<AudioRecorder> {
+void RecorderManager::CreateAudioRecorder() {
+    audio_recorder = ([this]() -> std::unique_ptr<AudioRecorder> {
         if (config.record_type == RecordType::Snapshot) {
             return nullptr;
         } else {
-            return AudioRecorder::Create(capturer->config().sample_rate);
+            return AudioRecorder::Create(config.sample_rate);
         }
     })();
 }
@@ -192,12 +192,12 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_
     }
 }
 
-void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src) {
+void RecorderManager::SubscribeAudioSource(std::shared_ptr<AudioCapturer> audio_src) {
     if (!audio_recorder) {
         return;
     }
 
-    audio_subscription_ = audio_src->Subscribe([this](PaBuffer buffer) {
+    audio_subscription_ = audio_src->Subscribe([this](AudioBuffer buffer) {
         if (has_first_keyframe) {
             audio_recorder->OnBuffer(buffer);
         }

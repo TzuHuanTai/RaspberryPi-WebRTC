@@ -29,6 +29,8 @@
 // #include "capturer/libargus_buffer_capturer.h"
 #include "capturer/libargus_egl_capturer.h"
 #endif
+#include "capturer/alsa_capturer.h"
+#include "capturer/pa_capturer.h"
 #include "capturer/v4l2_capturer.h"
 #include "common/logging.h"
 #include "common/utils.h"
@@ -63,13 +65,14 @@ Conductor::~Conductor() {
 
 Args Conductor::config() const { return args; }
 
-std::shared_ptr<PaCapturer> Conductor::AudioSource() const { return audio_capture_source_; }
+std::shared_ptr<AudioCapturer> Conductor::AudioSource() const { return audio_capture_source_; }
 
 std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
 void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr && !args.no_audio) {
-        audio_capture_source_ = PaCapturer::Create(args);
+        audio_capture_source_ =
+            use_alsa_audio_capture_ ? AlsaCapturer::Create(args) : PaCapturer::Create(args);
         auto options = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
@@ -419,16 +422,30 @@ void Conductor::InitializePeerConnectionFactory() {
 
     webrtc::Environment env = webrtc::CreateEnvironment();
 
-    auto audio_layer = args.no_audio ? webrtc::AudioDeviceModule::kDummyAudio
-                                     : webrtc::AudioDeviceModule::kLinuxPulseAudio;
-
-    auto adm = webrtc::CreateAudioDeviceModule(env, audio_layer);
-    if (!adm || adm->Init() != 0) {
-        ERROR_PRINT("Failed to initialize AudioDeviceModule.\n"
-                    "If your system does not have PulseAudio installed, please either:\n"
-                    "   - Install PulseAudio, or\n"
-                    "   - Run with `--no-audio` to disable audio support.\n");
-        std::exit(EXIT_FAILURE);
+    webrtc::scoped_refptr<webrtc::AudioDeviceModule> adm;
+    if (args.no_audio) {
+        use_alsa_audio_capture_ = false;
+        adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kDummyAudio);
+        if (!adm || adm->Init() != 0) {
+            ERROR_PRINT("Failed to initialize dummy audio device.");
+            std::exit(EXIT_FAILURE);
+        }
+    } else {
+        use_alsa_audio_capture_ = false;
+        adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kLinuxPulseAudio);
+        if (!adm || adm->Init() != 0) {
+            INFO_PRINT("PulseAudio is unavailable, fallback to ALSA.");
+            adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kLinuxAlsaAudio);
+            if (!adm || adm->Init() != 0) {
+                ERROR_PRINT("Failed to initialize Linux audio backend (PulseAudio/ALSA).\n"
+                            "Please check your system audio stack, or run with --no-audio.");
+                std::exit(EXIT_FAILURE);
+            }
+            use_alsa_audio_capture_ = true;
+            INFO_PRINT("Using ALSA audio backend.");
+        } else {
+            INFO_PRINT("Using PulseAudio backend.");
+        }
     }
 
     webrtc::PeerConnectionFactoryDependencies deps;

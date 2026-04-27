@@ -10,7 +10,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include "capturer/pa_capturer.h"
+#include "capturer/audio_capturer.h"
 #include "capturer/video_capturer.h"
 #include "common/worker.h"
 #include "recorder/audio_recorder.h"
@@ -25,10 +25,10 @@ class RecUtil {
 class RecorderManager {
   public:
     static std::unique_ptr<RecorderManager> Create(std::shared_ptr<VideoCapturer> video_src,
-                                                   std::shared_ptr<PaCapturer> audio_src,
+                                                   std::shared_ptr<AudioCapturer> audio_src,
                                                    Args config);
     static std::shared_ptr<RecorderManager> CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
-                                                           std::shared_ptr<PaCapturer> audio_src,
+                                                           std::shared_ptr<AudioCapturer> audio_src,
                                                            Args config);
     RecorderManager(Args config);
     ~RecorderManager();
@@ -51,9 +51,9 @@ class RecorderManager {
     std::unique_ptr<AudioRecorder> audio_recorder;
 
     void CreateVideoRecorder(std::shared_ptr<VideoCapturer> video_src);
-    void CreateAudioRecorder(std::shared_ptr<PaCapturer> audio_src);
+    void CreateAudioRecorder();
     void SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src);
-    void SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src);
+    void SubscribeAudioSource(std::shared_ptr<AudioCapturer> audio_src);
 
   private:
     double elapsed_time_;
