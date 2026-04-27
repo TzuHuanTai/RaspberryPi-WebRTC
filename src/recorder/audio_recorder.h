@@ -10,7 +10,7 @@ extern "C" {
 #include <libavutil/audio_fifo.h>
 }
 
-#include "capturer/pa_capturer.h"
+#include "capturer/audio_capturer.h"
 #include "common/logging.h"
 #include "recorder/recorder.h"
 
@@ -51,12 +51,12 @@ class ThreadSafeAudioFifo {
     std::mutex mutex_;
 };
 
-class AudioRecorder : public Recorder<PaBuffer> {
+class AudioRecorder : public Recorder<AudioBuffer> {
   public:
     static std::unique_ptr<AudioRecorder> Create(int sample_rate);
     AudioRecorder(int sample_rate);
     ~AudioRecorder();
-    void OnBuffer(PaBuffer buffer) override;
+    void OnBuffer(AudioBuffer buffer) override;
     void OnStart() override;
 
   private:

@@ -5,30 +5,19 @@
 #include <pulse/simple.h>
 
 #include "args.h"
-#include "common/interface/subject.h"
+#include "capturer/audio_capturer.h"
 #include "common/worker.h"
 
-struct PaBuffer {
-    uint8_t *start;
-    unsigned int length;
-    unsigned int channels;
-};
-
-class PaCapturer : public Subject<PaBuffer> {
+class PaCapturer : public AudioCapturer {
   public:
-    static std::shared_ptr<PaCapturer> Create(Args args);
-    PaCapturer(Args args);
+    static std::shared_ptr<AudioCapturer> Create(Args args);
+    PaCapturer();
     ~PaCapturer();
-    Args config() const;
-    void StartCapture();
-
-  protected:
-    using Subject<PaBuffer>::Next;
+    void StartCapture() override;
 
   private:
-    Args config_;
     pa_simple *src;
-    PaBuffer shared_buffer_;
+    AudioBuffer shared_buffer_;
     std::unique_ptr<Worker> worker_;
 
     void CaptureSamples();

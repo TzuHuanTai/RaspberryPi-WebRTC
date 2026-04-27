@@ -5,15 +5,15 @@
 #define BUFSIZE 1024
 #define CHANNELS 2
 
-std::shared_ptr<PaCapturer> PaCapturer::Create(Args args) {
-    auto ptr = std::make_shared<PaCapturer>(args);
+std::shared_ptr<AudioCapturer> PaCapturer::Create(Args args) {
+    auto ptr = std::make_shared<PaCapturer>();
     ptr->CreateFloat32Source(args.sample_rate);
     ptr->StartCapture();
     return ptr;
 }
 
-PaCapturer::PaCapturer(Args args)
-    : config_(args) {}
+PaCapturer::PaCapturer()
+    : src(nullptr) {}
 
 PaCapturer::~PaCapturer() {
     worker_.reset();
@@ -21,8 +21,6 @@ PaCapturer::~PaCapturer() {
         pa_simple_free(src);
     }
 }
-
-Args PaCapturer::config() const { return config_; }
 
 void PaCapturer::CreateFloat32Source(int sample_rate) {
     int error;

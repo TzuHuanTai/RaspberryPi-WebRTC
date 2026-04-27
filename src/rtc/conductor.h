@@ -11,7 +11,7 @@
 #include <rtc_base/thread.h>
 
 #include "args.h"
-#include "capturer/pa_capturer.h"
+#include "capturer/audio_capturer.h"
 #include "capturer/video_capturer.h"
 #include "recorder/recorder_manager.h"
 #include "rtc/rtc_peer.h"
@@ -26,7 +26,7 @@ class Conductor {
 
     Args config() const;
     webrtc::scoped_refptr<RtcPeer> CreatePeerConnection(PeerConfig peer_config);
-    std::shared_ptr<PaCapturer> AudioSource() const;
+    std::shared_ptr<AudioCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
     void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
 
@@ -56,7 +56,8 @@ class Conductor {
     std::unique_ptr<webrtc::Thread> worker_thread_;
     std::unique_ptr<webrtc::Thread> signaling_thread_;
 
-    std::shared_ptr<PaCapturer> audio_capture_source_;
+    bool use_alsa_audio_capture_ = false;
+    std::shared_ptr<AudioCapturer> audio_capture_source_;
     std::shared_ptr<VideoCapturer> video_capture_source_;
     webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
