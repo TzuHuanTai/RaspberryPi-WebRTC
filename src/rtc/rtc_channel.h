@@ -2,6 +2,7 @@
 #define DATA_CHANNEL_H_
 
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
 #include <fstream>
 #include <map>

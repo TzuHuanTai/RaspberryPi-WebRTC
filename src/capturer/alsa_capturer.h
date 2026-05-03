@@ -3,6 +3,7 @@
 
 #include <alsa/asoundlib.h>
 
+#include <cstdint>
 #include <vector>
 
 #include "args.h"

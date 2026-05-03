@@ -1,6 +1,7 @@
 #ifndef SFU_CHANNEL_H_
 #define SFU_CHANNEL_H_
 
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <vector>

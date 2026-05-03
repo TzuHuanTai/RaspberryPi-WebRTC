@@ -1,6 +1,7 @@
 #ifndef UTILS_
 #define UTILS_
 
+#include <cstdint>
 #include <filesystem>
 #include <vector>
 
