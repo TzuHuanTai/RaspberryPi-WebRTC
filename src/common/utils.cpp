@@ -415,7 +415,9 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, i
     JSAMPROW row_pointer[1];
     int row_stride = width * 3;
     std::unique_ptr<uint8_t, decltype(&free)> rgb_guard(
-        static_cast<uint8_t *>(malloc(width * height * 3)), free);
+        static_cast<uint8_t *>(
+            malloc(static_cast<size_t>(width) * static_cast<size_t>(height) * 3)),
+        free);
     uint8_t *rgb_data = rgb_guard.get();
     libyuv::I420ToRGB24(yuv_data, width, yuv_data + width * height, width / 2,
                         yuv_data + width * height + (width * height / 4), width / 2, rgb_data,
