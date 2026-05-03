@@ -14,14 +14,16 @@ class PaCapturer : public AudioCapturer {
     PaCapturer();
     ~PaCapturer();
     void StartCapture() override;
+    int sample_rate() const override { return sample_rate_; }
 
   private:
     pa_simple *src;
+    int sample_rate_ = 0;
     AudioBuffer shared_buffer_;
     std::unique_ptr<Worker> worker_;
 
     void CaptureSamples();
-    void CreateFloat32Source(int sample_rate);
+    bool CreateFloat32Source(int sample_rate);
 };
 
 #endif

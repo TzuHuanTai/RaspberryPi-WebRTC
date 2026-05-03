@@ -5,7 +5,9 @@
 
 std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(EncoderConfig config) {
     auto ptr = std::make_unique<Openh264Encoder>(config);
-    ptr->Init();
+    if (!ptr->Init()) {
+        return nullptr;
+    }
     return ptr;
 }
 
@@ -19,11 +21,11 @@ Openh264Encoder::~Openh264Encoder() {
     DEBUG_PRINT("sw h264 encode was released!\n");
 }
 
-void Openh264Encoder::Init() {
+bool Openh264Encoder::Init() {
     int rv = WelsCreateSVCEncoder(&encoder_);
     if (rv != 0) {
         ERROR_PRINT("Failed to create OpenH264 encoder.");
-        return;
+        return false;
     }
 
     SEncParamExt encoder_param;
@@ -60,8 +62,9 @@ void Openh264Encoder::Init() {
     rv = encoder_->InitializeExt(&encoder_param);
     if (rv != 0) {
         ERROR_PRINT("Failed to initialize OpenH264 encoder.");
-        return;
+        return false;
     }
+    return true;
 }
 
 void Openh264Encoder::Encode(webrtc::scoped_refptr<webrtc::I420BufferInterface> frame_buffer,

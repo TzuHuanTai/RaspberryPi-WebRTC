@@ -51,7 +51,7 @@ class RecorderManager {
     std::unique_ptr<AudioRecorder> audio_recorder;
 
     void CreateVideoRecorder(std::shared_ptr<VideoCapturer> video_src);
-    void CreateAudioRecorder();
+    void CreateAudioRecorder(std::shared_ptr<AudioCapturer> audio_src);
     void SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src);
     void SubscribeAudioSource(std::shared_ptr<AudioCapturer> audio_src);
 

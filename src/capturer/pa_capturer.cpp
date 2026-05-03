@@ -7,7 +7,9 @@
 
 std::shared_ptr<AudioCapturer> PaCapturer::Create(Args args) {
     auto ptr = std::make_shared<PaCapturer>();
-    ptr->CreateFloat32Source(args.sample_rate);
+    if (!ptr->CreateFloat32Source(args.sample_rate)) {
+        return nullptr;
+    }
     ptr->StartCapture();
     return ptr;
 }
@@ -22,7 +24,8 @@ PaCapturer::~PaCapturer() {
     }
 }
 
-void PaCapturer::CreateFloat32Source(int sample_rate) {
+bool PaCapturer::CreateFloat32Source(int sample_rate) {
+    sample_rate_ = sample_rate;
     int error;
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_FLOAT32LE;
@@ -33,8 +36,9 @@ void PaCapturer::CreateFloat32Source(int sample_rate) {
                         nullptr, &error);
     if (!src) {
         ERROR_PRINT("%s", pa_strerror(error));
-        return;
+        return false;
     }
+    return true;
 }
 
 void PaCapturer::CaptureSamples() {

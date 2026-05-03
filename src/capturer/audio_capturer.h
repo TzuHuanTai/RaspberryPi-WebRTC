@@ -17,6 +17,7 @@ class AudioCapturer : public Subject<AudioBuffer> {
     virtual ~AudioCapturer() = default;
 
     virtual void StartCapture() = 0;
+    virtual int sample_rate() const = 0;
 
   protected:
     using Subject<AudioBuffer>::Next;

@@ -73,6 +73,9 @@ void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr && !args.no_audio) {
         audio_capture_source_ =
             use_alsa_audio_capture_ ? AlsaCapturer::Create(args) : PaCapturer::Create(args);
+        if (!audio_capture_source_) {
+            ERROR_PRINT("Failed to initialize audio capture source. Audio will be silent.");
+        }
         auto options = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
