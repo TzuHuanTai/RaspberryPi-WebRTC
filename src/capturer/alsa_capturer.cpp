@@ -2,13 +2,16 @@
 
 #include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <thread>
 
 #include "common/logging.h"
 
 std::shared_ptr<AudioCapturer> AlsaCapturer::Create(Args args) {
     auto ptr = std::make_shared<AlsaCapturer>();
-    ptr->CreateFloat32Source(args.sample_rate);
+    if (!ptr->CreateFloat32Source(args.sample_rate)) {
+        return nullptr;
+    }
     ptr->StartCapture();
     return ptr;
 }
@@ -26,7 +29,8 @@ AlsaCapturer::~AlsaCapturer() {
     }
 }
 
-void AlsaCapturer::CreateFloat32Source(int sample_rate) {
+bool AlsaCapturer::CreateFloat32Source(int sample_rate) {
+    sample_rate_ = sample_rate;
     const auto try_set_params = [this, sample_rate](snd_pcm_format_t alsa_fmt,
                                                     SampleFormat fmt) -> bool {
         const int ret = snd_pcm_set_params(pcm_handle_, alsa_fmt, SND_PCM_ACCESS_RW_INTERLEAVED,
@@ -42,22 +46,22 @@ void AlsaCapturer::CreateFloat32Source(int sample_rate) {
     if (ret < 0) {
         ERROR_PRINT("ALSA open failed: %s", snd_strerror(ret));
         pcm_handle_ = nullptr;
-        return;
+        return false;
     }
 
     if (try_set_params(SND_PCM_FORMAT_FLOAT_LE, SampleFormat::Float32)) {
         INFO_PRINT("ALSA capture format: FLOAT_LE");
-        return;
+        return true;
     }
 
     if (try_set_params(SND_PCM_FORMAT_S32_LE, SampleFormat::S32)) {
         INFO_PRINT("ALSA capture format fallback: S32_LE");
-        return;
+        return true;
     }
 
     if (try_set_params(SND_PCM_FORMAT_S16_LE, SampleFormat::S16)) {
         INFO_PRINT("ALSA capture format fallback: S16_LE");
-        return;
+        return true;
     }
 
     ERROR_PRINT("ALSA set params failed for FLOAT_LE/S32_LE/S16_LE");
@@ -65,6 +69,7 @@ void AlsaCapturer::CreateFloat32Source(int sample_rate) {
         snd_pcm_close(pcm_handle_);
         pcm_handle_ = nullptr;
     }
+    return false;
 }
 
 void AlsaCapturer::CaptureSamples() {
@@ -118,19 +123,21 @@ void AlsaCapturer::CaptureSamples() {
     }
 
     if (sample_format_ == SampleFormat::Float32) {
-        auto *src = reinterpret_cast<const float *>(raw_capture_buffer_.data());
-        std::copy(src, src + sample_count, float_capture_buffer_.begin());
+        std::memcpy(float_capture_buffer_.data(), raw_capture_buffer_.data(),
+                    sample_count * sizeof(float));
     } else if (sample_format_ == SampleFormat::S32) {
         constexpr float scale = 1.0f / 2147483648.0f;
-        auto *src = reinterpret_cast<const int32_t *>(raw_capture_buffer_.data());
         for (size_t i = 0; i < sample_count; ++i) {
-            float_capture_buffer_[i] = static_cast<float>(src[i]) * scale;
+            int32_t val;
+            std::memcpy(&val, raw_capture_buffer_.data() + i * sizeof(int32_t), sizeof(int32_t));
+            float_capture_buffer_[i] = static_cast<float>(val) * scale;
         }
     } else {
         constexpr float scale = 1.0f / 32768.0f;
-        auto *src = reinterpret_cast<const int16_t *>(raw_capture_buffer_.data());
         for (size_t i = 0; i < sample_count; ++i) {
-            float_capture_buffer_[i] = static_cast<float>(src[i]) * scale;
+            int16_t val;
+            std::memcpy(&val, raw_capture_buffer_.data() + i * sizeof(int16_t), sizeof(int16_t));
+            float_capture_buffer_[i] = static_cast<float>(val) * scale;
         }
     }
 

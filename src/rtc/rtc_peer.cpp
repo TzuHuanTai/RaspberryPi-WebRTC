@@ -36,6 +36,7 @@ void RtcPeer::Terminate() {
 
     on_local_sdp_fn_ = nullptr;
     on_local_ice_fn_ = nullptr;
+    sdp_emit_safety_ = webrtc::ScopedTaskSafetyDetached();
     if (peer_connection_) {
         peer_connection_->Close();
         peer_connection_ = nullptr;
@@ -215,9 +216,6 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
             needs_renegotiation_ = false;
             DEBUG_PRINT("Triggering renegotiation for un-negotiated tracks.");
             CreateOffer();
-        } else if (!needs_renegotiation_ && !is_sfu_peer_) {
-            on_local_ice_fn_ = nullptr;
-            on_local_sdp_fn_ = nullptr;
         }
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);

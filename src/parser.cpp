@@ -285,6 +285,32 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         args.live_stream_idx = 0;
     }
 
+    if (args.uid.empty()) {
+        std::cerr << "Error: --uid is required." << std::endl;
+        exit(1);
+    }
+
+    if (args.use_mqtt) {
+        if (args.mqtt_host.empty()) {
+            std::cerr << "Error: --mqtt-host is required when --use-mqtt is specified."
+                      << std::endl;
+            exit(1);
+        }
+    }
+
+    if (args.use_websocket) {
+        if (args.ws_host.empty()) {
+            std::cerr << "Error: --ws-host is required when --use-websocket is specified."
+                      << std::endl;
+            exit(1);
+        }
+        if (args.ws_room.empty()) {
+            std::cerr << "Error: --ws-room is required when --use-websocket is specified."
+                      << std::endl;
+            exit(1);
+        }
+    }
+
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
         exit(1);
