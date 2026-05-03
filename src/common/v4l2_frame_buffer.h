@@ -3,6 +3,7 @@
 
 #include "common/v4l2_utils.h"
 
+#include <cstdint>
 #include <linux/videodev2.h>
 #include <vector>
 

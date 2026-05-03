@@ -1,10 +1,12 @@
 #ifndef AUDIO_CAPTURER_H_
 #define AUDIO_CAPTURER_H_
 
+#include <cstdint>
+
 #include "common/interface/subject.h"
 
 struct AudioBuffer {
-    std::uint8_t *start;
+    uint8_t *start;
     unsigned int length;
     unsigned int channels;
 };

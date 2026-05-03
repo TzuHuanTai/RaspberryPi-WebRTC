@@ -1,6 +1,7 @@
 #ifndef OPENH264_ENCODER_
 #define OPENH264_ENCODER_
 
+#include <cstdint>
 #include <functional>
 
 #include <api/video/i420_buffer.h>

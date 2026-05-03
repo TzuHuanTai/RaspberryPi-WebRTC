@@ -2,6 +2,7 @@
 #define VIDEO_RECORDER_H_
 
 #include <atomic>
+#include <cstdint>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
