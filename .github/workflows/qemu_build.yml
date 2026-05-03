@@ -5,6 +5,9 @@ on:
     tags:
       - 'v**-rc.[0-9]+'
 
+permissions:
+  contents: write
+
 jobs:
   prepare-image:
     runs-on: ubuntu-24.04-arm

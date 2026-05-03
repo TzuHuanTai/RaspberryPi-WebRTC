@@ -16,6 +16,9 @@ on:
       - ".vscode/**"
       - "*.md"
 
+permissions:
+  contents: read
+
 jobs:
   formatting-check:
     name: Formatting Check
