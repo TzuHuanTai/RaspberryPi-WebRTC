@@ -28,6 +28,7 @@ class Conductor {
     webrtc::scoped_refptr<RtcPeer> CreatePeerConnection(PeerConfig peer_config);
     std::shared_ptr<AudioCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
+    void EnsureTracksAdded(webrtc::scoped_refptr<RtcPeer> peer);
     void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
 
   private:

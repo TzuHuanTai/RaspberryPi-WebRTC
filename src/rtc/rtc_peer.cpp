@@ -111,6 +111,7 @@ std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
             [this](std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt) {
                 DEBUG_PRINT("Received DISCONNECT command. Closing peer connection.");
                 peer_connection_->Close();
+                peer_connection_ = nullptr;
                 if (pkt.has_disconnection_request()) {
                     auto request = pkt.disconnection_request();
                     DEBUG_PRINT("Reason: %s",
@@ -167,6 +168,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
                     if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
                         DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
                         peer_connection_->Close();
+                        peer_connection_ = nullptr;
                     }
                 }),
             webrtc::TimeDelta::Seconds(timeout_));
@@ -220,6 +222,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
         peer_connection_->Close();
+        peer_connection_ = nullptr;
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         is_connected_.store(false);
         is_complete_.store(true);
@@ -315,6 +318,30 @@ void RtcPeer::EmitLocalSdp(int delay_sec) {
     }
 }
 
+void RtcPeer::FlushPendingIce() {
+    std::vector<PendingIceCandidate> candidates;
+    {
+        std::lock_guard<std::mutex> lock(pending_ice_mutex_);
+        candidates.swap(pending_ice_candidates_);
+    }
+    if (candidates.empty()) {
+        return;
+    }
+    DEBUG_PRINT("Flushing %zu buffered ICE candidates.", candidates.size());
+    for (const auto &ice : candidates) {
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::IceCandidateInterface> candidate(
+            webrtc::CreateIceCandidate(ice.sdp_mid, ice.sdp_mline_index, ice.candidate, &error));
+        if (!candidate.get()) {
+            ERROR_PRINT("Can't parse buffered candidate: %s", error.description.c_str());
+            continue;
+        }
+        if (!peer_connection_->AddIceCandidate(candidate.get())) {
+            ERROR_PRINT("Failed to apply buffered ICE candidate!");
+        }
+    }
+}
+
 void RtcPeer::OnFailure(webrtc::RTCError error) {
     auto type = ToString(error.type());
     ERROR_PRINT("%s; %s", std::string(type).c_str(), error.message());
@@ -341,10 +368,22 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
         return;
     }
 
-    peer_connection_->SetRemoteDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
+    peer_connection_->SetRemoteDescription(SetSessionDescription::Create(
+                                               [this]() {
+                                                   FlushPendingIce();
+                                               },
+                                               nullptr)
+                                               .get(),
                                            session_description.release());
 
     if (type == webrtc::SdpType::kOffer) {
+        if (is_sfu_peer_ && !is_publisher_) {
+            for (auto &transceiver : peer_connection_->GetTransceivers()) {
+                if (transceiver->media_type() == webrtc::MediaType::VIDEO) {
+                    transceiver->SetDirectionWithError(webrtc::RtpTransceiverDirection::kInactive);
+                }
+            }
+        }
         peer_connection_->CreateAnswer(this,
                                        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
     }
@@ -352,7 +391,11 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
 
 void RtcPeer::SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
                            const std::string &candidate) {
-    if (is_connected_.load() && !is_negotiating_.load()) {
+    // Only reject ICE before remote description is established (no session yet).
+    if (!peer_connection_->remote_description()) {
+        DEBUG_PRINT("Buffering early ICE candidate (no remote description yet).");
+        std::lock_guard<std::mutex> lock(pending_ice_mutex_);
+        pending_ice_candidates_.push_back({sdp_mid, sdp_mline_index, candidate});
         return;
     }
 

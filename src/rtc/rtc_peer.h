@@ -2,6 +2,8 @@
 #define RTC_PEER_H_
 
 #include <atomic>
+#include <mutex>
+#include <vector>
 
 #include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
@@ -36,6 +38,7 @@ struct PeerConfig : public webrtc::PeerConnectionInterface::RTCConfiguration {
     bool is_publisher = true;
     bool is_sfu_peer = false;
     bool has_candidates_in_sdp = false;
+    bool data_channel_only = false;
 };
 
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
@@ -141,6 +144,15 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
 
     std::string ModifySetupAttribute(const std::string &sdp, const std::string &new_setup);
     void EmitLocalSdp(int delay_sec = 0);
+    void FlushPendingIce();
+
+    struct PendingIceCandidate {
+        std::string sdp_mid;
+        int sdp_mline_index;
+        std::string candidate;
+    };
+    std::vector<PendingIceCandidate> pending_ice_candidates_;
+    std::mutex pending_ice_mutex_;
 
     int timeout_;
     std::string id_;
