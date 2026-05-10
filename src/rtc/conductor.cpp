@@ -169,10 +169,16 @@ webrtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config
 
     InitializeDataChannels(peer);
 
-    AddTracks(peer->GetPeer());
+    if (!config.data_channel_only) {
+        AddTracks(peer->GetPeer());
+    }
 
     DEBUG_PRINT("Peer connection(%s) is created! ", peer->id().c_str());
     return peer;
+}
+
+void Conductor::EnsureTracksAdded(webrtc::scoped_refptr<RtcPeer> peer) {
+    AddTracks(peer->GetPeer());
 }
 
 void Conductor::InitializeDataChannels(webrtc::scoped_refptr<RtcPeer> peer) {
