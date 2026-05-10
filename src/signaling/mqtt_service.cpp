@@ -59,10 +59,20 @@ void MqttService::OnLocalSdp(const std::string &peer_id, const std::string &sdp,
     jsonData["type"] = type;
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
+
+    std::string client_id;
+
+    auto it = peer_id_to_client_id_.find(peer_id);
+    if (it == peer_id_to_client_id_.end()) {
+        ERROR_PRINT("No client mapping for peer %s, cannot send SDP", peer_id.c_str());
+        return;
+    }
+    client_id = it->second;
+
     if (type == "offer") {
-        Publish(GetTopic(TopicType::Offer, peer_id_to_client_id_[peer_id]), jsonString);
+        Publish(GetTopic(TopicType::Offer, client_id), jsonString);
     } else if (type == "answer") {
-        Publish(GetTopic(TopicType::Answer, peer_id_to_client_id_[peer_id]), jsonString);
+        Publish(GetTopic(TopicType::Answer, client_id), jsonString);
     }
 }
 
@@ -75,7 +85,16 @@ void MqttService::OnLocalIce(const std::string &peer_id, const std::string &sdp_
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    Publish(GetTopic(TopicType::Ice, peer_id_to_client_id_[peer_id]), jsonString);
+    std::string client_id;
+
+    auto it = peer_id_to_client_id_.find(peer_id);
+    if (it == peer_id_to_client_id_.end()) {
+        ERROR_PRINT("No client mapping for peer %s, cannot send ICE", peer_id.c_str());
+        return;
+    }
+    client_id = it->second;
+
+    Publish(GetTopic(TopicType::Ice, client_id), jsonString);
 }
 
 void MqttService::Disconnect() {
@@ -103,8 +122,8 @@ void MqttService::Disconnect() {
 };
 
 void MqttService::Publish(const std::string &topic, const std::string &msg) {
-    int rc =
-        mosquitto_publish(connection_, NULL, topic.c_str(), msg.length(), msg.c_str(), 2, false);
+    int rc = mosquitto_publish_v5(connection_, NULL, topic.c_str(), msg.length(), msg.c_str(), 2,
+                                  false, nullptr);
     if (rc != MOSQ_ERR_SUCCESS) {
         ERROR_PRINT("Error publishing: %s", mosquitto_strerror(rc));
     }
@@ -160,11 +179,17 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
         return;
     }
 
-    if (topic_type == TopicType::Offer) {
-        // Initial offer from client: create a new peer
-        auto peer = CreatePeer();
+    webrtc::scoped_refptr<RtcPeer> peer;
+
+    auto it = client_id_to_peer_id_.find(client_id);
+    peer = (it != client_id_to_peer_id_.end()) ? GetPeer(it->second) : nullptr;
+
+    if (!peer) {
+        PeerConfig config;
+        config.data_channel_only = true; // tracks added below only if SDP has media
+        peer = CreatePeer(config);
         if (!peer) {
-            ERROR_PRINT("Failed to create peer.");
+            ERROR_PRINT("Failed to create peer for client: %s", client_id.c_str());
             return;
         }
 
@@ -180,23 +205,21 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
         client_id_to_peer_id_[client_id] = peer->id();
         peer_id_to_client_id_[peer->id()] = client_id;
 
-        OnRemoteSdp(client_id_to_peer_id_[client_id], payload);
+        DEBUG_PRINT("Created peer %s for client: %s", peer->id().c_str(), client_id.c_str());
+    }
+
+    if (topic_type == TopicType::Offer) {
+        bool has_media = (payload.find("m=video") != std::string::npos ||
+                          payload.find("m=audio") != std::string::npos);
+        if (has_media) {
+            conductor->EnsureTracksAdded(peer);
+        }
+        OnRemoteSdp(peer->id(), payload);
     } else if (topic_type == TopicType::Answer) {
-        // Renegotiation: client answer to the existing peer
-        auto it = client_id_to_peer_id_.find(client_id);
-        if (it != client_id_to_peer_id_.end()) {
-            DEBUG_PRINT("Received renegotiation answer from client: %s", client_id.c_str());
-            OnRemoteSdp(it->second, payload);
-        } else {
-            ERROR_PRINT("Renegotiation answer from unknown client: %s", client_id.c_str());
-        }
+        DEBUG_PRINT("Received renegotiation answer from client: %s", client_id.c_str());
+        OnRemoteSdp(peer->id(), payload);
     } else if (topic_type == TopicType::Ice) {
-        auto it = client_id_to_peer_id_.find(client_id);
-        if (it != client_id_to_peer_id_.end()) {
-            OnRemoteIce(it->second, payload);
-        } else {
-            ERROR_PRINT("ICE candidate from unknown client: %s", client_id.c_str());
-        }
+        OnRemoteIce(peer->id(), payload);
     }
 }
 
@@ -229,20 +252,32 @@ void MqttService::RefreshPeerMap() {
     auto &map = GetPeerMap();
     auto pm_it = map.begin();
     while (pm_it != map.end()) {
-        auto peer_id = pm_it->first;
+        const auto &peer_id = pm_it->first;
         auto peer = GetPeer(peer_id);
+
+        if (!peer) {
+            DEBUG_PRINT("Peer %s exists in map but GetPeer returned nullptr!", peer_id.c_str());
+            pm_it = map.erase(pm_it);
+            continue;
+        }
 
         DEBUG_PRINT("Found peer_id key: %s, connected value: %d", peer_id.c_str(),
                     peer->isConnected());
 
         if (!peer->isConnected()) {
-            auto client_id = peer_id_to_client_id_[peer_id];
-            peer_id_to_client_id_.erase(peer_id);
-            pm_it = map.erase(pm_it);
-            if (client_id_to_peer_id_[client_id] == peer_id) {
-                client_id_to_peer_id_.erase(client_id);
+            auto it_c = peer_id_to_client_id_.find(peer_id);
+            if (it_c != peer_id_to_client_id_.end()) {
+                std::string client_id = it_c->second;
+
+                auto it_p = client_id_to_peer_id_.find(client_id);
+                if (it_p != client_id_to_peer_id_.end() && it_p->second == peer_id) {
+                    client_id_to_peer_id_.erase(it_p);
+                }
+
+                peer_id_to_client_id_.erase(it_c);
             }
             DEBUG_PRINT("(%s) was erased.", peer_id.c_str());
+            pm_it = map.erase(pm_it);
         } else {
             ++pm_it;
         }
@@ -280,8 +315,9 @@ void MqttService::Connect() {
             INFO_PRINT("MQTT disconnected normally.");
         }
     });
-    mosquitto_message_callback_set(connection_, [](struct mosquitto *mosq, void *obj,
-                                                   const struct mosquitto_message *message) {
+    mosquitto_message_v5_callback_set(connection_, [](struct mosquitto *mosq, void *obj,
+                                                      const struct mosquitto_message *message,
+                                                      const mosquitto_property *) {
         MqttService *service = static_cast<MqttService *>(obj);
         service->OnMessage(mosq, obj, message);
     });
