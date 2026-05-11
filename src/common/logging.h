@@ -3,8 +3,8 @@
 
 #include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
-#include <format>
 #include <string>
 #include <unistd.h>
 
@@ -18,8 +18,15 @@ inline std::string GetFileName(const std::string &file_path) {
 
 inline std::string GetCurrentTime() {
     auto now = std::chrono::system_clock::now();
-    auto zoned_time = std::chrono::zoned_time{std::chrono::current_zone(), now};
-    return std::format("{:%T}", zoned_time);
+    auto t = std::chrono::system_clock::to_time_t(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    std::tm local_tm{};
+    localtime_r(&t, &local_tm);
+    char buf[16];
+    std::strftime(buf, sizeof(buf), "%H:%M:%S", &local_tm);
+    char result[24];
+    std::snprintf(result, sizeof(result), "%s.%03lld", buf, static_cast<long long>(ms.count()));
+    return result;
 }
 
 #ifdef DEBUG_MODE
