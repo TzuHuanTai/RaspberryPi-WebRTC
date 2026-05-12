@@ -103,6 +103,7 @@ jobs:
             build-essential \
             mosquitto-dev \
             libboost-program-options-dev \
+            libyaml-cpp-dev \
             libavformat-dev \
             libavcodec-dev \
             libavutil-dev \
