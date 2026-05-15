@@ -1,21 +1,22 @@
 #include "capturer/pa_capturer.h"
 
+#include <chrono>
+#include <thread>
+
 #include "common/logging.h"
 
-#define BUFSIZE 1024
-#define CHANNELS 2
-
 std::shared_ptr<AudioCapturer> PaCapturer::Create(Args args) {
-    auto ptr = std::make_shared<PaCapturer>();
-    if (!ptr->CreateFloat32Source(args.sample_rate)) {
+    auto ptr = std::make_shared<PaCapturer>(args);
+    if (!ptr->CreateFloat32Source()) {
         return nullptr;
     }
     ptr->StartCapture();
     return ptr;
 }
 
-PaCapturer::PaCapturer()
-    : src(nullptr) {}
+PaCapturer::PaCapturer(Args args)
+    : AudioCapturer(args.channels, args.sample_rate),
+      src(nullptr) {}
 
 PaCapturer::~PaCapturer() {
     worker_.reset();
@@ -24,36 +25,60 @@ PaCapturer::~PaCapturer() {
     }
 }
 
-bool PaCapturer::CreateFloat32Source(int sample_rate) {
-    sample_rate_ = sample_rate;
+bool PaCapturer::CreateFloat32Source() {
     int error;
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_FLOAT32LE;
-    ss.channels = CHANNELS;
-    ss.rate = sample_rate;
+    ss.channels = channels_;
+    ss.rate = sample_rate_;
+
+    // Set fragsize so the PulseAudio server delivers data in exact 10ms fragments.
+    const uint32_t frag_bytes =
+        static_cast<uint32_t>(frames_per_chunk()) * channels_ * sizeof(float);
+    pa_buffer_attr attr{};
+    attr.maxlength = static_cast<uint32_t>(-1);
+    attr.fragsize = frag_bytes;
+    attr.tlength = static_cast<uint32_t>(-1);
+    attr.prebuf = static_cast<uint32_t>(-1);
+    attr.minreq = static_cast<uint32_t>(-1);
 
     src = pa_simple_new(nullptr, "Microphone", PA_STREAM_RECORD, nullptr, "record", &ss, nullptr,
-                        nullptr, &error);
+                        &attr, &error);
     if (!src) {
         ERROR_PRINT("%s", pa_strerror(error));
         return false;
     }
+
+    // Pre-allocate the capture buffer for exactly 10ms of stereo float32 audio.
+    const size_t n_samples = static_cast<size_t>(frames_per_chunk()) * channels_;
+    capture_buf_.resize(n_samples * sizeof(float));
+
+    INFO_PRINT("PulseAudio capture format: FLOAT32LE, %d channels, %d Hz", channels_, sample_rate_);
+
     return true;
 }
 
 void PaCapturer::CaptureSamples() {
-    int error;
-    uint8_t buf[BUFSIZE * sizeof(float)];
-
-    if (pa_simple_read(src, buf, sizeof(buf), &error) < 0) {
-        if (src) {
-            printf("pa_simple_read() failed: %s", pa_strerror(error));
-            pa_simple_free(src);
-        }
+    if (!src) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
         return;
     }
 
-    shared_buffer_ = {.start = buf, .length = BUFSIZE, .channels = CHANNELS};
+    int error;
+    // Read exactly 10ms of audio per call so all consumers (WebRTC, recorder)
+    const size_t n_frames = static_cast<size_t>(frames_per_chunk());
+    const size_t n_samples = n_frames * channels_; // interleaved float32 count
+
+    if (pa_simple_read(src, capture_buf_.data(), capture_buf_.size(), &error) < 0) {
+        ERROR_PRINT("pa_simple_read() failed: %s", pa_strerror(error));
+        pa_simple_free(src);
+        src = nullptr;
+        return;
+    }
+
+    shared_buffer_ = {.start = capture_buf_.data(),
+                      .length = static_cast<unsigned int>(n_samples),
+                      .channels = static_cast<unsigned int>(channels_)};
     Next(shared_buffer_);
 }
 

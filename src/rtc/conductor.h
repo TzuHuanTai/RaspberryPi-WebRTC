@@ -14,6 +14,7 @@
 #include "capturer/audio_capturer.h"
 #include "capturer/video_capturer.h"
 #include "recorder/recorder_manager.h"
+#include "rtc/audio_device_bridge.h"
 #include "rtc/rtc_peer.h"
 #include "track/scale_track_source.h"
 
@@ -60,6 +61,7 @@ class Conductor {
     bool use_alsa_audio_capture_ = false;
     std::shared_ptr<AudioCapturer> audio_capture_source_;
     std::shared_ptr<VideoCapturer> video_capture_source_;
+    webrtc::scoped_refptr<AudioDeviceBridge> adm_;
     webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;

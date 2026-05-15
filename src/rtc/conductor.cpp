@@ -1,7 +1,6 @@
 #include "rtc/conductor.h"
 
 #include <api/audio/builtin_audio_processing_builder.h>
-#include <api/audio/create_audio_device_module.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/create_modular_peer_connection_factory.h>
@@ -16,17 +15,12 @@
 #include <api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h>
 #include <api/video_codecs/video_decoder_factory_template_open_h264_adapter.h>
 #include <media/engine/webrtc_media_engine.h>
-#include <modules/audio_device/include/audio_device.h>
-#include <modules/audio_device/include/audio_device_factory.h>
-#include <modules/audio_device/linux/audio_device_alsa_linux.h>
-#include <modules/audio_device/linux/audio_device_pulse_linux.h>
 #include <modules/audio_processing/include/audio_processing.h>
 #include <rtc_base/ssl_adapter.h>
 
 #if defined(USE_LIBCAMERA_CAPTURE)
 #include "capturer/libcamera_capturer.h"
 #elif defined(USE_LIBARGUS_CAPTURE)
-// #include "capturer/libargus_buffer_capturer.h"
 #include "capturer/libargus_egl_capturer.h"
 #endif
 #include "capturer/alsa_capturer.h"
@@ -56,6 +50,7 @@ Conductor::~Conductor() {
     video_track_ = nullptr;
     video_capture_source_ = nullptr;
     peer_connection_factory_ = nullptr;
+    adm_ = nullptr;
 
     network_thread_->Stop();
     worker_thread_->Stop();
@@ -70,17 +65,31 @@ std::shared_ptr<AudioCapturer> Conductor::AudioSource() const { return audio_cap
 std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
 void Conductor::InitializeTracks() {
-    if (audio_track_ == nullptr && !args.no_audio) {
-        audio_capture_source_ =
-            use_alsa_audio_capture_ ? AlsaCapturer::Create(args) : PaCapturer::Create(args);
-        if (!audio_capture_source_) {
-            ERROR_PRINT("Failed to initialize audio capture source. Audio will be silent.");
+    if (!audio_track_ && !args.no_audio) {
+        audio_capture_source_ = ([this]() -> std::shared_ptr<AudioCapturer> {
+            if (args.no_audio) {
+                INFO_PRINT("Audio capture is disabled.");
+                return nullptr;
+            } else if (args.force_alsa) {
+                INFO_PRINT("Force use Alsa capturer.");
+                return AlsaCapturer::Create(args);
+            } else {
+                INFO_PRINT("Use PulseAudio capturer.");
+                return PaCapturer::Create(args);
+            }
+        })();
+
+        if (adm_ && audio_capture_source_) {
+            adm_->SetCapturer(audio_capture_source_);
+        } else {
+            ERROR_PRINT("Audio device module is not initialized; cannot set audio capturer.");
         }
+
         auto options = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
 
-    if (video_track_ == nullptr && !args.camera.empty()) {
+    if (!video_track_ && !args.camera.empty()) {
         video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
             if (!args.use_libcamera && !args.use_libargus) {
                 INFO_PRINT("Use v4l2 capturer.");
@@ -431,38 +440,30 @@ void Conductor::InitializePeerConnectionFactory() {
 
     webrtc::Environment env = webrtc::CreateEnvironment();
 
-    webrtc::scoped_refptr<webrtc::AudioDeviceModule> adm;
-    if (args.no_audio) {
-        use_alsa_audio_capture_ = false;
-        adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kDummyAudio);
-        if (!adm || adm->Init() != 0) {
-            ERROR_PRINT("Failed to initialize dummy audio device.");
+    worker_thread_->BlockingCall([&]() {
+        use_alsa_audio_capture_ = !args.no_audio && args.force_alsa;
+
+        if (args.no_audio) {
+            INFO_PRINT("Audio mode: dummy (no-audio)");
+        } else if (use_alsa_audio_capture_) {
+            INFO_PRINT("Audio mode: ALSA");
+        } else {
+            INFO_PRINT("Audio mode: PulseAudio");
+        }
+
+        adm_ = AudioDeviceBridge::Create();
+        if (!adm_ || adm_->Init() != 0) {
+            ERROR_PRINT("Failed to initialize audio device.");
             std::exit(EXIT_FAILURE);
         }
-    } else {
-        use_alsa_audio_capture_ = false;
-        adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kLinuxPulseAudio);
-        if (!adm || adm->Init() != 0) {
-            INFO_PRINT("PulseAudio is unavailable, fallback to ALSA.");
-            adm = webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kLinuxAlsaAudio);
-            if (!adm || adm->Init() != 0) {
-                ERROR_PRINT("Failed to initialize Linux audio backend (PulseAudio/ALSA).\n"
-                            "Please check your system audio stack, or run with --no-audio.");
-                std::exit(EXIT_FAILURE);
-            }
-            use_alsa_audio_capture_ = true;
-            INFO_PRINT("Using ALSA audio backend.");
-        } else {
-            INFO_PRINT("Using PulseAudio backend.");
-        }
-    }
+    });
 
     webrtc::PeerConnectionFactoryDependencies deps;
-    deps.env = std::move(env);
+    deps.env = env;
     deps.network_thread = network_thread_.get();
     deps.worker_thread = worker_thread_.get();
     deps.signaling_thread = signaling_thread_.get();
-    deps.adm = adm;
+    deps.adm = adm_;
     deps.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
     deps.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     deps.video_encoder_factory = CreateCustomVideoEncoderFactory(args);

@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "common/logging.h"
 #include "recorder/recorder_manager.h"
 #include "rtc/rtc_peer.h"
 
@@ -125,6 +126,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
+        ("force-alsa", bpo::bool_switch(&args.force_alsa)->default_value(args.force_alsa),
+            "Force using ALSA for audio capture instead of PulseAudio.")
 #if defined(USE_LIBCAMERA_CAPTURE)
         ("sharpness", bpo::value<float>(&args.sharpness)->default_value(args.sharpness),
             "Adjust the sharpness of the libcamera output in range 0.0 to 15.99")
@@ -268,7 +271,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     if (vm.count("help")) {
-        std::cout << opts << std::endl;
+        std::ostringstream oss;
+        oss << opts;
+        INFO_PRINT("%s", oss.str().c_str());
         exit(1);
     }
 
@@ -276,8 +281,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         if (args.sub_width > args.width || args.sub_height > args.height) {
             args.sub_width = args.width;
             args.sub_height = args.height;
-            std::cout << "Sub stream resolution should not be larger than main stream. "
-                      << "Set to " << args.sub_width << "x" << args.sub_height << std::endl;
+            INFO_PRINT("Sub stream resolution should not be larger than main stream. Set to %dx%d",
+                       args.sub_width, args.sub_height);
         }
         args.num_streams += 1;
     } else {
@@ -312,18 +317,18 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     if (!args.stun_url.empty() && args.stun_url.substr(0, 4) != "stun") {
-        std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
+        INFO_PRINT("Stun url should not be empty and start with \"stun:\"");
         exit(1);
     }
 
     if (!args.turn_url.empty() && args.turn_url.substr(0, 4) != "turn") {
-        std::cout << "Turn url should start with \"turn:\"" << std::endl;
+        INFO_PRINT("Turn url should start with \"turn:\"");
         exit(1);
     }
 
     if (!args.record_path.empty()) {
         if (args.record_path.front() != '/') {
-            std::cout << "The file path needs to start with a \"/\" character" << std::endl;
+            INFO_PRINT("The file path needs to start with a \"/\" character");
             exit(1);
         }
         if (args.record_path.back() != '/') {
@@ -409,7 +414,7 @@ void Parser::ParseDevice(Args &args) {
 #if defined(USE_LIBCAMERA_CAPTURE)
         args.use_libcamera = true;
         args.format = V4L2_PIX_FMT_YUV420;
-        std::cout << "Using libcamera, ID: " << args.camera_id << std::endl;
+        INFO_PRINT("Using libcamera, ID: %d", args.camera_id);
 #elif defined(JETSON_PLATFORM)
         throw std::runtime_error("Jetson does not support libcamera. Use v4l2:<id> instead.");
 #else
@@ -427,8 +432,8 @@ void Parser::ParseDevice(Args &args) {
 #endif
     } else if (prefix == "v4l2") {
         args.format = ParseEnum(v4l2_fmt_table, args.v4l2_format);
-        std::cout << "Using V4L2, ID: " << args.camera_id << std::endl;
-        std::cout << "V4L2 format: " << args.v4l2_format << std::endl;
+        INFO_PRINT("Using V4L2, ID: %d", args.camera_id);
+        INFO_PRINT("V4L2 format: %s", args.v4l2_format.c_str());
 
     } else {
         throw std::runtime_error("Unknown camera type: " + prefix +
