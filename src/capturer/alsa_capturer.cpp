@@ -8,18 +8,17 @@
 #include "common/logging.h"
 
 std::shared_ptr<AudioCapturer> AlsaCapturer::Create(Args args) {
-    auto ptr = std::make_shared<AlsaCapturer>();
-    if (!ptr->CreateFloat32Source(args.sample_rate)) {
+    auto ptr = std::make_shared<AlsaCapturer>(args);
+    if (!ptr->CreateFloat32Source()) {
         return nullptr;
     }
     ptr->StartCapture();
     return ptr;
 }
 
-AlsaCapturer::AlsaCapturer()
-    : pcm_handle_(nullptr),
-      raw_capture_buffer_(kFramesPerBuffer * kChannels * sizeof(float)),
-      float_capture_buffer_(kFramesPerBuffer * kChannels, 0.0f) {}
+AlsaCapturer::AlsaCapturer(Args args)
+    : AudioCapturer(args.channels, args.sample_rate),
+      pcm_handle_(nullptr) {}
 
 AlsaCapturer::~AlsaCapturer() {
     worker_.reset();
@@ -29,12 +28,10 @@ AlsaCapturer::~AlsaCapturer() {
     }
 }
 
-bool AlsaCapturer::CreateFloat32Source(int sample_rate) {
-    sample_rate_ = sample_rate;
-    const auto try_set_params = [this, sample_rate](snd_pcm_format_t alsa_fmt,
-                                                    SampleFormat fmt) -> bool {
+bool AlsaCapturer::CreateFloat32Source() {
+    const auto try_set_params = [this](snd_pcm_format_t alsa_fmt, SampleFormat fmt) -> bool {
         const int ret = snd_pcm_set_params(pcm_handle_, alsa_fmt, SND_PCM_ACCESS_RW_INTERLEAVED,
-                                           kChannels, sample_rate, 1, 500000);
+                                           channels_, sample_rate_, 1, 500000);
         if (ret < 0) {
             return false;
         }
@@ -51,25 +48,22 @@ bool AlsaCapturer::CreateFloat32Source(int sample_rate) {
 
     if (try_set_params(SND_PCM_FORMAT_FLOAT_LE, SampleFormat::Float32)) {
         INFO_PRINT("ALSA capture format: FLOAT_LE");
-        return true;
-    }
-
-    if (try_set_params(SND_PCM_FORMAT_S32_LE, SampleFormat::S32)) {
+    } else if (try_set_params(SND_PCM_FORMAT_S32_LE, SampleFormat::S32)) {
         INFO_PRINT("ALSA capture format fallback: S32_LE");
-        return true;
-    }
-
-    if (try_set_params(SND_PCM_FORMAT_S16_LE, SampleFormat::S16)) {
+    } else if (try_set_params(SND_PCM_FORMAT_S16_LE, SampleFormat::S16)) {
         INFO_PRINT("ALSA capture format fallback: S16_LE");
-        return true;
-    }
-
-    ERROR_PRINT("ALSA set params failed for FLOAT_LE/S32_LE/S16_LE");
-    if (pcm_handle_) {
+    } else {
+        ERROR_PRINT("ALSA set params failed for FLOAT_LE/S32_LE/S16_LE");
         snd_pcm_close(pcm_handle_);
         pcm_handle_ = nullptr;
+        return false;
     }
-    return false;
+
+    // Pre-allocate buffers for exactly 10ms of audio (same fragment size as PaCapturer).
+    const size_t frames_per_buffer = static_cast<size_t>(frames_per_chunk());
+    raw_capture_buffer_.resize(frames_per_buffer * channels_ * sizeof(float));
+    float_capture_buffer_.resize(frames_per_buffer * channels_);
+    return true;
 }
 
 void AlsaCapturer::CaptureSamples() {
@@ -78,29 +72,10 @@ void AlsaCapturer::CaptureSamples() {
         return;
     }
 
-    const int wait_res = snd_pcm_wait(pcm_handle_, 1000);
-    if (wait_res == 0) {
-        // No data within timeout, avoid spinning.
-        return;
-    }
-    if (wait_res < 0) {
-        if (wait_res == -EPIPE) {
-            snd_pcm_prepare(pcm_handle_);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        return;
-    }
-
-    const size_t bytes_per_sample =
-        sample_format_ == SampleFormat::S16 ? sizeof(int16_t) : sizeof(int32_t);
-    const size_t bytes_per_frame = bytes_per_sample * kChannels;
-    const size_t read_size = kFramesPerBuffer * bytes_per_frame;
-    if (raw_capture_buffer_.size() < read_size) {
-        raw_capture_buffer_.resize(read_size);
-    }
+    const size_t frames_per_buffer = static_cast<size_t>(frames_per_chunk()); // 10ms
 
     const auto frames_read =
-        snd_pcm_readi(pcm_handle_, raw_capture_buffer_.data(), kFramesPerBuffer);
+        snd_pcm_readi(pcm_handle_, raw_capture_buffer_.data(), frames_per_buffer);
     if (frames_read == -EAGAIN) {
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
         return;
@@ -110,17 +85,13 @@ void AlsaCapturer::CaptureSamples() {
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
         return;
     }
-
     if (frames_read < 0) {
         ERROR_PRINT("ALSA read failed: %s", snd_strerror(static_cast<int>(frames_read)));
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         return;
     }
 
-    const size_t sample_count = static_cast<size_t>(frames_read) * kChannels;
-    if (float_capture_buffer_.size() < sample_count) {
-        float_capture_buffer_.resize(sample_count);
-    }
+    const size_t sample_count = static_cast<size_t>(frames_read) * channels_;
 
     if (sample_format_ == SampleFormat::Float32) {
         std::memcpy(float_capture_buffer_.data(), raw_capture_buffer_.data(),
@@ -143,7 +114,7 @@ void AlsaCapturer::CaptureSamples() {
 
     shared_buffer_ = {.start = reinterpret_cast<uint8_t *>(float_capture_buffer_.data()),
                       .length = static_cast<unsigned int>(sample_count),
-                      .channels = kChannels};
+                      .channels = static_cast<unsigned int>(channels_)};
     Next(shared_buffer_);
 }
 

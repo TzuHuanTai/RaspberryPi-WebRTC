@@ -8,15 +8,16 @@
 
 #include "args.h"
 #include "capturer/audio_capturer.h"
-#include "common/worker.h"
 
 class AlsaCapturer : public AudioCapturer {
   public:
     static std::shared_ptr<AudioCapturer> Create(Args args);
-    AlsaCapturer();
+
+    AlsaCapturer(Args args);
     ~AlsaCapturer();
+
+  protected:
     void StartCapture() override;
-    int sample_rate() const override { return sample_rate_; }
 
   private:
     enum class SampleFormat {
@@ -25,18 +26,12 @@ class AlsaCapturer : public AudioCapturer {
         S16,
     };
 
-    static constexpr int kChannels = 2;
-    static constexpr snd_pcm_uframes_t kFramesPerBuffer = 1024;
-
     snd_pcm_t *pcm_handle_;
-    int sample_rate_ = 0;
     SampleFormat sample_format_ = SampleFormat::Float32;
-    AudioBuffer shared_buffer_;
     std::vector<uint8_t> raw_capture_buffer_;
     std::vector<float> float_capture_buffer_;
-    std::unique_ptr<Worker> worker_;
 
-    bool CreateFloat32Source(int sample_rate);
+    bool CreateFloat32Source();
     void CaptureSamples();
 };
 

@@ -80,8 +80,10 @@ struct Args {
     int live_stream_idx = 0;   // webrtc live stream index
 
     // audio input
-    int sample_rate = 44100;
+    int sample_rate = 48000;
+    int channels = 2;
     bool no_audio = false;
+    bool force_alsa = false;
 
     // libcamera control options
     float sharpness = 1.0f;
