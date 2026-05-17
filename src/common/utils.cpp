@@ -140,18 +140,6 @@ std::string Utils::ToBase64(const std::string &binary_file) {
     return out;
 }
 
-std::string Utils::ReadFileInBinary(const std::string &file_path) {
-    std::ifstream file(file_path, std::ios::binary);
-    if (!file) {
-        std::cerr << "Could not open file: " << file_path << std::endl;
-        return {};
-    }
-
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    return ss.str();
-}
-
 std::vector<std::pair<fs::file_time_type, fs::path>> Utils::GetFiles(const std::string &path,
                                                                      const std::string &extension) {
     std::vector<std::pair<fs::file_time_type, fs::path>> files;
@@ -390,6 +378,80 @@ std::string Utils::PrefixZero(int src, int digits) {
     std::string str = std::to_string(src);
     std::string n_zero(digits - str.length(), '0');
     return n_zero + str;
+}
+
+std::string Utils::GetScaledBase64Image(const std::string &file_path, int scale_num,
+                                        int scale_denom, int quality) {
+    struct jpeg_decompress_struct cinfo_dec;
+    struct jpeg_error_mgr jerr_dec;
+
+    FILE *infile = fopen(file_path.c_str(), "rb");
+    if (!infile)
+        return "";
+
+    cinfo_dec.err = jpeg_std_error(&jerr_dec);
+    jpeg_create_decompress(&cinfo_dec);
+    jpeg_stdio_src(&cinfo_dec, infile);
+    jpeg_read_header(&cinfo_dec, TRUE);
+
+    cinfo_dec.scale_num = scale_num;
+    cinfo_dec.scale_denom = scale_denom;
+    jpeg_start_decompress(&cinfo_dec);
+
+    int width = cinfo_dec.output_width;
+    int height = cinfo_dec.output_height;
+    int channels = cinfo_dec.output_components; // 通常是 3 (RGB)
+
+    int row_stride = width * channels;
+    std::vector<unsigned char> rgb_buffer(row_stride * height);
+
+    while (cinfo_dec.output_scanline < cinfo_dec.output_height) {
+        unsigned char *row_pointer[1];
+        row_pointer[0] = &rgb_buffer[cinfo_dec.output_scanline * row_stride];
+        jpeg_read_scanlines(&cinfo_dec, row_pointer, 1);
+    }
+
+    jpeg_finish_decompress(&cinfo_dec);
+    jpeg_destroy_decompress(&cinfo_dec);
+    fclose(infile);
+
+    struct jpeg_compress_struct cinfo_comp;
+    struct jpeg_error_mgr jerr_comp;
+
+    cinfo_comp.err = jpeg_std_error(&jerr_comp);
+    jpeg_create_compress(&cinfo_comp);
+
+    unsigned char *out_buffer = nullptr;
+    unsigned long out_size = 0;
+    jpeg_mem_dest(&cinfo_comp, &out_buffer, &out_size);
+
+    cinfo_comp.image_width = width;
+    cinfo_comp.image_height = height;
+    cinfo_comp.input_components = channels;
+    cinfo_comp.in_color_space = JCS_RGB;
+
+    jpeg_set_defaults(&cinfo_comp);
+    jpeg_set_quality(&cinfo_comp, quality, TRUE);
+    jpeg_start_compress(&cinfo_comp, TRUE);
+
+    while (cinfo_comp.next_scanline < cinfo_comp.image_height) {
+        JSAMPROW row_pointer[1];
+        row_pointer[0] = &rgb_buffer[cinfo_comp.next_scanline * row_stride];
+        jpeg_write_scanlines(&cinfo_comp, row_pointer, 1);
+    }
+
+    jpeg_finish_compress(&cinfo_comp);
+    jpeg_destroy_compress(&cinfo_comp);
+
+    std::string jpg_binary(reinterpret_cast<char *>(out_buffer), out_size);
+
+    std::string base64_result = Utils::ToBase64(jpg_binary);
+
+    if (out_buffer) {
+        free(out_buffer);
+    }
+
+    return base64_result;
 }
 
 Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, int quality) {
