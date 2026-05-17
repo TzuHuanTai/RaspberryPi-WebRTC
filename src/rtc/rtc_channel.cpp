@@ -202,8 +202,10 @@ void RtcChannel::Send(Buffer image) {
 }
 
 void RtcChannel::Send(std::ifstream &file) {
-    if (!file.is_open())
+    if (!file.is_open()) {
+        ERROR_PRINT("Send(ifstream): file is not open, aborting transfer");
         return;
+    }
 
     auto type = protocol::CommandType::TRANSFER_FILE;
 
@@ -223,7 +225,6 @@ void RtcChannel::Send(std::ifstream &file) {
     Send((uint8_t *)header_data.data(), header_data.size());
 
     std::vector<char> buffer(CHUNK_SIZE);
-    std::vector<uint8_t> serialization_buf(CHUNK_SIZE + 256);
     size_t offset = 0;
     while (file.read(buffer.data(), CHUNK_SIZE) || file.gcount() > 0) {
         size_t read_size = file.gcount();
