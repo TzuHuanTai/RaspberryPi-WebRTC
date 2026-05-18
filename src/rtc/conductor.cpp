@@ -302,17 +302,29 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
     if (type == protocol::QueryFileType::LATEST_FILE || parameter.empty()) {
         auto path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
         DEBUG_PRINT("LATEST: %s", path.c_str());
-        SendFileResponse(datachannel, path);
+        if (path.empty()) {
+            datachannel->Send(protocol::QueryFileResponse{});
+        } else {
+            SendFileResponse(datachannel, path);
+        }
     } else if (type == protocol::QueryFileType::BEFORE_FILE) {
         auto paths = Utils::FindOlderFiles(parameter, 8);
-        for (auto &path : paths) {
-            DEBUG_PRINT("OLDER: %s", path.c_str());
-            SendFileResponse(datachannel, path);
+        if (paths.empty()) {
+            datachannel->Send(protocol::QueryFileResponse{});
+        } else {
+            for (auto &path : paths) {
+                DEBUG_PRINT("OLDER: %s", path.c_str());
+                SendFileResponse(datachannel, path);
+            }
         }
     } else if (type == protocol::QueryFileType::BEFORE_TIME) {
         auto path = Utils::FindFilesFromDatetime(args.record_path, parameter);
         DEBUG_PRINT("TIME_MATCH: %s", path.c_str());
-        SendFileResponse(datachannel, path);
+        if (path.empty()) {
+            datachannel->Send(protocol::QueryFileResponse{});
+        } else {
+            SendFileResponse(datachannel, path);
+        }
     }
 }
 
@@ -363,10 +375,11 @@ void Conductor::TransferFile(std::shared_ptr<RtcChannel> datachannel, const prot
         std::ifstream file(path, std::ios::binary | std::ios::ate);
         if (!file) {
             ERROR_PRINT("Unable to open file: %s", path.c_str());
-            return;
         }
         datachannel->Send(file);
-        DEBUG_PRINT("Sent Video: %s", path.c_str());
+        if (file.is_open()) {
+            DEBUG_PRINT("Sent Video: %s", path.c_str());
+        }
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }

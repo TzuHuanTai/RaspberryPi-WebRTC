@@ -143,6 +143,9 @@ std::string Utils::ToBase64(const std::string &binary_file) {
 std::vector<std::pair<fs::file_time_type, fs::path>> Utils::GetFiles(const std::string &path,
                                                                      const std::string &extension) {
     std::vector<std::pair<fs::file_time_type, fs::path>> files;
+    if (!fs::exists(path) || !fs::is_directory(path)) {
+        return files;
+    }
     for (const auto &entry : fs::directory_iterator(path)) {
         if (entry.is_regular_file() && entry.path().extension() == extension) {
             files.emplace_back(fs::last_write_time(entry), entry.path());
