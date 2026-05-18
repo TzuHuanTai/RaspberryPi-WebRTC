@@ -202,14 +202,14 @@ void RtcChannel::Send(Buffer image) {
 }
 
 void RtcChannel::Send(std::ifstream &file) {
-    if (!file.is_open())
-        return;
-
     auto type = protocol::CommandType::TRANSFER_FILE;
 
-    file.seekg(0, std::ios::end);
-    size_t total_size = file.tellg();
-    file.seekg(0, std::ios::beg);
+    size_t total_size = 0;
+    if (file.is_open()) {
+        file.seekg(0, std::ios::end);
+        total_size = file.tellg();
+        file.seekg(0, std::ios::beg);
+    }
 
     auto stream_id = Utils::GenerateUuid();
 
@@ -222,23 +222,25 @@ void RtcChannel::Send(std::ifstream &file) {
     std::string header_data = header_pkt.SerializeAsString();
     Send((uint8_t *)header_data.data(), header_data.size());
 
-    std::vector<char> buffer(CHUNK_SIZE);
-    std::vector<uint8_t> serialization_buf(CHUNK_SIZE + 256);
-    size_t offset = 0;
-    while (file.read(buffer.data(), CHUNK_SIZE) || file.gcount() > 0) {
-        size_t read_size = file.gcount();
+    if (file.is_open()) {
+        std::vector<char> buffer(CHUNK_SIZE);
+        std::vector<uint8_t> serialization_buf(CHUNK_SIZE + 256);
+        size_t offset = 0;
+        while (file.read(buffer.data(), CHUNK_SIZE) || file.gcount() > 0) {
+            size_t read_size = file.gcount();
 
-        protocol::Packet chunk_pkt;
-        chunk_pkt.set_type(type);
-        auto *chunk = chunk_pkt.mutable_stream_chunk();
-        chunk->set_stream_id(stream_id);
-        chunk->set_offset(offset);
-        chunk->set_data(buffer.data(), read_size);
+            protocol::Packet chunk_pkt;
+            chunk_pkt.set_type(type);
+            auto *chunk = chunk_pkt.mutable_stream_chunk();
+            chunk->set_stream_id(stream_id);
+            chunk->set_offset(offset);
+            chunk->set_data(buffer.data(), read_size);
 
-        std::string chunk_data = chunk_pkt.SerializeAsString();
-        Send((uint8_t *)chunk_data.data(), chunk_data.size());
+            std::string chunk_data = chunk_pkt.SerializeAsString();
+            Send((uint8_t *)chunk_data.data(), chunk_data.size());
 
-        offset += read_size;
+            offset += read_size;
+        }
     }
 
     protocol::Packet trailer_pkt;
