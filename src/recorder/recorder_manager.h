@@ -1,7 +1,9 @@
 #ifndef RECORDER_MANAGER_H_
 #define RECORDER_MANAGER_H_
 
+#include <condition_variable>
 #include <mutex>
+#include <thread>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -12,7 +14,6 @@ extern "C" {
 
 #include "capturer/audio_capturer.h"
 #include "capturer/video_capturer.h"
-#include "common/worker.h"
 #include "recorder/audio_recorder.h"
 #include "recorder/video_recorder.h"
 
@@ -61,7 +62,9 @@ class RecorderManager {
     std::atomic<bool> header_written_;
     std::atomic<bool> time_reset_pending_;
     std::mutex rotation_mtx_;
-    std::unique_ptr<Worker> worker_;
+    std::condition_variable rotation_cv_;
+    std::atomic<bool> rotation_abort_;
+    std::thread rotation_thread_;
     struct timeval last_created_time_;
     std::shared_ptr<VideoCapturer> video_src_;
 

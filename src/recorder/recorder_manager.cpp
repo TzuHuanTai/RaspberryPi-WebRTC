@@ -67,14 +67,25 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
         instance->SubscribeAudioSource(audio_src);
     }
 
-    instance->worker_ = std::make_unique<Worker>("rotation_worker", [config]() {
-        DEBUG_PRINT("Rotate files.");
-        while (!Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
-            Utils::RotateFiles(config.record_path);
+    instance->rotation_abort_.store(false);
+    instance->rotation_thread_ = std::thread([inst = instance.get(), config]() {
+        while (true) {
+            {
+                std::unique_lock<std::mutex> lock(inst->rotation_mtx_);
+                inst->rotation_cv_.wait_for(lock, std::chrono::seconds(ROTATION_PERIOD), [inst]() {
+                    return inst->rotation_abort_.load();
+                });
+            }
+            if (inst->rotation_abort_.load())
+                break;
+            DEBUG_PRINT("Rotate files.");
+            while (!inst->rotation_abort_.load() &&
+                   !Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
+                Utils::RotateFiles(config.record_path);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(ROTATION_PERIOD));
     });
-    instance->worker_->Run();
 
     return instance;
 }
@@ -94,14 +105,25 @@ RecorderManager::CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
         instance->SubscribeAudioSource(audio_src);
     }
 
-    instance->worker_ = std::make_unique<Worker>("ondemand_rotation_worker", [config]() {
-        DEBUG_PRINT("Rotate on-demand files.");
-        while (!Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
-            Utils::RotateFiles(config.record_path);
+    instance->rotation_abort_.store(false);
+    instance->rotation_thread_ = std::thread([inst = instance.get(), config]() {
+        while (true) {
+            {
+                std::unique_lock<std::mutex> lock(inst->rotation_mtx_);
+                inst->rotation_cv_.wait_for(lock, std::chrono::seconds(ROTATION_PERIOD), [inst]() {
+                    return inst->rotation_abort_.load();
+                });
+            }
+            if (inst->rotation_abort_.load())
+                break;
+            DEBUG_PRINT("Rotate on-demand files.");
+            while (!inst->rotation_abort_.load() &&
+                   !Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
+                Utils::RotateFiles(config.record_path);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(ROTATION_PERIOD));
     });
-    instance->worker_->Run();
 
     return instance;
 }
@@ -250,7 +272,7 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 
 void RecorderManager::Start() {
     if (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
-        Utils::RotateFiles(record_path);
+        rotation_cv_.notify_one();
     }
 
     FileInfo new_file(record_path, CONTAINER_FORMAT);
@@ -317,7 +339,11 @@ void RecorderManager::Stop() {
 RecorderManager::~RecorderManager() {
     printf("~RecorderManager\n");
     Stop();
-    worker_.reset();
+    rotation_abort_.store(true);
+    rotation_cv_.notify_one();
+    if (rotation_thread_.joinable()) {
+        rotation_thread_.join();
+    }
     video_recorder.reset();
     audio_recorder.reset();
 }
