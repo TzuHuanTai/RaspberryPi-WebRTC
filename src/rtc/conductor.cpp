@@ -261,7 +261,7 @@ void Conductor::InitializeCommandChannel(webrtc::scoped_refptr<RtcPeer> peer) {
         });
 
     cmd_channel->OnClosed([this]() {
-        auto recorder = ondemand_recorder_.lock();
+        auto recorder = ondemand_recorder_;
         if (recorder && recorder->is_recording()) {
             DEBUG_PRINT("Peer disconnected: Auto-stop on-demand recording when peer disconnects "
                         "(kFailed / kClosed)");
@@ -394,13 +394,11 @@ void Conductor::ControlCamera(std::shared_ptr<RtcChannel> datachannel,
     }
 }
 
-void Conductor::SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder) {
-    ondemand_recorder_ = recorder;
-}
+void Conductor::SetOnDemandRecorder(RecorderManager *recorder) { ondemand_recorder_ = recorder; }
 
 void Conductor::StartRecording(std::shared_ptr<RtcChannel> datachannel,
                                const protocol::Packet &pkt) {
-    auto recorder = ondemand_recorder_.lock();
+    auto recorder = ondemand_recorder_;
     if (!recorder) {
         ERROR_PRINT("On-demand recorder is not set.");
         return;
@@ -416,7 +414,7 @@ void Conductor::StartRecording(std::shared_ptr<RtcChannel> datachannel,
 
 void Conductor::StopRecording(std::shared_ptr<RtcChannel> datachannel,
                               const protocol::Packet &pkt) {
-    auto recorder = ondemand_recorder_.lock();
+    auto recorder = ondemand_recorder_;
     if (!recorder) {
         ERROR_PRINT("On-demand recorder is not set.");
         return;

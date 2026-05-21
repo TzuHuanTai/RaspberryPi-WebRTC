@@ -58,13 +58,12 @@ void Utils::RotateFiles(const std::string &folder_path) {
         }
     }
 
-    if (oldest_hour_folder.empty()) {
-        fs::remove(oldest_date_folder);
-        INFO_PRINT("Deleted empty date folder: %s", oldest_date_folder.string().c_str());
-        return;
-    }
-
     try {
+        if (oldest_hour_folder.empty()) {
+            fs::remove_all(oldest_date_folder);
+            INFO_PRINT("Deleted empty date folder: %s", oldest_date_folder.string().c_str());
+            return;
+        }
         fs::path oldest_file;
         for (const auto &file : fs::directory_iterator(oldest_hour_folder)) {
             if (file.is_regular_file()) {

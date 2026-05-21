@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);
     std::unique_ptr<RecorderManager> bg_recorder_mgr;
-    std::shared_ptr<RecorderManager> ondemand_recorder_mgr;
+    std::unique_ptr<RecorderManager> ondemand_recorder_mgr;
 
     // Background recorder
     if ((args.record_mode == RecordMode::Background || args.record_mode == -1) &&
@@ -29,9 +29,9 @@ int main(int argc, char *argv[]) {
         Args ondemand_args = args;
         ondemand_args.record_path = args.record_ondemand_path;
         if (Utils::CreateFolder(ondemand_args.record_path)) {
-            ondemand_recorder_mgr = RecorderManager::CreateOnDemand(
-                conductor->VideoSource(), conductor->AudioSource(), ondemand_args);
-            conductor->SetOnDemandRecorder(ondemand_recorder_mgr);
+            ondemand_recorder_mgr = RecorderManager::Create(
+                conductor->VideoSource(), conductor->AudioSource(), ondemand_args, false);
+            conductor->SetOnDemandRecorder(ondemand_recorder_mgr.get());
             DEBUG_PRINT("On-demand recorder is ready.");
         }
     }

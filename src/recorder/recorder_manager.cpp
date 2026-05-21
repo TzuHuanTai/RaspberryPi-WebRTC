@@ -55,8 +55,9 @@ void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
 
 std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCapturer> video_src,
                                                          std::shared_ptr<AudioCapturer> audio_src,
-                                                         Args config) {
+                                                         Args config, bool auto_start) {
     auto instance = std::make_unique<RecorderManager>(config);
+    instance->auto_start_ = auto_start;
 
     if (video_src) {
         instance->CreateVideoRecorder(video_src);
@@ -67,65 +68,33 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCa
         instance->SubscribeAudioSource(audio_src);
     }
 
-    instance->rotation_abort_.store(false);
-    instance->rotation_thread_ = std::thread([inst = instance.get(), config]() {
-        while (true) {
-            {
-                std::unique_lock<std::mutex> lock(inst->rotation_mtx_);
-                inst->rotation_cv_.wait_for(lock, std::chrono::seconds(ROTATION_PERIOD), [inst]() {
-                    return inst->rotation_abort_.load();
-                });
-            }
-            if (inst->rotation_abort_.load())
-                break;
-            DEBUG_PRINT("Rotate files.");
-            while (!inst->rotation_abort_.load() &&
-                   !Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
-                Utils::RotateFiles(config.record_path);
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
-    });
+    instance->StartRotationThread();
 
     return instance;
 }
 
-std::shared_ptr<RecorderManager>
-RecorderManager::CreateOnDemand(std::shared_ptr<VideoCapturer> video_src,
-                                std::shared_ptr<AudioCapturer> audio_src, Args config) {
-    auto instance = std::make_shared<RecorderManager>(config);
-    instance->auto_start_ = false;
-
-    if (video_src) {
-        instance->CreateVideoRecorder(video_src);
-        instance->SubscribeVideoSource(video_src);
-    }
-    if (audio_src) {
-        instance->CreateAudioRecorder(audio_src);
-        instance->SubscribeAudioSource(audio_src);
-    }
-
-    instance->rotation_abort_.store(false);
-    instance->rotation_thread_ = std::thread([inst = instance.get(), config]() {
+void RecorderManager::StartRotationThread() {
+    rotation_abort_.store(false);
+    rotation_requested_.store(false);
+    rotation_thread_ = std::thread([this]() {
         while (true) {
             {
-                std::unique_lock<std::mutex> lock(inst->rotation_mtx_);
-                inst->rotation_cv_.wait_for(lock, std::chrono::seconds(ROTATION_PERIOD), [inst]() {
-                    return inst->rotation_abort_.load();
+                std::unique_lock<std::mutex> lock(rotation_mtx_);
+                rotation_cv_.wait_for(lock, std::chrono::seconds(ROTATION_PERIOD), [this]() {
+                    return rotation_abort_.load() || rotation_requested_.load();
                 });
             }
-            if (inst->rotation_abort_.load())
+            if (rotation_abort_.load())
                 break;
-            DEBUG_PRINT("Rotate on-demand files.");
-            while (!inst->rotation_abort_.load() &&
+            rotation_requested_.store(false);
+            DEBUG_PRINT("Rotate files in path: %s", config.record_path.c_str());
+            while (!rotation_abort_.load() &&
                    !Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
                 Utils::RotateFiles(config.record_path);
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
     });
-
-    return instance;
 }
 
 void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capturer) {
@@ -272,6 +241,7 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 
 void RecorderManager::Start() {
     if (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
+        rotation_requested_.store(true);
         rotation_cv_.notify_one();
     }
 
