@@ -9,7 +9,10 @@
 #include <uuid/uuid.h>
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
 #include <jpeglib.h>
 #include <third_party/libyuv/include/libyuv.h>
@@ -383,44 +386,134 @@ std::string Utils::PrefixZero(int src, int digits) {
     return n_zero + str;
 }
 
-std::string Utils::GetScaledBase64Image(const std::string &file_path, int scale_num,
-                                        int scale_denom, int quality) {
-    struct jpeg_decompress_struct cinfo_dec;
-    struct jpeg_error_mgr jerr_dec;
+std::string Utils::GetVideoThumbnailBase64(const std::string &file_path, int scale_denom,
+                                           int quality) {
+    AVFormatContext *fmt_ctx = nullptr;
+    AVCodecContext *codec_ctx = nullptr;
+    AVPacket *pkt = nullptr;
+    AVFrame *frame = nullptr;
+    AVFrame *rgb_frame = nullptr;
+    SwsContext *sws_ctx = nullptr;
+    uint8_t *rgb_buf = nullptr;
+    std::string result;
 
-    FILE *infile = fopen(file_path.c_str(), "rb");
-    if (!infile)
+    auto cleanup = [&]() {
+        if (rgb_buf)
+            av_free(rgb_buf);
+        if (sws_ctx)
+            sws_freeContext(sws_ctx);
+        if (rgb_frame)
+            av_frame_free(&rgb_frame);
+        if (frame)
+            av_frame_free(&frame);
+        if (pkt)
+            av_packet_free(&pkt);
+        if (codec_ctx)
+            avcodec_free_context(&codec_ctx);
+        if (fmt_ctx)
+            avformat_close_input(&fmt_ctx);
+    };
+
+    if (avformat_open_input(&fmt_ctx, file_path.c_str(), nullptr, nullptr) < 0) {
         return "";
-
-    cinfo_dec.err = jpeg_std_error(&jerr_dec);
-    jpeg_create_decompress(&cinfo_dec);
-    jpeg_stdio_src(&cinfo_dec, infile);
-    jpeg_read_header(&cinfo_dec, TRUE);
-
-    cinfo_dec.scale_num = scale_num;
-    cinfo_dec.scale_denom = scale_denom;
-    jpeg_start_decompress(&cinfo_dec);
-
-    int width = cinfo_dec.output_width;
-    int height = cinfo_dec.output_height;
-    int channels = cinfo_dec.output_components; // 通常是 3 (RGB)
-
-    int row_stride = width * channels;
-    std::vector<unsigned char> rgb_buffer(row_stride * height);
-
-    while (cinfo_dec.output_scanline < cinfo_dec.output_height) {
-        unsigned char *row_pointer[1];
-        row_pointer[0] = &rgb_buffer[cinfo_dec.output_scanline * row_stride];
-        jpeg_read_scanlines(&cinfo_dec, row_pointer, 1);
     }
 
-    jpeg_finish_decompress(&cinfo_dec);
-    jpeg_destroy_decompress(&cinfo_dec);
-    fclose(infile);
+    if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+        cleanup();
+        return "";
+    }
+
+    int video_stream_idx = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    if (video_stream_idx < 0) {
+        cleanup();
+        return "";
+    }
+
+    AVStream *video_stream = fmt_ctx->streams[video_stream_idx];
+    const AVCodec *codec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    if (!codec) {
+        cleanup();
+        return "";
+    }
+
+    codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        cleanup();
+        return "";
+    }
+
+    if (avcodec_parameters_to_context(codec_ctx, video_stream->codecpar) < 0) {
+        cleanup();
+        return "";
+    }
+
+    if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
+        cleanup();
+        return "";
+    }
+
+    if (fmt_ctx->duration > 0) {
+        int64_t seek_ts = fmt_ctx->duration / 10;
+        av_seek_frame(fmt_ctx, -1, seek_ts, AVSEEK_FLAG_BACKWARD);
+        avcodec_flush_buffers(codec_ctx);
+    }
+
+    pkt = av_packet_alloc();
+    frame = av_frame_alloc();
+    rgb_frame = av_frame_alloc();
+    if (!pkt || !frame || !rgb_frame) {
+        cleanup();
+        return "";
+    }
+
+    bool got_frame = false;
+    int max_packets = 200;
+    while (av_read_frame(fmt_ctx, pkt) >= 0 && !got_frame && max_packets-- > 0) {
+        if (pkt->stream_index == video_stream_idx) {
+            if (avcodec_send_packet(codec_ctx, pkt) == 0) {
+                if (avcodec_receive_frame(codec_ctx, frame) == 0) {
+                    got_frame = true;
+                }
+            }
+        }
+        av_packet_unref(pkt);
+    }
+
+    if (!got_frame) {
+        cleanup();
+        return "";
+    }
+
+    int src_w = codec_ctx->width;
+    int src_h = codec_ctx->height;
+    int dst_w = src_w / scale_denom;
+    int dst_h = src_h / scale_denom;
+    if (dst_w < 1)
+        dst_w = 1;
+    if (dst_h < 1)
+        dst_h = 1;
+
+    sws_ctx = sws_getContext(src_w, src_h, codec_ctx->pix_fmt, dst_w, dst_h, AV_PIX_FMT_RGB24,
+                             SWS_BILINEAR, nullptr, nullptr, nullptr);
+    if (!sws_ctx) {
+        cleanup();
+        return "";
+    }
+
+    int rgb_buf_size = av_image_get_buffer_size(AV_PIX_FMT_RGB24, dst_w, dst_h, 1);
+    rgb_buf = static_cast<uint8_t *>(av_malloc(rgb_buf_size));
+    if (!rgb_buf) {
+        cleanup();
+        return "";
+    }
+
+    av_image_fill_arrays(rgb_frame->data, rgb_frame->linesize, rgb_buf, AV_PIX_FMT_RGB24, dst_w,
+                         dst_h, 1);
+    sws_scale(sws_ctx, frame->data, frame->linesize, 0, src_h, rgb_frame->data,
+              rgb_frame->linesize);
 
     struct jpeg_compress_struct cinfo_comp;
     struct jpeg_error_mgr jerr_comp;
-
     cinfo_comp.err = jpeg_std_error(&jerr_comp);
     jpeg_create_compress(&cinfo_comp);
 
@@ -428,33 +521,32 @@ std::string Utils::GetScaledBase64Image(const std::string &file_path, int scale_
     unsigned long out_size = 0;
     jpeg_mem_dest(&cinfo_comp, &out_buffer, &out_size);
 
-    cinfo_comp.image_width = width;
-    cinfo_comp.image_height = height;
-    cinfo_comp.input_components = channels;
+    cinfo_comp.image_width = dst_w;
+    cinfo_comp.image_height = dst_h;
+    cinfo_comp.input_components = 3;
     cinfo_comp.in_color_space = JCS_RGB;
-
     jpeg_set_defaults(&cinfo_comp);
     jpeg_set_quality(&cinfo_comp, quality, TRUE);
     jpeg_start_compress(&cinfo_comp, TRUE);
 
+    int row_stride = dst_w * 3;
     while (cinfo_comp.next_scanline < cinfo_comp.image_height) {
         JSAMPROW row_pointer[1];
-        row_pointer[0] = &rgb_buffer[cinfo_comp.next_scanline * row_stride];
+        row_pointer[0] = &rgb_buf[cinfo_comp.next_scanline * row_stride];
         jpeg_write_scanlines(&cinfo_comp, row_pointer, 1);
     }
 
     jpeg_finish_compress(&cinfo_comp);
     jpeg_destroy_compress(&cinfo_comp);
 
-    std::string jpg_binary(reinterpret_cast<char *>(out_buffer), out_size);
-
-    std::string base64_result = Utils::ToBase64(jpg_binary);
-
-    if (out_buffer) {
+    if (out_buffer && out_size > 0) {
+        std::string jpg_binary(reinterpret_cast<char *>(out_buffer), out_size);
+        result = Utils::ToBase64(jpg_binary);
         free(out_buffer);
     }
 
-    return base64_result;
+    cleanup();
+    return result;
 }
 
 Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, int quality) {

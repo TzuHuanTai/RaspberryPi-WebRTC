@@ -37,8 +37,8 @@ class Utils {
     static void RotateFiles(const std::string &folder_path);
     static bool CheckDriveSpace(const std::string &file_path, unsigned long min_free_byte);
 
-    static std::string GetScaledBase64Image(const std::string &file_path, int scale_num = 1,
-                                            int scale_denom = 8, int quality = 75);
+    static std::string GetVideoThumbnailBase64(const std::string &file_path, int scale_denom = 8,
+                                               int quality = 75);
     static Buffer ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height,
                                    int quality = 100);
     static void CreateJpegImage(const uint8_t *yuv_data, int width, int height,

@@ -32,6 +32,7 @@ target_link_libraries(${PROJECT_NAME}
     avformat
     avcodec
     avutil
+    swscale
     uuid
     ${JPEG_LIBRARIES}
 )

@@ -337,23 +337,9 @@ void Conductor::SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const 
     file->set_filepath(path);
     file->set_duration_sec(Utils::GetVideoDuration(path));
 
-    auto last_dot = path.rfind('.');
-    auto last_slash = path.find_last_of("/\\");
-    if (last_dot != std::string::npos &&
-        (last_slash == std::string::npos || last_dot > last_slash)) {
-
-        std::string thumbnail_path = path.substr(0, last_dot) + ".jpg";
-
-        if (std::filesystem::exists(thumbnail_path)) {
-            std::string base64_data = Utils::GetScaledBase64Image(thumbnail_path);
-            if (!base64_data.empty()) {
-                file->set_thumbnail("data:image/jpeg;base64," + base64_data);
-            } else {
-                ERROR_PRINT("Failed to generate thumbnail for %s", path.c_str());
-            }
-        } else {
-            ERROR_PRINT("Thumbnail not found for %s", path.c_str());
-        }
+    std::string base64_data = Utils::GetVideoThumbnailBase64(path);
+    if (!base64_data.empty()) {
+        file->set_thumbnail("data:image/jpeg;base64," + base64_data);
     }
 
     datachannel->Send(resp);
