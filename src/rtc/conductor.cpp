@@ -297,49 +297,46 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
 
     auto req = pkt.query_file_request();
     auto type = req.type();
+    auto base_dir = (req.mode() == protocol::VideoMode::TIMELAPSE) ? args.record_path + "timelapse"
+                                                                   : args.record_path;
     const std::string &parameter = req.parameter();
 
+    DEBUG_PRINT("Received query request: mode=%s, type=%d, param=%s",
+                (req.mode() == protocol::VideoMode::TIMELAPSE ? "TIMELAPSE" : "RECORDING"),
+                req.type(), parameter.c_str());
+
     if (type == protocol::QueryFileType::LATEST_FILE || parameter.empty()) {
-        auto path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+        auto path = Utils::FindLatestCompleteFile(base_dir, ".mp4");
         DEBUG_PRINT("LATEST: %s", path.c_str());
-        if (path.empty()) {
-            datachannel->Send(protocol::QueryFileResponse{});
-        } else {
-            SendFileResponse(datachannel, path);
-        }
+        SendFileResponse(datachannel, path, req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_FILE) {
-        auto paths = Utils::FindOlderFiles(parameter, 8);
-        if (paths.empty()) {
-            datachannel->Send(protocol::QueryFileResponse{});
-        } else {
-            for (auto &path : paths) {
-                DEBUG_PRINT("OLDER: %s", path.c_str());
-                SendFileResponse(datachannel, path);
-            }
+        auto paths = Utils::FindOlderFiles(base_dir, parameter, 8);
+        for (auto &path : paths) {
+            DEBUG_PRINT("OLDER: %s", path.c_str());
+            SendFileResponse(datachannel, path, req.mode());
         }
     } else if (type == protocol::QueryFileType::BEFORE_TIME) {
-        auto path = Utils::FindFilesFromDatetime(args.record_path, parameter);
+        auto path = Utils::FindFilesFromDatetime(base_dir, parameter);
         DEBUG_PRINT("TIME_MATCH: %s", path.c_str());
-        if (path.empty()) {
-            datachannel->Send(protocol::QueryFileResponse{});
-        } else {
-            SendFileResponse(datachannel, path);
-        }
+        SendFileResponse(datachannel, path, req.mode());
     }
 }
 
-void Conductor::SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path) {
-    if (path.empty())
-        return;
+void Conductor::SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path,
+                                 const protocol::VideoMode mode) {
 
-    protocol::QueryFileResponse resp;
-    auto *file = resp.add_files();
-    file->set_filepath(path);
-    file->set_duration_sec(Utils::GetVideoDuration(path));
+    protocol::QueryFileResponse resp = {};
 
-    std::string base64_data = Utils::GetVideoThumbnailBase64(path);
-    if (!base64_data.empty()) {
-        file->set_thumbnail("data:image/jpeg;base64," + base64_data);
+    resp.set_mode(mode);
+    if (!path.empty()) {
+        auto *file = resp.add_files();
+        file->set_filepath(path);
+        file->set_duration_sec(Utils::GetVideoDuration(path));
+
+        std::string base64_data = Utils::GetVideoThumbnailBase64(path);
+        if (!base64_data.empty()) {
+            file->set_thumbnail("data:image/jpeg;base64," + base64_data);
+        }
     }
 
     datachannel->Send(resp);

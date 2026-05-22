@@ -50,7 +50,8 @@ class Conductor {
     void QueryFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void TransferFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void ControlCamera(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
-    void SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path);
+    void SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const std::string &path,
+                          const protocol::VideoMode mode);
     void StartRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void StopRecording(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
 

@@ -178,14 +178,23 @@ std::string Utils::GetPreviousDate(const std::string &dateStr) {
     return oss.str();
 }
 
-std::string Utils::FindSecondNewestFile(const std::string &path, const std::string &extension) {
-    std::string latestDateDir = Utils::FindLatestSubDir(path);
+std::string Utils::FindLatestCompleteFile(const std::string &base_dir,
+                                          const std::string &extension) {
+    std::string latestDateDir = Utils::FindLatestSubDir(base_dir);
+
+    // Flat structure: no date subdirectories, files reside directly in base_dir.
+    // All files are complete (no actively-recording file), so return the actual newest.
     if (latestDateDir.empty()) {
-        std::cerr << "No date directories found." << std::endl;
-        return "";
+        auto files = Utils::GetFiles(base_dir, extension);
+        std::sort(files.begin(), files.end(), std::greater<>());
+        if (files.empty()) {
+            return "";
+        }
+        return files[0].second.string();
     }
 
-    std::string datePath = (fs::path(path) / latestDateDir).string();
+    // Nested structure: base_dir/YYYYMMDD/HH/
+    std::string datePath = (fs::path(base_dir) / latestDateDir).string();
     std::string latestHourDir = Utils::FindLatestSubDir(datePath);
     if (latestHourDir.empty()) {
         std::cerr << "No hour directories found." << std::endl;
@@ -195,17 +204,20 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     std::string latestDir = (fs::path(datePath) / latestHourDir).string();
     auto files = Utils::GetFiles(latestDir, extension);
 
-    // find previous hour
+    // find previous hour (scan for the latest existing dir before latestHourDir)
     if (files.size() < 2) {
-        std::string prevHourDir = latestHourDir;
-        if (!prevHourDir.empty() && prevHourDir > "00") {
-            prevHourDir = std::to_string(std::stoi(prevHourDir) - 1);
-            if (prevHourDir.length() < 2) {
-                prevHourDir = "0" + prevHourDir;
+        std::string prevHourDir;
+        for (const auto &e : fs::directory_iterator(datePath)) {
+            if (e.is_directory()) {
+                std::string name = e.path().filename().string();
+                if (name < latestHourDir && (prevHourDir.empty() || name > prevHourDir)) {
+                    prevHourDir = name;
+                }
             }
+        }
+        if (!prevHourDir.empty()) {
             std::string prevDir = (fs::path(datePath) / prevHourDir).string();
             auto prevFiles = Utils::GetFiles(prevDir, extension);
-
             files.insert(files.end(), prevFiles.begin(), prevFiles.end());
         }
     }
@@ -214,7 +226,7 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     if (files.size() < 2) {
         std::string prevDateDir = Utils::GetPreviousDate(latestDateDir);
 
-        std::string prevDatePath = (fs::path(path) / prevDateDir).string();
+        std::string prevDatePath = (fs::path(base_dir) / prevDateDir).string();
         latestHourDir = Utils::FindLatestSubDir(prevDatePath);
         std::string prevDir = (fs::path(prevDatePath) / latestHourDir).string();
         auto prevFiles = Utils::GetFiles(prevDir, extension);
@@ -251,14 +263,20 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
 
     fs::path hour_path = fs::path(root) / date / hour;
 
+    // Flat structure: no nested date/hour dirs — scan root directly
     if (!fs::exists(hour_path)) {
+        auto time_limit = ParseDatetime(basename);
+        auto files = GetFiles(root, ".mp4");
+        std::sort(files.begin(), files.end(), std::greater<>());
+        for (auto &p : files) {
+            if (fs::file_time_type::clock::to_sys(p.first) < time_limit) {
+                return p.second.string();
+            }
+        }
         return "";
     }
 
     auto time_limit = ParseDatetime(basename);
-
-    auto files = GetFiles(hour_path.string(), ".mp4");
-    std::sort(files.begin(), files.end(), std::greater<>());
 
     int max_searching_folder = 10;
     for (int count = 0; count < max_searching_folder; count++) {
@@ -273,35 +291,45 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
         }
 
         fs::path date_path = hour_path.parent_path();
-        if (hour > "00") {
-            // update hour path to previous hour
-            auto prev_hour = std::to_string(std::stoi(hour) - 1);
-            if (prev_hour.length() < 2) {
-                prev_hour = "0" + prev_hour;
+        std::string cur_hour = hour_path.filename().string();
+
+        // Find the latest existing hour dir before cur_hour in the same date
+        std::string prev_hour;
+        if (fs::is_directory(date_path)) {
+            for (const auto &e : fs::directory_iterator(date_path)) {
+                if (e.is_directory()) {
+                    std::string name = e.path().filename().string();
+                    if (name < cur_hour && (prev_hour.empty() || name > prev_hour)) {
+                        prev_hour = name;
+                    }
+                }
             }
+        }
+        if (!prev_hour.empty()) {
             hour_path = date_path / prev_hour;
-            if (!fs::exists(hour_path)) {
-                ERROR_PRINT("pre hour path %s is not found", hour_path.string().c_str());
-                break;
-            }
         } else {
-            // update date path to previous date
+            // No earlier hour in this date, move to previous date
             fs::path root_path = date_path.parent_path();
             std::string date = date_path.filename();
             auto prev_date = GetPreviousDate(date);
             date_path = root_path / prev_date;
-            hour_path = date_path / "23";
             if (!fs::exists(date_path)) {
                 ERROR_PRINT("pre date path %s is not found", date_path.string().c_str());
                 break;
             }
+            std::string latest_hour = FindLatestSubDir(date_path.string());
+            if (latest_hour.empty()) {
+                break;
+            }
+            hour_path = date_path / latest_hour;
         }
     }
 
     return "";
 }
 
-std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int request_num) {
+std::vector<std::string> Utils::FindOlderFiles(const std::string &base_dir,
+                                               const std::string &file_path, int request_num) {
     std::vector<std::string> result;
     fs::path file(file_path);
     if (!fs::exists(file)) {
@@ -310,11 +338,27 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
     auto file_last_write_time = fs::last_write_time(file);
     auto extension = file.extension();
 
+    // Flat structure: file resides directly in base_dir
+    fs::path base(base_dir);
+    if (fs::canonical(file.parent_path()) == fs::canonical(base)) {
+        auto files = GetFiles(base_dir, extension.string());
+        std::sort(files.begin(), files.end(), std::greater<>());
+        for (auto &p : files) {
+            if (p.first < file_last_write_time) {
+                result.push_back(p.second.string());
+                if (result.size() == static_cast<size_t>(request_num))
+                    break;
+            }
+        }
+        return result;
+    }
+
+    // Nested structure: base_dir/YYYYMMDD/HH/
     fs::path hour_path = file.parent_path();
     fs::path date_path = hour_path.parent_path();
     fs::path root_path = date_path.parent_path();
 
-    while (result.size() < request_num) {
+    while (result.size() < static_cast<size_t>(request_num)) {
         // find in the same hour
         auto files = GetFiles(hour_path.string(), extension.string());
         std::sort(files.begin(), files.end(), std::greater<>());
@@ -322,34 +366,42 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
         for (auto &p : files) {
             if (p.first < file_last_write_time) {
                 result.push_back(p.second.string());
-                if (result.size() == request_num) {
+                if (result.size() == static_cast<size_t>(request_num)) {
                     return result;
                 }
             }
         }
 
         std::string hour = hour_path.filename();
-        if (hour > "00") {
-            // update hour path to previous hour
-            auto prev_hour = std::to_string(std::stoi(hour) - 1);
-            if (prev_hour.length() < 2) {
-                prev_hour = "0" + prev_hour;
+
+        // Find the latest existing hour dir before current hour in the same date
+        std::string prev_hour;
+        if (fs::is_directory(date_path)) {
+            for (const auto &e : fs::directory_iterator(date_path)) {
+                if (e.is_directory()) {
+                    std::string name = e.path().filename().string();
+                    if (name < hour && (prev_hour.empty() || name > prev_hour)) {
+                        prev_hour = name;
+                    }
+                }
             }
+        }
+        if (!prev_hour.empty()) {
             hour_path = date_path / prev_hour;
-            if (!fs::exists(hour_path)) {
-                ERROR_PRINT("pre hour path %s is not found", hour_path.string().c_str());
-                break;
-            }
         } else {
-            // update date path to previous date
+            // No earlier hour in this date, move to previous date's latest hour
             std::string date = date_path.filename();
             auto prev_date = GetPreviousDate(date);
             date_path = root_path / prev_date;
-            hour_path = date_path / "23";
             if (!fs::exists(date_path)) {
                 ERROR_PRINT("pre date path %s is not found", date_path.string().c_str());
                 break;
             }
+            std::string latest_hour = FindLatestSubDir(date_path.string());
+            if (latest_hour.empty()) {
+                break;
+            }
+            hour_path = date_path / latest_hour;
         }
     }
 
