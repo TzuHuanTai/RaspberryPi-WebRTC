@@ -311,9 +311,13 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
         SendFileResponse(datachannel, path, req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_FILE) {
         auto paths = Utils::FindOlderFiles(base_dir, parameter, 8);
-        for (auto &path : paths) {
-            DEBUG_PRINT("OLDER: %s", path.c_str());
-            SendFileResponse(datachannel, path, req.mode());
+        if (paths.empty()) {
+            SendFileResponse(datachannel, "", req.mode());
+        } else {
+            for (auto &path : paths) {
+                DEBUG_PRINT("OLDER: %s", path.c_str());
+                SendFileResponse(datachannel, path, req.mode());
+            }
         }
     } else if (type == protocol::QueryFileType::BEFORE_TIME) {
         auto path = Utils::FindFilesFromDatetime(base_dir, parameter);

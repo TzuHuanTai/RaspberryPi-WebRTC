@@ -261,10 +261,20 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
     std::string time = basename.substr(9);
     std::string hour = time.substr(0, 2);
 
-    fs::path hour_path = fs::path(root) / date / hour;
+    bool is_nested = false;
+    std::regex date_dir_pattern("^[0-9]{8}$");
+    if (fs::exists(root) && fs::is_directory(root)) {
+        for (const auto &e : fs::directory_iterator(root)) {
+            if (e.is_directory() &&
+                std::regex_match(e.path().filename().string(), date_dir_pattern)) {
+                is_nested = true;
+                break;
+            }
+        }
+    }
 
     // Flat structure: no nested date/hour dirs — scan root directly
-    if (!fs::exists(hour_path)) {
+    if (!is_nested) {
         auto time_limit = ParseDatetime(basename);
         auto files = GetFiles(root, ".mp4");
         std::sort(files.begin(), files.end(), std::greater<>());
@@ -277,6 +287,8 @@ std::string Utils::FindFilesFromDatetime(const std::string &root, const std::str
     }
 
     auto time_limit = ParseDatetime(basename);
+
+    fs::path hour_path = fs::path(root) / date / hour;
 
     int max_searching_folder = 10;
     for (int count = 0; count < max_searching_folder; count++) {
@@ -340,7 +352,7 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &base_dir,
 
     // Flat structure: file resides directly in base_dir
     fs::path base(base_dir);
-    if (fs::canonical(file.parent_path()) == fs::canonical(base)) {
+    if (std::error_code ec; fs::equivalent(file.parent_path(), base, ec)) {
         auto files = GetFiles(base_dir, extension.string());
         std::sort(files.begin(), files.end(), std::greater<>());
         for (auto &p : files) {
