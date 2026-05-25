@@ -79,9 +79,9 @@ void Conductor::InitializeTracks() {
             }
         })();
 
-        if (adm_ && audio_capture_source_) {
-            adm_->SetCapturer(audio_capture_source_);
-        } else {
+        if (!audio_capture_source_) {
+            ERROR_PRINT("Audio capturer failed to initialize; skipping audio track creation.");
+        } else if (!adm_) {
             ERROR_PRINT("Audio device module is not initialized; cannot set audio capturer.");
         }
 
@@ -261,7 +261,7 @@ void Conductor::InitializeCommandChannel(webrtc::scoped_refptr<RtcPeer> peer) {
         });
 
     cmd_channel->OnClosed([this]() {
-        auto recorder = ondemand_recorder_;
+        auto recorder = ondemand_recorder_.lock();
         if (recorder && recorder->is_recording()) {
             DEBUG_PRINT("Peer disconnected: Auto-stop on-demand recording when peer disconnects "
                         "(kFailed / kClosed)");
@@ -297,30 +297,29 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
 
     auto req = pkt.query_file_request();
     auto type = req.type();
-    auto base_dir = (req.mode() == protocol::VideoMode::TIMELAPSE) ? args.record_path + "timelapse"
-                                                                   : args.record_path;
+    const bool is_timelapse = (req.mode() == protocol::VideoMode::TIMELAPSE);
     const std::string &parameter = req.parameter();
+    auto search_dir = is_timelapse ? args.record_path + "timelapse" : args.record_path;
 
     DEBUG_PRINT("Received query request: mode=%s, type=%d, param=%s",
-                (req.mode() == protocol::VideoMode::TIMELAPSE ? "TIMELAPSE" : "RECORDING"),
-                req.type(), parameter.c_str());
+                (is_timelapse ? "TIMELAPSE" : "RECORDING"), req.type(), parameter.c_str());
 
     if (type == protocol::QueryFileType::LATEST_FILE || parameter.empty()) {
-        auto path = Utils::FindLatestCompleteFile(base_dir, ".mp4");
+        auto path = Utils::FindLatestCompleteFile(search_dir, ".mp4");
         DEBUG_PRINT("LATEST: %s", path.c_str());
         SendFileResponse(datachannel, path, req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_FILE) {
-        auto paths = Utils::FindOlderFiles(base_dir, parameter, 8);
-        if (paths.empty()) {
-            SendFileResponse(datachannel, "", req.mode());
-        } else {
+        auto paths = Utils::FindOlderFiles(search_dir, parameter, 8);
+        if (!paths.empty()) {
             for (auto &path : paths) {
                 DEBUG_PRINT("OLDER: %s", path.c_str());
                 SendFileResponse(datachannel, path, req.mode());
             }
+            return;
         }
+        SendFileResponse(datachannel, "", req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_TIME) {
-        auto path = Utils::FindFilesFromDatetime(base_dir, parameter);
+        auto path = Utils::FindFilesFromDatetime(search_dir, parameter);
         DEBUG_PRINT("TIME_MATCH: %s", path.c_str());
         SendFileResponse(datachannel, path, req.mode());
     }
@@ -395,11 +394,13 @@ void Conductor::ControlCamera(std::shared_ptr<RtcChannel> datachannel,
     }
 }
 
-void Conductor::SetOnDemandRecorder(RecorderManager *recorder) { ondemand_recorder_ = recorder; }
+void Conductor::SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder) {
+    ondemand_recorder_ = recorder;
+}
 
 void Conductor::StartRecording(std::shared_ptr<RtcChannel> datachannel,
                                const protocol::Packet &pkt) {
-    auto recorder = ondemand_recorder_;
+    auto recorder = ondemand_recorder_.lock();
     if (!recorder) {
         ERROR_PRINT("On-demand recorder is not set.");
         return;
@@ -415,7 +416,7 @@ void Conductor::StartRecording(std::shared_ptr<RtcChannel> datachannel,
 
 void Conductor::StopRecording(std::shared_ptr<RtcChannel> datachannel,
                               const protocol::Packet &pkt) {
-    auto recorder = ondemand_recorder_;
+    auto recorder = ondemand_recorder_.lock();
     if (!recorder) {
         ERROR_PRINT("On-demand recorder is not set.");
         return;

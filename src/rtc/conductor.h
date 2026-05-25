@@ -30,7 +30,7 @@ class Conductor {
     std::shared_ptr<AudioCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
     void EnsureTracksAdded(webrtc::scoped_refptr<RtcPeer> peer);
-    void SetOnDemandRecorder(RecorderManager *recorder);
+    void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
 
   private:
     Args args;
@@ -69,7 +69,7 @@ class Conductor {
     webrtc::scoped_refptr<ScaleTrackSource> video_track_source_;
 
     std::shared_ptr<UnixSocketServer> ipc_server_;
-    RecorderManager *ondemand_recorder_ = nullptr;
+    std::weak_ptr<RecorderManager> ondemand_recorder_;
 };
 
 #endif // CONDUCTOR_H_

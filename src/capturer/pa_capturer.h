@@ -21,7 +21,7 @@ class PaCapturer : public AudioCapturer {
 
   private:
     pa_simple *src;
-    std::vector<uint8_t> capture_buf_;
+    std::vector<float> capture_buf_;
 
     void CaptureSamples();
     bool CreateFloat32Source();

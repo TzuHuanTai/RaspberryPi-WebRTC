@@ -33,8 +33,8 @@ bool PaCapturer::CreateFloat32Source() {
     ss.rate = sample_rate_;
 
     // Set fragsize so the PulseAudio server delivers data in exact 10ms fragments.
-    const uint32_t frag_bytes =
-        static_cast<uint32_t>(frames_per_chunk()) * channels_ * sizeof(float);
+    const uint32_t frag_bytes = static_cast<uint32_t>(
+        static_cast<size_t>(frames_per_chunk()) * static_cast<size_t>(channels_) * sizeof(float));
     pa_buffer_attr attr{};
     attr.maxlength = static_cast<uint32_t>(-1);
     attr.fragsize = frag_bytes;
@@ -50,8 +50,9 @@ bool PaCapturer::CreateFloat32Source() {
     }
 
     // Pre-allocate the capture buffer for exactly 10ms of stereo float32 audio.
-    const size_t n_samples = static_cast<size_t>(frames_per_chunk()) * channels_;
-    capture_buf_.resize(n_samples * sizeof(float));
+    const size_t n_samples =
+        static_cast<size_t>(frames_per_chunk()) * static_cast<size_t>(channels_);
+    capture_buf_.resize(n_samples);
 
     INFO_PRINT("PulseAudio capture format: FLOAT32LE, %d channels, %d Hz", channels_, sample_rate_);
 
@@ -67,16 +68,16 @@ void PaCapturer::CaptureSamples() {
     int error;
     // Read exactly 10ms of audio per call so all consumers (WebRTC, recorder)
     const size_t n_frames = static_cast<size_t>(frames_per_chunk());
-    const size_t n_samples = n_frames * channels_; // interleaved float32 count
+    const size_t n_samples = n_frames * static_cast<size_t>(channels_); // interleaved float32 count
 
-    if (pa_simple_read(src, capture_buf_.data(), capture_buf_.size(), &error) < 0) {
+    if (pa_simple_read(src, capture_buf_.data(), capture_buf_.size() * sizeof(float), &error) < 0) {
         ERROR_PRINT("pa_simple_read() failed: %s", pa_strerror(error));
         pa_simple_free(src);
         src = nullptr;
         return;
     }
 
-    shared_buffer_ = {.start = capture_buf_.data(),
+    shared_buffer_ = {.start = reinterpret_cast<uint8_t *>(capture_buf_.data()),
                       .length = static_cast<unsigned int>(n_samples),
                       .channels = static_cast<unsigned int>(channels_)};
     Next(shared_buffer_);

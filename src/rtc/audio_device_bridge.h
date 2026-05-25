@@ -1,6 +1,7 @@
 #ifndef AUDIO_DEVICE_BRIDGE_H_
 #define AUDIO_DEVICE_BRIDGE_H_
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -52,6 +53,7 @@ class AudioDeviceBridge : public webrtc::AudioDeviceModule {
 
     int32_t Terminate() override {
         subscription_ = {};
+        audio_transport_.store(nullptr, std::memory_order_release);
         initialized_.store(false);
         return 0;
     }
@@ -179,6 +181,10 @@ class AudioDeviceBridge : public webrtc::AudioDeviceModule {
 
   private:
     void OnAudioBuffer(const AudioBuffer &buf) {
+        if (!initialized_.load(std::memory_order_acquire) ||
+            !recording_.load(std::memory_order_acquire))
+            return;
+
         auto *transport = audio_transport_.load(std::memory_order_acquire);
         if (!transport)
             return;
