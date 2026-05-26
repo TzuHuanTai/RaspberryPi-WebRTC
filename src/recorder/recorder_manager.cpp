@@ -135,43 +135,36 @@ RecorderManager::RecorderManager(Args config)
       auto_start_(true),
       header_written_(false),
       has_first_keyframe(false),
-      time_reset_pending_(false),
-      record_path(config.record_path),
-      elapsed_time_(0.0) {}
+      record_path(config.record_path) {}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
     video_subscription_ = video_src->Subscribe(
         [this](V4L2FrameBufferRef buffer) {
+            bool is_keyframe = (buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
+                               (video_src_->format() != V4L2_PIX_FMT_H264);
+
             // waiting first keyframe to start recorders.
-            if (auto_start_ && !has_first_keyframe &&
-                ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
-                 video_src_->format() != V4L2_PIX_FMT_H264)) {
+            if (auto_start_ && !has_first_keyframe && is_keyframe) {
                 Start();
-                last_created_time_ = buffer->timestamp();
+                base_start_time_ = buffer->timestamp();
+                next_generate_time_ = ++file_index_ * config.file_duration;
             }
 
-            // restart to write in the new file on the next keyframe boundary.
-            if (has_first_keyframe && elapsed_time_ >= config.file_duration &&
-                ((buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) ||
-                 video_src_->format() != V4L2_PIX_FMT_H264)) {
-                Stop();
-                Start();
-            }
+            int64_t total_elapsed_us =
+                (int64_t)(buffer->timestamp().tv_sec - base_start_time_.tv_sec) * 1000000LL +
+                (int64_t)(buffer->timestamp().tv_usec - base_start_time_.tv_usec);
+            double total_elapsed_time = total_elapsed_us / 1e6;
 
-            if (has_first_keyframe && video_recorder) {
-                video_recorder->OnBuffer(buffer);
-            }
+            if (has_first_keyframe) {
+                if (total_elapsed_time >= next_generate_time_ && is_keyframe) {
+                    Stop();
+                    Start();
+                    next_generate_time_ = ++file_index_ * config.file_duration;
+                }
 
-            // Sync last_created_time_ to V4L2 time base on first callback after Start()
-            if (time_reset_pending_) {
-                last_created_time_ = buffer->timestamp();
-                elapsed_time_ = 0.0;
-                time_reset_pending_ = false;
-            } else {
-                int64_t elapsed_us =
-                    (int64_t)(buffer->timestamp().tv_sec - last_created_time_.tv_sec) * 1000000LL +
-                    (int64_t)(buffer->timestamp().tv_usec - last_created_time_.tv_usec);
-                elapsed_time_ = elapsed_us / 1e6;
+                if (video_recorder) {
+                    video_recorder->OnBuffer(buffer);
+                }
             }
         },
         config.record_stream_idx);
@@ -283,8 +276,6 @@ void RecorderManager::Start() {
     }
 
     has_first_keyframe = true;
-    elapsed_time_ = 0.0;
-    time_reset_pending_ = true;
 }
 
 void RecorderManager::Stop() {

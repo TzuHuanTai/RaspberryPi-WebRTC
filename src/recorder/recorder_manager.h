@@ -54,8 +54,9 @@ class RecorderManager {
     void SubscribeAudioSource(std::shared_ptr<AudioCapturer> audio_src);
 
   private:
-    double elapsed_time_;
     bool auto_start_;
+    int file_index_ = 0;
+    double next_generate_time_;
     std::atomic<bool> header_written_;
     std::atomic<bool> time_reset_pending_;
     std::mutex rotation_mtx_;
@@ -63,7 +64,7 @@ class RecorderManager {
     std::atomic<bool> rotation_abort_;
     std::atomic<bool> rotation_requested_;
     std::thread rotation_thread_;
-    struct timeval last_created_time_;
+    struct timeval base_start_time_;
     std::shared_ptr<VideoCapturer> video_src_;
 
     std::string current_filepath_;
