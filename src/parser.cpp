@@ -412,7 +412,7 @@ void Parser::ParseDevice(Args &args) {
 
     if (prefix == "libcamera") {
 #if defined(USE_LIBCAMERA_CAPTURE)
-        args.use_libcamera = true;
+        args.camera_source = CameraSource::LibCamera;
         args.format = V4L2_PIX_FMT_YUV420;
         INFO_PRINT("Using libcamera, ID: %d", args.camera_id);
 #elif defined(JETSON_PLATFORM)
@@ -423,7 +423,7 @@ void Parser::ParseDevice(Args &args) {
 
     } else if (prefix == "libargus") {
 #if defined(USE_LIBARGUS_CAPTURE)
-        args.use_libargus = true;
+        args.camera_source = CameraSource::LibArgus;
         args.format = V4L2_PIX_FMT_YUV420;
 #elif defined(RPI_PLATFORM)
         throw std::runtime_error("Raspberry Pi does not support libargus. Use v4l2:<id> instead.");
@@ -431,6 +431,7 @@ void Parser::ParseDevice(Args &args) {
         throw std::runtime_error("libargus is not supported on this platform.");
 #endif
     } else if (prefix == "v4l2") {
+        args.camera_source = CameraSource::V4L2;
         args.format = ParseEnum(v4l2_fmt_table, args.v4l2_format);
         INFO_PRINT("Using V4L2, ID: %d", args.camera_id);
         INFO_PRINT("V4L2 format: %s", args.v4l2_format.c_str());

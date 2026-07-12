@@ -8,8 +8,6 @@
 #include <string>
 #include <unordered_map>
 
-#include <linux/videodev2.h>
-
 enum RecordMode {
     Background = 0,
     OnDemand = 1,
@@ -18,6 +16,12 @@ enum RecordMode {
 enum RecordType {
     Video = 0,
     Snapshot = 1,
+};
+
+enum class CameraSource {
+    LibCamera,
+    LibArgus,
+    V4L2,
 };
 
 template <typename DEFAULT> struct TimeVal {
@@ -60,16 +64,17 @@ template <typename DEFAULT> struct TimeVal {
 struct Args {
     // video input
     int num_streams = 1;
-    int camera_id = 0;
     int fps = 30;
     int width = 640;
     int height = 480;
     int rotation = 0;
-    bool use_libargus = false;
-    bool use_libcamera = false;
-    uint32_t format = V4L2_PIX_FMT_MJPEG;
+
+    CameraSource camera_source = CameraSource::LibCamera;
+    uint32_t format = 0;
+    uint32_t camera_id = 0;
     std::string camera = "libcamera:0";
-    std::string v4l2_format = "mjpeg";
+    std::string v4l2_format = "i420";
+    std::string alias = ""; // per-camera alias for recording subdirectory prefix
 
     // sub stream for multiple resolution capture
     int sub_width = 0;
