@@ -91,19 +91,18 @@ void Conductor::InitializeTracks() {
 
     if (!video_track_ && !args.camera.empty()) {
         video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
-            if (!args.use_libcamera && !args.use_libargus) {
-                INFO_PRINT("Use v4l2 capturer.");
+            if (args.camera_source == CameraSource::V4L2) {
+                INFO_PRINT("Camera: Use v4l2 capturer.");
                 return V4L2Capturer::Create(args);
             }
 #if defined(USE_LIBCAMERA_CAPTURE)
-            else if (args.use_libcamera) {
-                INFO_PRINT("Use libcamera capturer.");
+            else if (args.camera_source == CameraSource::LibCamera) {
+                INFO_PRINT("Camera: Use libcamera capturer.");
                 return LibcameraCapturer::Create(args);
             }
 #elif defined(USE_LIBARGUS_CAPTURE)
-            else if (args.use_libargus) {
-                INFO_PRINT("Use libargus capturer.");
-                // return LibargusBufferCapturer::Create(args);
+            else if (args.camera_source == CameraSource::LibArgus) {
+                INFO_PRINT("Camera: Use libargus capturer.");
                 return LibargusEglCapturer::Create(args);
             }
 #endif
@@ -383,8 +382,8 @@ void Conductor::ControlCamera(std::shared_ptr<RtcChannel> datachannel,
     DEBUG_PRINT("parse meta cmd message => %d, %d", key, value);
 
     try {
-        if (!args.use_libcamera) {
-            throw std::runtime_error("Setting camera options only valid with libcamera.");
+        if (!video_capture_source_) {
+            throw std::runtime_error("No camera available.");
         }
         if (!video_capture_source_->SetControls(key, value)) {
             ERROR_PRINT("Failed to set key: %d to value: %d", key, value);
