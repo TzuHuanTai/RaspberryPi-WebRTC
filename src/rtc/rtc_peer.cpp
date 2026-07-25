@@ -131,6 +131,12 @@ std::shared_ptr<RtcChannel> RtcPeer::CreateDataChannel(ChannelMode mode) {
 }
 
 std::string RtcPeer::RestartIce(std::string ice_ufrag, std::string ice_pwd) {
+    if (!peer_connection_ || !peer_connection_->remote_description()) {
+        ERROR_PRINT("RestartIce ignored: peer connection (%s) is gone or has no remote sdp.",
+                    id_.c_str());
+        return "";
+    }
+
     std::string remote_sdp;
     peer_connection_->remote_description()->ToString(&remote_sdp);
 
@@ -173,8 +179,8 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
                 }),
             webrtc::TimeDelta::Seconds(timeout_));
     } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kStable &&
-               is_connected_.load() && !needs_renegotiation_ && !is_sfu_peer_) {
-        // Renegotiation completed — clean up signaling callbacks
+               is_connected_.load() && !needs_renegotiation_ && !is_sfu_peer_ &&
+               has_candidates_in_sdp_) {
         DEBUG_PRINT("Renegotiation completed, cleaning up signaling callbacks.");
         on_local_ice_fn_ = nullptr;
         on_local_sdp_fn_ = nullptr;
@@ -348,6 +354,10 @@ void RtcPeer::OnFailure(webrtc::RTCError error) {
 }
 
 void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) {
+    if (!peer_connection_) {
+        DEBUG_PRINT("SetRemoteSdp ignored: peer connection (%s) is gone.", id_.c_str());
+        return;
+    }
     if (!is_negotiating_.load() && sdp_type != "offer") {
         return;
     }
@@ -391,6 +401,11 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
 
 void RtcPeer::SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
                            const std::string &candidate) {
+    if (!peer_connection_) {
+        DEBUG_PRINT("SetRemoteIce ignored: peer connection (%s) is gone.", id_.c_str());
+        return;
+    }
+
     // Only reject ICE before remote description is established (no session yet).
     if (!peer_connection_->remote_description()) {
         DEBUG_PRINT("Buffering early ICE candidate (no remote description yet).");
