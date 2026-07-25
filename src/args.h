@@ -143,7 +143,7 @@ struct Args {
 
     // webrtc
     int jpeg_quality = 30;
-    int peer_timeout = 10;
+    int peer_timeout = 60;
     bool hw_accel = false;
     bool no_adaptive = false;
     std::string uid = "";
