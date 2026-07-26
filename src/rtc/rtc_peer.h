@@ -112,6 +112,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     bool isSfuPeer() const;
     bool isPublisher() const;
     bool isConnected() const;
+    bool isExpired() const;
     std::string id() const;
 
     void SetSink(webrtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
@@ -145,6 +146,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     std::string ModifySetupAttribute(const std::string &sdp, const std::string &new_setup);
     void EmitLocalSdp(int delay_sec = 0);
     void FlushPendingIce();
+    void RenewSafetyFlag(webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> &flag);
 
     struct PendingIceCandidate {
         std::string sdp_mid;
@@ -161,10 +163,11 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     bool has_candidates_in_sdp_;
     bool needs_renegotiation_ = false;
     std::atomic<bool> is_connected_ = false;
-    std::atomic<bool> is_complete_ = false;
+    std::atomic<bool> is_expired_ = false;
     std::atomic<bool> is_negotiating_ = false;
-    webrtc::ScopedTaskSafetyDetached peer_timeout_safety_;
-    webrtc::ScopedTaskSafetyDetached sdp_emit_safety_;
+    webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> peer_timeout_safety_;
+    webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> sdp_emit_safety_;
+    webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> reconnect_grace_safety_;
 
     std::string modified_sdp_;
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;

@@ -30,13 +30,29 @@ void RtcPeer::CreateOffer() {
     peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
+void RtcPeer::RenewSafetyFlag(webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> &flag) {
+    if (flag) {
+        flag->SetNotAlive();
+    }
+    flag = webrtc::PendingTaskSafetyFlag::CreateDetached();
+}
+
 void RtcPeer::Terminate() {
     is_connected_.store(false);
-    is_complete_.store(true);
+    is_expired_.store(true);
 
     on_local_sdp_fn_ = nullptr;
     on_local_ice_fn_ = nullptr;
-    sdp_emit_safety_ = webrtc::ScopedTaskSafetyDetached();
+
+    if (peer_timeout_safety_) {
+        peer_timeout_safety_->SetNotAlive();
+    }
+    if (sdp_emit_safety_) {
+        sdp_emit_safety_->SetNotAlive();
+    }
+    if (reconnect_grace_safety_) {
+        reconnect_grace_safety_->SetNotAlive();
+    }
     if (peer_connection_) {
         peer_connection_->Close();
         peer_connection_ = nullptr;
@@ -61,6 +77,8 @@ bool RtcPeer::isSfuPeer() const { return is_sfu_peer_; }
 bool RtcPeer::isPublisher() const { return is_publisher_; }
 
 bool RtcPeer::isConnected() const { return is_connected_.load(); }
+
+bool RtcPeer::isExpired() const { return is_expired_.load(); }
 
 void RtcPeer::SetSink(webrtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
     custom_video_sink_ = std::move(video_sink_obj);
@@ -166,12 +184,12 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
         new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer);
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
         // Cancel any previous timeout and schedule a new one on the signaling thread.
-        peer_timeout_safety_ = webrtc::ScopedTaskSafetyDetached();
+        RenewSafetyFlag(peer_timeout_safety_);
         webrtc::Thread::Current()->PostDelayedTask(
             webrtc::SafeTask(
-                peer_timeout_safety_.flag(),
+                peer_timeout_safety_,
                 [this]() {
-                    if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
+                    if (peer_connection_ && !is_expired_.load() && !is_connected_.load()) {
                         DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
                         peer_connection_->Close();
                         peer_connection_ = nullptr;
@@ -219,6 +237,8 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         is_connected_.store(true);
+        // Cancel the pending reconnect-grace.
+        RenewSafetyFlag(reconnect_grace_safety_);
         if (needs_renegotiation_ &&
             signaling_state_ == webrtc::PeerConnectionInterface::SignalingState::kStable) {
             needs_renegotiation_ = false;
@@ -227,11 +247,28 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
         }
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
-        peer_connection_->Close();
-        peer_connection_ = nullptr;
+        RenewSafetyFlag(reconnect_grace_safety_);
+        auto *current_thread = webrtc::Thread::Current();
+        DEBUG_PRINT("Arming reconnect-grace timer (thread=%p) for %d seconds (%s).",
+                    (void *)current_thread, timeout_, id_.c_str());
+        current_thread->PostDelayedTask(
+            webrtc::SafeTask(
+                reconnect_grace_safety_,
+                [this]() {
+                    DEBUG_PRINT("Reconnect-grace timer fired (%s): has_pc=%d, connected=%d.",
+                                id_.c_str(), peer_connection_ != nullptr, is_connected_.load());
+                    if (peer_connection_ && !is_connected_.load()) {
+                        DEBUG_PRINT("No reconnect within %d seconds. Closing connection (%s).",
+                                    timeout_, id_.c_str());
+                        peer_connection_->Close();
+                        peer_connection_ = nullptr;
+                        is_expired_.store(true);
+                    }
+                }),
+            webrtc::TimeDelta::Seconds(timeout_));
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         is_connected_.store(false);
-        is_complete_.store(true);
+        is_expired_.store(true);
     }
 }
 
@@ -305,7 +342,7 @@ void RtcPeer::EmitLocalSdp(int delay_sec) {
     }
 
     // Cancel any previously scheduled SDP emit.
-    sdp_emit_safety_ = webrtc::ScopedTaskSafetyDetached();
+    RenewSafetyFlag(sdp_emit_safety_);
 
     auto send_sdp = [this]() {
         std::string type = webrtc::SdpTypeToString(modified_desc_->GetType());
@@ -314,7 +351,7 @@ void RtcPeer::EmitLocalSdp(int delay_sec) {
     };
 
     if (delay_sec > 0) {
-        webrtc::Thread::Current()->PostDelayedTask(webrtc::SafeTask(sdp_emit_safety_.flag(),
+        webrtc::Thread::Current()->PostDelayedTask(webrtc::SafeTask(sdp_emit_safety_,
                                                                     [this, send_sdp]() {
                                                                         send_sdp();
                                                                     }),

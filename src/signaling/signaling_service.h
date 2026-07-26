@@ -52,7 +52,7 @@ class SignalingService {
         while (pm_it != peer_map_.end()) {
             auto peer_id = pm_it->second->id();
 
-            if (pm_it->second && !pm_it->second->isConnected()) {
+            if (pm_it->second && pm_it->second->isExpired()) {
                 pm_it = peer_map_.erase(pm_it);
                 DEBUG_PRINT("peer_map (%s) was erased.", peer_id.c_str());
             } else {

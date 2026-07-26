@@ -261,10 +261,11 @@ void MqttService::RefreshPeerMap() {
             continue;
         }
 
-        DEBUG_PRINT("Found peer_id key: %s, connected value: %d", peer_id.c_str(),
-                    peer->isConnected());
+        const char *status =
+            peer->isExpired() ? "expired" : (peer->isConnected() ? "connected" : "reconnecting");
+        DEBUG_PRINT("Found peer_id key: %s, status: %s", peer_id.c_str(), status);
 
-        if (!peer->isConnected()) {
+        if (peer->isExpired()) {
             auto it_c = peer_id_to_client_id_.find(peer_id);
             if (it_c != peer_id_to_client_id_.end()) {
                 std::string client_id = it_c->second;
