@@ -172,6 +172,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     std::string modified_sdp_;
     webrtc::PeerConnectionInterface::SignalingState signaling_state_;
     std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
+    std::unique_ptr<webrtc::SessionDescriptionInterface> rollback_desc_;
 
     OnRtcChannelCallback on_data_channel_;
     std::shared_ptr<RtcChannel> cmd_channel_;
