@@ -58,6 +58,7 @@ void RtcPeer::Terminate() {
         peer_connection_ = nullptr;
     }
     modified_desc_.release();
+    rollback_desc_.reset();
 
     if (cmd_channel_) {
         cmd_channel_->Terminate();
@@ -176,6 +177,7 @@ void RtcPeer::SetOnDataChannelCallback(OnRtcChannelCallback callback) {
 }
 
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
+    auto previous_state = signaling_state_;
     signaling_state_ = new_state;
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
@@ -196,6 +198,13 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
                     }
                 }),
             webrtc::TimeDelta::Seconds(timeout_));
+    } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kStable &&
+               previous_state ==
+                   webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer &&
+               is_connected_.load() && needs_renegotiation_ && !is_sfu_peer_) {
+        needs_renegotiation_ = false;
+        DEBUG_PRINT("Resuming renegotiation deferred by glare rollback (%s).", id_.c_str());
+        CreateOffer();
     } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kStable &&
                is_connected_.load() && !needs_renegotiation_ && !is_sfu_peer_ &&
                has_candidates_in_sdp_) {
@@ -405,6 +414,33 @@ void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) 
         return;
     }
     webrtc::SdpType type = *type_maybe;
+
+    if (type == webrtc::SdpType::kOffer &&
+        signaling_state_ == webrtc::PeerConnectionInterface::SignalingState::kHaveLocalOffer) {
+        // Glare: we already have an outstanding local offer (e.g. triggered by
+        // OnRenegotiationNeeded while adding a track) when the remote side also
+        // sends an offer. libwebrtc rejects SetRemoteDescription(offer) while in
+        // have-local-offer state, so roll back our local offer first and
+        // re-apply the remote offer once stable again. The Pi always yields to
+        // the remote offer here.
+        DEBUG_PRINT(
+            "Glare on peer %s: rolling back pending local offer before applying remote offer.",
+            id_.c_str());
+        if (!is_sfu_peer_) {
+            needs_renegotiation_ = true;
+        }
+        rollback_desc_ = webrtc::CreateRollbackSessionDescription();
+        peer_connection_->SetLocalDescription(SetSessionDescription::Create(
+                                                  [this, sdp, sdp_type]() {
+                                                      SetRemoteSdp(sdp, sdp_type);
+                                                  },
+                                                  [this](webrtc::RTCError error) {
+                                                      OnFailure(error);
+                                                  })
+                                                  .get(),
+                                              rollback_desc_.get());
+        return;
+    }
 
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
