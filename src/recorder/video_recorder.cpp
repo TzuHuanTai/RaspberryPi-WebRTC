@@ -3,7 +3,6 @@
 #include <memory>
 
 #include "common/logging.h"
-#include "common/utils.h"
 
 VideoRecorder::VideoRecorder(int width, int height, int fps, AVCodecID encoder_id)
     : Recorder(),

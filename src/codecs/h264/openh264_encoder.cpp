@@ -1,7 +1,6 @@
 #include "codecs/h264/openh264_encoder.h"
 
 #include "common/logging.h"
-#include "common/utils.h"
 
 std::unique_ptr<Openh264Encoder> Openh264Encoder::Create(EncoderConfig config) {
     auto ptr = std::make_unique<Openh264Encoder>(config);

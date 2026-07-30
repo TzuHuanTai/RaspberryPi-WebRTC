@@ -5,11 +5,16 @@
 #include <string>
 #include <sys/mman.h>
 
-#include "common/utils.h"
-
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
 
 namespace {
+
+timeval ToTimeval(uint64_t timestamp_ns) {
+    timeval tv{};
+    tv.tv_sec = timestamp_ns / 1000000000ULL;
+    tv.tv_usec = (timestamp_ns % 1000000000ULL) / 1000ULL;
+    return tv;
+}
 
 bool IsForwardedX11Display(const char *display) {
     if (!display || !display[0]) {
@@ -337,7 +342,7 @@ void StreamHandler::CaptureImage() {
 
     auto iFrame = interface_cast<EGLStream::IFrame>(frame);
     auto image = iFrame->getImage();
-    auto timestamp = Utils::ToTimeval(iFrame->getTime());
+    auto timestamp = ToTimeval(iFrame->getTime());
 
     auto native_buffer = interface_cast<EGLStream::NV::IImageNativeBuffer>(image);
     if (!native_buffer) {

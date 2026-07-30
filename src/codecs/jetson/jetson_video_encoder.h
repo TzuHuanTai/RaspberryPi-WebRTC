@@ -9,6 +9,7 @@
 
 #include "args.h"
 #include "codecs/jetson/jetson_encoder.h"
+#include "common/v4l2_utils.h"
 
 class JetsonVideoEncoder : public webrtc::VideoEncoder {
   public:

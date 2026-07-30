@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 
 #include "common/logging.h"
+#include "common/v4l2_utils.h"
 #include <libcamera/geometry.h>
 
 std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {

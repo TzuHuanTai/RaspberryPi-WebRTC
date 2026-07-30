@@ -26,8 +26,9 @@
 #include "capturer/alsa_capturer.h"
 #include "capturer/pa_capturer.h"
 #include "capturer/v4l2_capturer.h"
+#include "common/jpeg_util.h"
 #include "common/logging.h"
-#include "common/utils.h"
+#include "recorder/media_query.h"
 #include "rtc/custom_video_encoder_factory.h"
 #include "track/v4l2dma_track_source.h"
 
@@ -274,7 +275,7 @@ void Conductor::TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const prot
         auto quality = std::clamp(pkt.take_snapshot_request().quality(), 0u, 100u);
 
         auto i420buff = video_capture_source_->GetI420Frame(args.live_stream_idx);
-        auto jpg_buffer = Utils::ConvertYuvToJpeg(
+        auto jpg_buffer = jpeg_util::ConvertYuvToJpeg(
             i420buff->DataY(), video_capture_source_->width(args.live_stream_idx),
             video_capture_source_->height(args.live_stream_idx), quality);
         datachannel->Send(std::move(jpg_buffer));
@@ -304,11 +305,11 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
                 (is_timelapse ? "TIMELAPSE" : "RECORDING"), req.type(), parameter.c_str());
 
     if (type == protocol::QueryFileType::LATEST_FILE || parameter.empty()) {
-        auto path = Utils::FindLatestCompleteFile(search_dir, ".mp4");
+        auto path = media_query::FindLatestCompleteFile(search_dir, ".mp4");
         DEBUG_PRINT("LATEST: %s", path.c_str());
         SendFileResponse(datachannel, path, req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_FILE) {
-        auto paths = Utils::FindOlderFiles(search_dir, parameter, 8);
+        auto paths = media_query::FindOlderFiles(search_dir, parameter, 8);
         if (!paths.empty()) {
             for (auto &path : paths) {
                 DEBUG_PRINT("OLDER: %s", path.c_str());
@@ -318,7 +319,7 @@ void Conductor::QueryFile(std::shared_ptr<RtcChannel> datachannel, const protoco
         }
         SendFileResponse(datachannel, "", req.mode());
     } else if (type == protocol::QueryFileType::BEFORE_TIME) {
-        auto path = Utils::FindFilesFromDatetime(search_dir, parameter);
+        auto path = media_query::FindFilesFromDatetime(search_dir, parameter);
         DEBUG_PRINT("TIME_MATCH: %s", path.c_str());
         SendFileResponse(datachannel, path, req.mode());
     }
@@ -333,9 +334,9 @@ void Conductor::SendFileResponse(std::shared_ptr<RtcChannel> datachannel, const 
     if (!path.empty()) {
         auto *file = resp.add_files();
         file->set_filepath(path);
-        file->set_duration_sec(Utils::GetVideoDuration(path));
+        file->set_duration_sec(media_query::GetVideoDuration(path));
 
-        std::string base64_data = Utils::GetVideoThumbnailBase64(path);
+        std::string base64_data = media_query::GetThumbnailBase64(path);
         if (!base64_data.empty()) {
             file->set_thumbnail("data:image/jpeg;base64," + base64_data);
         }

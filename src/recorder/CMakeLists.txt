@@ -1,8 +1,11 @@
 project(recorder)
 
+find_package(JPEG REQUIRED)
+include_directories(${JPEG_INCLUDE_DIR})
 
 set(RECORDER_FILES
     ${PROJECT_SOURCE_DIR}/audio_recorder.cpp
+    ${PROJECT_SOURCE_DIR}/media_query.cpp
     ${PROJECT_SOURCE_DIR}/openh264_recorder.cpp
     ${PROJECT_SOURCE_DIR}/raw_h264_recorder.cpp
     ${PROJECT_SOURCE_DIR}/recorder_manager.cpp
@@ -23,4 +26,13 @@ endif()
 
 add_library(${PROJECT_NAME} ${RECORDER_FILES})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC capturer v4l2_codecs h264_codecs)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    capturer
+    v4l2_codecs
+    h264_codecs
+    avformat
+    avcodec
+    avutil
+    swscale
+    ${JPEG_LIBRARIES}
+)

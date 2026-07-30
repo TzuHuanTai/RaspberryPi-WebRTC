@@ -1,5 +1,5 @@
-#ifndef V4L2_FRAME_BUFFER_H_
-#define V4L2_FRAME_BUFFER_H_
+#ifndef COMMON_V4L2_FRAME_BUFFER_H_
+#define COMMON_V4L2_FRAME_BUFFER_H_
 
 #include "common/v4l2_utils.h"
 
@@ -57,4 +57,4 @@ class V4L2FrameBuffer : public webrtc::VideoFrameBuffer {
 
 using V4L2FrameBufferRef = webrtc::scoped_refptr<V4L2FrameBuffer>;
 
-#endif // V4L2_FRAME_BUFFER_H_
+#endif // COMMON_V4L2_FRAME_BUFFER_H_

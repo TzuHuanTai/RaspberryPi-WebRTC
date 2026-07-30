@@ -1,5 +1,5 @@
-#ifndef SUBJECT_H_
-#define SUBJECT_H_
+#ifndef COMMON_INTERFACE_SUBJECT_H_
+#define COMMON_INTERFACE_SUBJECT_H_
 
 #include <algorithm>
 #include <functional>
@@ -88,4 +88,4 @@ template <typename T> class Subject {
     std::vector<std::shared_ptr<Observer>> observers_;
 };
 
-#endif
+#endif // COMMON_INTERFACE_SUBJECT_H_

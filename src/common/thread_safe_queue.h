@@ -1,5 +1,5 @@
-#ifndef THREAD_SAFE_QUEUE_
-#define THREAD_SAFE_QUEUE_
+#ifndef COMMON_THREAD_SAFE_QUEUE_H_
+#define COMMON_THREAD_SAFE_QUEUE_H_
 
 #include <condition_variable>
 #include <mutex>
@@ -91,4 +91,4 @@ template <typename T> class ThreadSafeQueue {
     const size_t max_size_;
 };
 
-#endif
+#endif // COMMON_THREAD_SAFE_QUEUE_H_

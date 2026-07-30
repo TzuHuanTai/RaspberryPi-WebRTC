@@ -4,7 +4,6 @@
 #include "args.h"
 #include "common/interface/subject.h"
 #include "common/v4l2_frame_buffer.h"
-#include "common/v4l2_utils.h"
 
 // multiple video stream capturer interface
 class VideoCapturer {

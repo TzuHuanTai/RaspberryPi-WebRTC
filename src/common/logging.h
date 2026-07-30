@@ -1,5 +1,5 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#ifndef COMMON_LOGGING_H_
+#define COMMON_LOGGING_H_
 
 #include <chrono>
 #include <cstdio>
@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <string>
 #include <unistd.h>
+
+namespace logging {
 
 inline std::string GetFolderName(const std::string &file_path) {
     return std::filesystem::path(file_path).parent_path().filename().string();
@@ -29,12 +31,15 @@ inline std::string GetCurrentTime() {
     return result;
 }
 
+} // namespace logging
+
 #ifdef DEBUG_MODE
 #define DEBUG_PRINT(fmt, ...)                                                                      \
     printf("[%s] [%d] \033[1;33mDEBUG\033[0m \033[1;37m%s\033[0m \033[1;34m%s:%d\033[0m " fmt      \
            "\n",                                                                                   \
-           GetCurrentTime().c_str(), (int)gettid(), GetFolderName(__FILE__).c_str(),               \
-           GetFileName(__FILE__).c_str(), __LINE__, ##__VA_ARGS__)
+           logging::GetCurrentTime().c_str(), (int)gettid(),                                       \
+           logging::GetFolderName(__FILE__).c_str(), logging::GetFileName(__FILE__).c_str(),       \
+           __LINE__, ##__VA_ARGS__)
 #else
 #define DEBUG_PRINT(fmt, ...)
 #endif
@@ -43,13 +48,15 @@ inline std::string GetCurrentTime() {
     fprintf(stderr,                                                                                \
             "[%s] [%d] \033[1;31mERROR\033[0m \033[1;37m%s\033[0m \033[1;34m%s:%d\033[0m " fmt     \
             "\n",                                                                                  \
-            GetCurrentTime().c_str(), (int)gettid(), GetFolderName(__FILE__).c_str(),              \
-            GetFileName(__FILE__).c_str(), __LINE__, ##__VA_ARGS__)
+            logging::GetCurrentTime().c_str(), (int)gettid(),                                      \
+            logging::GetFolderName(__FILE__).c_str(), logging::GetFileName(__FILE__).c_str(),      \
+            __LINE__, ##__VA_ARGS__)
 
 #define INFO_PRINT(fmt, ...)                                                                       \
     printf("[%s] [%d] \033[1;32m INFO\033[0m \033[1;37m%s\033[0m \033[1;34m%s:%d\033[0m " fmt      \
            "\n",                                                                                   \
-           GetCurrentTime().c_str(), (int)gettid(), GetFolderName(__FILE__).c_str(),               \
-           GetFileName(__FILE__).c_str(), __LINE__, ##__VA_ARGS__)
+           logging::GetCurrentTime().c_str(), (int)gettid(),                                       \
+           logging::GetFolderName(__FILE__).c_str(), logging::GetFileName(__FILE__).c_str(),       \
+           __LINE__, ##__VA_ARGS__)
 
-#endif // LOGGING_H
+#endif // COMMON_LOGGING_H_

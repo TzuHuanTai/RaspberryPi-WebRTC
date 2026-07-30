@@ -8,6 +8,7 @@
 
 #include "args.h"
 #include "codecs/v4l2/v4l2_encoder.h"
+#include "common/v4l2_utils.h"
 
 class V4L2H264Encoder : public webrtc::VideoEncoder {
   public:

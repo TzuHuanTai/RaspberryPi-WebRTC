@@ -14,28 +14,28 @@ V4L2Codec::V4L2Codec()
 V4L2Codec::~V4L2Codec() {
     abort_ = true;
     worker_.reset();
-    V4L2Util::StreamOff(fd_, output_.type);
-    V4L2Util::StreamOff(fd_, capture_.type);
+    v4l2_util::StreamOff(fd_, output_.type);
+    v4l2_util::StreamOff(fd_, capture_.type);
 
-    V4L2Util::DeallocateBuffer(fd_, &output_);
-    V4L2Util::DeallocateBuffer(fd_, &capture_);
+    v4l2_util::DeallocateBuffer(fd_, &output_);
+    v4l2_util::DeallocateBuffer(fd_, &capture_);
 
-    V4L2Util::CloseDevice(fd_);
+    v4l2_util::CloseDevice(fd_);
 }
 
 bool V4L2Codec::Open(const char *file_name) {
     file_name_ = file_name;
-    fd_ = V4L2Util::OpenDevice(file_name);
+    fd_ = v4l2_util::OpenDevice(file_name);
     if (fd_ < 0) {
         return false;
     }
     return true;
 }
 
-bool V4L2Codec::SetFps(uint32_t fps) { return V4L2Util::SetFps(fd_, output_.type, fps); }
+bool V4L2Codec::SetFps(uint32_t fps) { return v4l2_util::SetFps(fd_, output_.type, fps); }
 
 bool V4L2Codec::SetExtCtrl(uint32_t id, int32_t value) {
-    return V4L2Util::SetExtCtrl(fd_, id, value);
+    return v4l2_util::SetExtCtrl(fd_, id, value);
 }
 
 bool V4L2Codec::SetupOutputBuffer(int width, int height, uint32_t pix_fmt, v4l2_memory memory,
@@ -56,15 +56,15 @@ bool V4L2Codec::SetupCaptureBuffer(int width, int height, uint32_t pix_fmt, v4l2
 bool V4L2Codec::PrepareBuffer(V4L2BufferGroup *gbuffer, int width, int height, uint32_t pix_fmt,
                               v4l2_buf_type type, v4l2_memory memory, int buffer_num,
                               bool has_dmafd) {
-    if (!V4L2Util::InitBuffer(fd_, gbuffer, type, memory, has_dmafd)) {
+    if (!v4l2_util::InitBuffer(fd_, gbuffer, type, memory, has_dmafd)) {
         return false;
     }
 
-    if (!V4L2Util::SetFormat(fd_, gbuffer, width, height, pix_fmt)) {
+    if (!v4l2_util::SetFormat(fd_, gbuffer, width, height, pix_fmt)) {
         return false;
     }
 
-    if (!V4L2Util::AllocateBuffer(fd_, gbuffer, buffer_num)) {
+    if (!v4l2_util::AllocateBuffer(fd_, gbuffer, buffer_num)) {
         return false;
     }
 
@@ -73,7 +73,7 @@ bool V4L2Codec::PrepareBuffer(V4L2BufferGroup *gbuffer, int width, int height, u
             output_buffer_index_.push(i);
         }
     } else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-        if (!V4L2Util::QueueBuffers(fd_, gbuffer)) {
+        if (!v4l2_util::QueueBuffers(fd_, gbuffer)) {
             return false;
         }
     }
@@ -81,7 +81,7 @@ bool V4L2Codec::PrepareBuffer(V4L2BufferGroup *gbuffer, int width, int height, u
     return true;
 }
 
-bool V4L2Codec::SubscribeEvent(uint32_t ev_type) { return V4L2Util::SubscribeEvent(fd_, ev_type); }
+bool V4L2Codec::SubscribeEvent(uint32_t ev_type) { return v4l2_util::SubscribeEvent(fd_, ev_type); }
 
 void V4L2Codec::HandleEvent() {
     struct v4l2_event ev;
@@ -89,11 +89,11 @@ void V4L2Codec::HandleEvent() {
         switch (ev.type) {
             case V4L2_EVENT_SOURCE_CHANGE:
                 DEBUG_PRINT("Source changed!");
-                V4L2Util::StreamOff(fd_, capture_.type);
-                V4L2Util::DeallocateBuffer(fd_, &capture_);
-                V4L2Util::SetFormat(fd_, &capture_, 0, 0, dst_fmt_);
-                V4L2Util::AllocateBuffer(fd_, &capture_, capture_.buffers.size());
-                V4L2Util::StreamOn(fd_, capture_.type);
+                v4l2_util::StreamOff(fd_, capture_.type);
+                v4l2_util::DeallocateBuffer(fd_, &capture_);
+                v4l2_util::SetFormat(fd_, &capture_, 0, 0, dst_fmt_);
+                v4l2_util::AllocateBuffer(fd_, &capture_, capture_.buffers.size());
+                v4l2_util::StreamOn(fd_, capture_.type);
                 break;
             case V4L2_EVENT_EOS:
                 DEBUG_PRINT("EOS!");
@@ -113,8 +113,8 @@ void V4L2Codec::Start() {
         exit(EXIT_FAILURE);
     }
 
-    V4L2Util::StreamOn(fd_, output_.type);
-    V4L2Util::StreamOn(fd_, capture_.type);
+    v4l2_util::StreamOn(fd_, output_.type);
+    v4l2_util::StreamOn(fd_, capture_.type);
 
     abort_ = false;
     worker_ = std::make_unique<Worker>(file_name_, [this]() {
@@ -140,7 +140,7 @@ void V4L2Codec::EmplaceBuffer(V4L2FrameBufferRef buffer,
         memcpy((uint8_t *)output_.buffers[index].start, (uint8_t *)buffer->Data(), buffer->size());
     }
 
-    if (!V4L2Util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
+    if (!v4l2_util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
         ERROR_PRINT("QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d", fd_,
                     index);
         output_buffer_index_.push(index);
@@ -182,7 +182,7 @@ bool V4L2Codec::CaptureBuffer() {
         buf.length = 1;
         buf.m.planes = &planes;
         buf.type = output_.type;
-        if (!V4L2Util::DequeueBuffer(fd_, &buf)) {
+        if (!v4l2_util::DequeueBuffer(fd_, &buf)) {
             return false;
         }
         output_buffer_index_.push(buf.index);
@@ -193,7 +193,7 @@ bool V4L2Codec::CaptureBuffer() {
         buf.length = 1;
         buf.m.planes = &planes;
         buf.type = capture_.type;
-        if (!V4L2Util::DequeueBuffer(fd_, &buf)) {
+        if (!v4l2_util::DequeueBuffer(fd_, &buf)) {
             return false;
         }
 
@@ -212,7 +212,7 @@ bool V4L2Codec::CaptureBuffer() {
             task(frame_buffer);
         }
 
-        if (!V4L2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
+        if (!v4l2_util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
             return false;
         }
     }
