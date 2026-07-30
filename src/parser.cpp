@@ -223,6 +223,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Use TLS for the WebSocket connection. Use it when connecting to a `wss://` URL.")
         ("ws-host", bpo::value<std::string>(&args.ws_host)->default_value(args.ws_host),
             "The WebSocket host address of the SFU server.")
+        ("ws-port", bpo::value<uint16_t>(&args.ws_port)->default_value(args.ws_port),
+            "The WebSocket port of the SFU server. Defaults to 443 if --use-tls is set, otherwise 80.")
         ("ws-room", bpo::value<std::string>(&args.ws_room)->default_value(args.ws_room),
             "The room name to join on the SFU server.")
         ("ws-key", bpo::value<std::string>(&args.ws_key)->default_value(args.ws_key),

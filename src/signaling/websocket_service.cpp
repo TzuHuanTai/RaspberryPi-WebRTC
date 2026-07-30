@@ -74,7 +74,7 @@ WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
 }
 
 void WebsocketService::Connect() {
-    auto port = args_.use_tls ? 443 : 80;
+    auto port = args_.ws_port != 0 ? args_.ws_port : (args_.use_tls ? 443 : 80);
     INFO_PRINT("Connect to WebSocket %s:%d", args_.ws_host.c_str(), port);
 
     resolver_.async_resolve(

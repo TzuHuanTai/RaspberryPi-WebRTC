@@ -166,6 +166,7 @@ struct Args {
     // websocket signaling
     bool use_websocket = false;
     bool use_tls = false;
+    uint16_t ws_port = 0;
     std::string ws_host = "";
     std::string ws_room = "";
     std::string ws_key = "";
