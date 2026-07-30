@@ -4,8 +4,6 @@
 #include "codecs/frame_processor.h"
 #include "common/thread_safe_queue.h"
 #include "common/v4l2_frame_buffer.h"
-#include "common/v4l2_utils.h"
-#include "common/worker.h"
 
 #include <NvVideoEncoder.h>
 

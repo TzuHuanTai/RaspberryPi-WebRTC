@@ -1,4 +1,5 @@
 #include "rtc/rtc_peer.h"
+#include "common/utils.h"
 
 #include <regex>
 
@@ -11,7 +12,7 @@ webrtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
 }
 
 RtcPeer::RtcPeer(PeerConfig config)
-    : id_(Utils::GenerateUuid()),
+    : id_(utils::GenerateUuid()),
       timeout_(config.timeout),
       is_sfu_peer_(config.is_sfu_peer),
       is_publisher_(config.is_publisher),

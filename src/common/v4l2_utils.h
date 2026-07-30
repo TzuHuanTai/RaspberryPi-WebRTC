@@ -1,10 +1,9 @@
-#ifndef V4L2_UTILS_
-#define V4L2_UTILS_
+#ifndef COMMON_V4L2_UTILS_H_
+#define COMMON_V4L2_UTILS_H_
 
 #include <linux/videodev2.h>
 #include <stdint.h>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 /* Save single-plane data with stride equal to width */
@@ -24,8 +23,8 @@ struct V4L2Buffer {
         : start(data),
           pix_fmt(fmt),
           length(len),
-          dmafd(fd),
           flags(f),
+          dmafd(fd),
           timestamp(ts) {}
 
     static V4L2Buffer FromV4L2(void *start, const v4l2_buffer &v4l2, uint32_t fmt) {
@@ -55,33 +54,27 @@ struct V4L2BufferGroup {
     enum v4l2_memory memory;
 };
 
-class V4L2Util {
-  public:
-    static bool IsSinglePlaneVideo(v4l2_capability *cap);
-    static bool IsMultiPlaneVideo(v4l2_capability *cap);
-    static std::string FourccToString(uint32_t fourcc);
+namespace v4l2_util {
 
-    static int OpenDevice(const char *file);
-    static void CloseDevice(int fd);
-    static bool QueryCapabilities(int fd, v4l2_capability *cap);
-    static bool InitBuffer(int fd, V4L2BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
-                           bool has_dmafd = false);
-    static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
-    static bool QueueBuffer(int fd, v4l2_buffer *buffer);
-    static bool QueueBuffers(int fd, V4L2BufferGroup *buffer);
-    static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
-    static bool SubscribeEvent(int fd, uint32_t type);
-    static bool SetFps(int fd, v4l2_buf_type type, uint32_t fps);
-    static bool SetFormat(int fd, V4L2BufferGroup *gbuffer, uint32_t width, uint32_t height,
-                          uint32_t &pixel_format);
-    static bool SetCtrl(int fd, uint32_t id, int32_t value);
-    static bool SetExtCtrl(int fd, uint32_t id, int32_t value);
-    static bool StreamOn(int fd, v4l2_buf_type type);
-    static bool StreamOff(int fd, v4l2_buf_type type);
-    static void UnMap(V4L2BufferGroup *gbuffer);
-    static bool MMap(int fd, V4L2BufferGroup *gbuffer);
-    static bool AllocateBuffer(int fd, V4L2BufferGroup *gbuffer, int num_buffers);
-    static bool DeallocateBuffer(int fd, V4L2BufferGroup *gbuffer);
-};
+int OpenDevice(const char *file);
+void CloseDevice(int fd);
+bool QueryCapabilities(int fd, v4l2_capability *cap);
+bool InitBuffer(int fd, V4L2BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
+                bool has_dmafd = false);
+bool DequeueBuffer(int fd, v4l2_buffer *buffer);
+bool QueueBuffer(int fd, v4l2_buffer *buffer);
+bool QueueBuffers(int fd, V4L2BufferGroup *gbuffer);
+bool SubscribeEvent(int fd, uint32_t type);
+bool SetFps(int fd, v4l2_buf_type type, uint32_t fps);
+bool SetFormat(int fd, V4L2BufferGroup *gbuffer, uint32_t width, uint32_t height,
+               uint32_t &pixel_format);
+bool SetCtrl(int fd, uint32_t id, int32_t value);
+bool SetExtCtrl(int fd, uint32_t id, int32_t value);
+bool StreamOn(int fd, v4l2_buf_type type);
+bool StreamOff(int fd, v4l2_buf_type type);
+bool AllocateBuffer(int fd, V4L2BufferGroup *gbuffer, int num_buffers);
+bool DeallocateBuffer(int fd, V4L2BufferGroup *gbuffer);
 
-#endif // V4L2_UTILS_
+} // namespace v4l2_util
+
+#endif // COMMON_V4L2_UTILS_H_

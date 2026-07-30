@@ -1,5 +1,5 @@
-#ifndef WORKER_H_
-#define WORKER_H_
+#ifndef COMMON_WORKER_H_
+#define COMMON_WORKER_H_
 
 #include <atomic>
 #include <functional>
@@ -22,4 +22,4 @@ class Worker {
     void Thread();
 };
 
-#endif // WORKER_H_
+#endif // COMMON_WORKER_H_

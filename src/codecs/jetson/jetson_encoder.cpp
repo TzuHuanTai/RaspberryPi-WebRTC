@@ -1,5 +1,6 @@
 #include "codecs/jetson/jetson_encoder.h"
 #include "common/logging.h"
+#include "common/v4l2_utils.h"
 #include <cstring>
 
 #include "Error.h"

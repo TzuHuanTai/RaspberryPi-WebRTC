@@ -1,96 +1,13 @@
-#ifndef UTILS_
-#define UTILS_
+#ifndef COMMON_UTILS_H_
+#define COMMON_UTILS_H_
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
+#include <string>
 
-namespace fs = std::filesystem;
+namespace utils {
 
-struct FreeDeleter {
-    void operator()(uint8_t *ptr) const {
-        if (ptr) {
-            free(ptr);
-        }
-    }
-};
+bool CreateFolder(const std::string &folder_path);
+std::string GenerateUuid();
 
-struct Buffer {
-    std::unique_ptr<uint8_t, FreeDeleter> start;
-    unsigned long length;
-};
+} // namespace utils
 
-class Utils {
-  public:
-    static std::string PrefixZero(int src, int digits);
-    static std::string ToBase64(const std::string &binary_file);
-    static std::vector<std::pair<fs::file_time_type, fs::path>>
-    GetFiles(const std::string &base_dir, const std::string &extension);
-    static std::string FindLatestSubDir(const std::string &path);
-    static std::string GetPreviousDate(const std::string &dateStr);
-    static std::string FindLatestCompleteFile(const std::string &base_dir,
-                                              const std::string &extension);
-    static std::chrono::system_clock::time_point ParseDatetime(const std::string &datetime_str);
-    static std::string FindFilesFromDatetime(const std::string &root, const std::string &basename);
-    static std::vector<std::string> FindOlderFiles(const std::string &base_dir,
-                                                   const std::string &file_path, int request_num);
-
-    static bool CreateFolder(const std::string &folder_path);
-    static void RotateFiles(const std::string &folder_path);
-    static bool CheckDriveSpace(const std::string &file_path, unsigned long min_free_byte);
-
-    static std::string GetVideoThumbnailBase64(const std::string &file_path, int scale_denom = 8,
-                                               int quality = 75);
-    static Buffer ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height,
-                                   int quality = 100);
-    static void CreateJpegImage(const uint8_t *yuv_data, int width, int height,
-                                const std::string &url, int quality);
-    static void WriteJpegImage(Buffer buffer, const std::string &url);
-    static uint32_t GetVideoDuration(const std::string &filePath);
-    static timeval ToTimeval(uint64_t timestamp_ns);
-    static std::string GenerateUuid();
-};
-
-class FileInfo {
-    std::string root;
-    std::string date;
-    std::string hour;
-    std::string filename;
-    std::string extension;
-
-  public:
-    FileInfo(const std::string &root, const std::string &extension = "mp4")
-        : root(root),
-          extension(extension) {
-        time_t now = time(0);
-        tm ltm_buf{};
-        localtime_r(&now, &ltm_buf);
-        tm *ltm = &ltm_buf;
-
-        std::string year = Utils::PrefixZero(1900 + ltm->tm_year, 4);
-        std::string month = Utils::PrefixZero(1 + ltm->tm_mon, 2);
-        std::string day = Utils::PrefixZero(ltm->tm_mday, 2);
-        std::string hour = Utils::PrefixZero(ltm->tm_hour, 2);
-        std::string min = Utils::PrefixZero(ltm->tm_min, 2);
-        std::string sec = Utils::PrefixZero(ltm->tm_sec, 2);
-
-        std::stringstream filenameStream;
-        filenameStream << year << month << day << "_" << hour << min << sec;
-        filenameStream >> filename;
-
-        date = year + month + day;
-        this->hour = hour;
-    }
-
-    std::string GetFullPath() const {
-        return std::filesystem::path(root) / std::filesystem::path(date) /
-               std::filesystem::path(hour) / (filename + "." + extension);
-    }
-
-    std::string GetFolderPath() const {
-        return std::filesystem::path(root) / std::filesystem::path(date) /
-               std::filesystem::path(hour);
-    }
-};
-
-#endif // UTILS_
+#endif // COMMON_UTILS_H_

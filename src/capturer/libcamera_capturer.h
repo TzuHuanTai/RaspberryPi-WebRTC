@@ -10,7 +10,6 @@
 #include "capturer/video_capturer.h"
 #include "common/interface/subject.h"
 #include "common/v4l2_frame_buffer.h"
-#include "common/v4l2_utils.h"
 #include "common/worker.h"
 
 class LibcameraCapturer : public VideoCapturer {

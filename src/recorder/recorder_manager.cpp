@@ -6,8 +6,11 @@
 #include <filesystem>
 #include <future>
 #include <mutex>
+#include <sstream>
+#include <sys/statvfs.h>
 #include <thread>
 
+#include "common/jpeg_util.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "common/v4l2_frame_buffer.h"
@@ -18,6 +21,134 @@
 #elif defined(USE_JETSON_HW_ENCODER)
 #include "recorder/jetson_recorder.h"
 #endif
+
+namespace fs = std::filesystem;
+
+namespace {
+
+std::string PrefixZero(int src, int digits) {
+    std::string str = std::to_string(src);
+    std::string n_zero(digits - str.length(), '0');
+    return n_zero + str;
+}
+
+bool CheckDriveSpace(const std::string &file_path, unsigned long min_free_byte) {
+    struct statvfs stat;
+    if (statvfs(file_path.c_str(), &stat) != 0) {
+        return false;
+    }
+    return (stat.f_bsize * stat.f_bavail) >= min_free_byte;
+}
+
+void RotateFiles(const std::string &folder_path) {
+    fs::path oldest_date_folder;
+    for (const auto &entry : fs::directory_iterator(folder_path)) {
+        if (entry.is_directory() &&
+            (oldest_date_folder.empty() || entry.path() < oldest_date_folder)) {
+            oldest_date_folder = entry.path();
+        }
+    }
+
+    if (oldest_date_folder.empty()) {
+        return;
+    }
+
+    fs::path oldest_hour_folder;
+    for (const auto &hour_entry : fs::directory_iterator(oldest_date_folder)) {
+        if (hour_entry.is_directory() &&
+            (oldest_hour_folder.empty() || hour_entry.path() < oldest_hour_folder)) {
+            oldest_hour_folder = hour_entry.path();
+        }
+    }
+
+    try {
+        if (oldest_hour_folder.empty()) {
+            fs::remove_all(oldest_date_folder);
+            INFO_PRINT("Deleted empty date folder: %s", oldest_date_folder.string().c_str());
+            return;
+        }
+        fs::path oldest_file;
+        for (const auto &file : fs::directory_iterator(oldest_hour_folder)) {
+            if (file.is_regular_file()) {
+                const auto &ext = file.path().extension();
+                if (ext == ".mp4" || ext == ".jpg") {
+                    if (oldest_file.empty() || file.path().filename() < oldest_file.filename()) {
+                        oldest_file = file.path();
+                    }
+                }
+            }
+        }
+
+        if (oldest_file.empty()) {
+            fs::remove_all(oldest_hour_folder);
+            INFO_PRINT("Deleted empty hour folder: %s", oldest_hour_folder.string().c_str());
+            return;
+        }
+
+        fs::remove(oldest_file);
+        INFO_PRINT("Deleted file: %s", oldest_file.string().c_str());
+
+        fs::path counterpart = oldest_file;
+        counterpart.replace_extension(oldest_file.extension() == ".mp4" ? ".jpg" : ".mp4");
+        if (fs::remove(counterpart)) {
+            INFO_PRINT("Deleted counterpart file: %s", counterpart.string().c_str());
+        }
+
+        // clean up empty folders
+        if (fs::is_empty(oldest_hour_folder)) {
+            fs::remove(oldest_hour_folder);
+            INFO_PRINT("Deleted empty hour folder: %s", oldest_hour_folder.string().c_str());
+
+            if (fs::is_empty(oldest_date_folder)) {
+                fs::remove(oldest_date_folder);
+                INFO_PRINT("Deleted empty date folder: %s", oldest_date_folder.string().c_str());
+            }
+        }
+    } catch (const fs::filesystem_error &e) {
+        std::cerr << "Error while deleting: " << e.what() << std::endl;
+    }
+}
+
+/* Builds a timestamped `<root>/<date>/<hour>/<YYYYMMDD_HHMMSS>.<ext>` path. */
+class FileInfo {
+    std::string root;
+    std::string date;
+    std::string hour;
+    std::string filename;
+    std::string extension;
+
+  public:
+    FileInfo(const std::string &root, const std::string &extension = "mp4")
+        : root(root),
+          extension(extension) {
+        time_t now = time(0);
+        tm ltm_buf{};
+        localtime_r(&now, &ltm_buf);
+        tm *ltm = &ltm_buf;
+
+        std::string year = PrefixZero(1900 + ltm->tm_year, 4);
+        std::string month = PrefixZero(1 + ltm->tm_mon, 2);
+        std::string day = PrefixZero(ltm->tm_mday, 2);
+        std::string hour = PrefixZero(ltm->tm_hour, 2);
+        std::string min = PrefixZero(ltm->tm_min, 2);
+        std::string sec = PrefixZero(ltm->tm_sec, 2);
+
+        std::stringstream filenameStream;
+        filenameStream << year << month << day << "_" << hour << min << sec;
+        filenameStream >> filename;
+
+        date = year + month + day;
+        this->hour = hour;
+    }
+
+    std::string GetFullPath() const {
+        return fs::path(root) / fs::path(date) / fs::path(hour) / (filename + "." + extension);
+    }
+
+    std::string GetFolderPath() const { return fs::path(root) / fs::path(date) / fs::path(hour); }
+};
+
+} // namespace
 
 const int ROTATION_PERIOD = 60;
 const unsigned long MIN_FREE_BYTE = 400 * 1024 * 1024;
@@ -88,9 +219,8 @@ void RecorderManager::StartRotationThread() {
                 break;
             rotation_requested_.store(false);
             DEBUG_PRINT("Rotate files in path: %s", config.record_path.c_str());
-            while (!rotation_abort_.load() &&
-                   !Utils::CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
-                Utils::RotateFiles(config.record_path);
+            while (!rotation_abort_.load() && !CheckDriveSpace(config.record_path, MIN_FREE_BYTE)) {
+                RotateFiles(config.record_path);
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
@@ -233,14 +363,14 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 }
 
 void RecorderManager::Start() {
-    if (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
+    if (!CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
         rotation_requested_.store(true);
         rotation_cv_.notify_one();
     }
 
     FileInfo new_file(record_path, CONTAINER_FORMAT);
     auto folder = new_file.GetFolderPath();
-    Utils::CreateFolder(folder);
+    utils::CreateFolder(folder);
     current_filepath_ = new_file.GetFullPath();
 
     if (config.record_type != RecordType::Snapshot) {
@@ -326,8 +456,8 @@ void RecorderManager::MakePreviewImage(std::string path) {
             return;
         }
         auto i420buff = video_src->GetI420Frame(record_stream_idx);
-        Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(), path,
-                               jpeg_quality);
+        jpeg_util::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(), path,
+                                   jpeg_quality);
     }).detach();
 }
 

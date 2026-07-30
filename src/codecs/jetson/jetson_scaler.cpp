@@ -1,5 +1,6 @@
 #include "codecs/jetson/jetson_scaler.h"
 #include "common/logging.h"
+#include "common/v4l2_utils.h"
 
 #include <chrono>
 

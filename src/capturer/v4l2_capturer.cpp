@@ -34,9 +34,9 @@ V4L2Capturer::V4L2Capturer(Args args)
 V4L2Capturer::~V4L2Capturer() {
     worker_.reset();
     decoder_.reset();
-    V4L2Util::StreamOff(fd_, capture_.type);
-    V4L2Util::DeallocateBuffer(fd_, &capture_);
-    V4L2Util::CloseDevice(fd_);
+    v4l2_util::StreamOff(fd_, capture_.type);
+    v4l2_util::DeallocateBuffer(fd_, &capture_);
+    v4l2_util::CloseDevice(fd_);
 }
 
 void V4L2Capturer::Initialize() {
@@ -46,13 +46,13 @@ void V4L2Capturer::Initialize() {
     }
 
     std::string devicePath = "/dev/video" + std::to_string(camera_id_);
-    fd_ = V4L2Util::OpenDevice(devicePath.c_str());
+    fd_ = v4l2_util::OpenDevice(devicePath.c_str());
     if (fd_ < 0) {
         INFO_PRINT("Unable to open device: %s", devicePath.c_str());
         exit(EXIT_FAILURE);
     }
 
-    if (!V4L2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)) {
+    if (!v4l2_util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)) {
         ERROR_PRINT("Could not setup v4l2 capture buffer");
         exit(EXIT_FAILURE);
     }
@@ -78,15 +78,15 @@ void V4L2Capturer::Initialize() {
         }
     }
 
-    if (!V4L2Util::SetFps(fd_, capture_.type, fps_)) {
+    if (!v4l2_util::SetFps(fd_, capture_.type, fps_)) {
         ERROR_PRINT("Unable to set fps");
     }
 
-    if (!V4L2Util::SetCtrl(fd_, V4L2_CID_ROTATE, rotation_)) {
+    if (!v4l2_util::SetCtrl(fd_, V4L2_CID_ROTATE, rotation_)) {
         ERROR_PRINT("Unable to set the rotation angle");
     }
 
-    if (!V4L2Util::SetFormat(fd_, &capture_, width_, height_, format_)) {
+    if (!v4l2_util::SetFormat(fd_, &capture_, width_, height_, format_)) {
         ERROR_PRINT("Unable to set the resolution: %dx%d", width_, height_);
     }
 
@@ -113,7 +113,7 @@ bool V4L2Capturer::IsCompressedFormat() const {
 
 bool V4L2Capturer::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
-    if (V4L2Util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0 &&
+    if (v4l2_util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0 &&
         strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0) {
         return true;
     }
@@ -155,7 +155,7 @@ void V4L2Capturer::CaptureImage() {
     buf.type = capture_.type;
     buf.memory = capture_.memory;
 
-    if (!V4L2Util::DequeueBuffer(fd_, &buf)) {
+    if (!v4l2_util::DequeueBuffer(fd_, &buf)) {
         return;
     }
 
@@ -166,7 +166,7 @@ void V4L2Capturer::CaptureImage() {
             has_first_keyframe_ = true;
         }
         if (!has_first_keyframe_) {
-            V4L2Util::QueueBuffer(fd_, &buf);
+            v4l2_util::QueueBuffer(fd_, &buf);
             return;
         }
     }
@@ -185,12 +185,14 @@ void V4L2Capturer::CaptureImage() {
         stream_subject_.Next(frame_buffer_);
     }
 
-    if (!V4L2Util::QueueBuffer(fd_, &buf)) {
+    if (!v4l2_util::QueueBuffer(fd_, &buf)) {
         return;
     }
 }
 
-bool V4L2Capturer::SetControls(int key, int value) { return V4L2Util::SetExtCtrl(fd_, key, value); }
+bool V4L2Capturer::SetControls(int key, int value) {
+    return v4l2_util::SetExtCtrl(fd_, key, value);
+}
 
 webrtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capturer::GetI420Frame(int stream_idx) {
     return frame_buffer_->ToI420();
@@ -202,12 +204,12 @@ Subscription V4L2Capturer::Subscribe(Subject<V4L2FrameBufferRef>::Callback callb
 }
 
 void V4L2Capturer::StartCapture() {
-    if (!V4L2Util::AllocateBuffer(fd_, &capture_, buffer_count_) ||
-        !V4L2Util::QueueBuffers(fd_, &capture_)) {
+    if (!v4l2_util::AllocateBuffer(fd_, &capture_, buffer_count_) ||
+        !v4l2_util::QueueBuffers(fd_, &capture_)) {
         exit(0);
     }
 
-    V4L2Util::StreamOn(fd_, capture_.type);
+    v4l2_util::StreamOn(fd_, capture_.type);
 
     worker_ = std::make_unique<Worker>("V4L2 Capturer", [this]() {
         CaptureImage();

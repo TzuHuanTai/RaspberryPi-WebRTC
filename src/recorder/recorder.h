@@ -9,7 +9,6 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-#include "common/interface/subject.h"
 #include "common/worker.h"
 
 template <typename T> class Recorder {

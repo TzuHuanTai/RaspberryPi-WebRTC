@@ -1,5 +1,4 @@
 #include "recorder/jetson_recorder.h"
-#include "common/logging.h"
 
 const float bpp_factor = 0.06f;
 

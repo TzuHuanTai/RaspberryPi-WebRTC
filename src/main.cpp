@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 
     // Background recorder
     if ((args.record_mode == RecordMode::Background || args.record_mode == -1) &&
-        Utils::CreateFolder(args.record_path)) {
+        utils::CreateFolder(args.record_path)) {
         bg_recorder_mgr =
             RecorderManager::Create(conductor->VideoSource(), conductor->AudioSource(), args);
         DEBUG_PRINT("Background recorder is running!");
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     if (args.record_mode == RecordMode::OnDemand || args.record_mode == -1) {
         Args ondemand_args = args;
         ondemand_args.record_path = args.record_ondemand_path;
-        if (Utils::CreateFolder(ondemand_args.record_path)) {
+        if (utils::CreateFolder(ondemand_args.record_path)) {
             ondemand_recorder_mgr = RecorderManager::Create(
                 conductor->VideoSource(), conductor->AudioSource(), ondemand_args, false);
             conductor->SetOnDemandRecorder(ondemand_recorder_mgr);

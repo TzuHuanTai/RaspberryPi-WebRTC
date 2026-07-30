@@ -1,6 +1,7 @@
 #include "rtc/rtc_channel.h"
 
 #include "common/logging.h"
+#include "common/utils.h"
 
 const int CHUNK_SIZE = 64 * 1024; // 64KB
 
@@ -11,7 +12,7 @@ RtcChannel::Create(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_chan
 
 RtcChannel::RtcChannel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
     : data_channel(data_channel),
-      id_(Utils::GenerateUuid()),
+      id_(utils::GenerateUuid()),
       label_(data_channel->label()),
       send_thread_running_(true) {
     data_channel->RegisterObserver(this);
@@ -95,7 +96,7 @@ void RtcChannel::Next(const std::string &message) {
 }
 
 void RtcChannel::Send(protocol::CommandType type, const uint8_t *data, size_t size) {
-    auto stream_id = Utils::GenerateUuid();
+    auto stream_id = utils::GenerateUuid();
 
     protocol::Packet header_pkt;
     header_pkt.set_type(type);
@@ -196,7 +197,7 @@ void RtcChannel::Send(const protocol::RecordingResponse &response) {
     Send((uint8_t *)buf.data(), buf.size());
 }
 
-void RtcChannel::Send(Buffer image) {
+void RtcChannel::Send(jpeg_util::JpegBuffer image) {
     Send(protocol::CommandType::TAKE_SNAPSHOT, (uint8_t *)image.start.get(), image.length);
     DEBUG_PRINT("Image sent: %lu bytes", image.length);
 }
@@ -213,7 +214,7 @@ void RtcChannel::Send(std::ifstream &file) {
     size_t total_size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    auto stream_id = Utils::GenerateUuid();
+    auto stream_id = utils::GenerateUuid();
 
     protocol::Packet header_pkt;
     header_pkt.set_type(type);

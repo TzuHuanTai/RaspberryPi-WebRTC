@@ -4,9 +4,6 @@
 #include <api/video/i420_buffer.h>
 #include <third_party/libyuv/include/libyuv.h>
 
-#include "common/logging.h"
-#include "common/v4l2_frame_buffer.h"
-
 static const int kBufferAlignment = 64;
 
 webrtc::scoped_refptr<ScaleTrackSource>

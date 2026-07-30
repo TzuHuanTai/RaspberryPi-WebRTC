@@ -13,7 +13,7 @@
 #include <api/data_channel_interface.h>
 
 #include "common/interface/subject.h"
-#include "common/utils.h"
+#include "common/jpeg_util.h"
 #include "ipc/unix_socket_server.h"
 
 class RtcChannel : public webrtc::DataChannelObserver,
@@ -43,7 +43,7 @@ class RtcChannel : public webrtc::DataChannelObserver,
 
     void Send(const protocol::QueryFileResponse &response);
     void Send(const protocol::RecordingResponse &response);
-    void Send(Buffer image);
+    void Send(jpeg_util::JpegBuffer image);
     void Send(std::ifstream &file);
     void Send(const std::string &message);
 
