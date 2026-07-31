@@ -102,14 +102,22 @@ Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [sel
 > [!IMPORTANT]
 > Remove `--hw-accel` for Pi 5 or others without hardware encoder.
 
-# [Advanced Usage](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
+# Documentation
 
-- [Broadcasting a Live Stream to 1,000+ Viewers via SFU](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#broadcasting-a-live-stream-to-1000-viewers-via-sfu)
-- [Using the V4L2 Driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) (for USB cameras)
-- [Running as a Linux Service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#running-as-a-linux-service)
-- [Recording](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#recording)
-- [Two-way Audio Communication](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-audio-communication)
-- [Two-way DataChannel Messaging](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-datachannel-messaging)
-- [Stream AI or Any Custom Feed to a Virtual Camera](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings##stream-ai-or-any-custom-feed-to-a-virtual-camera)
-- [WHEP with Nginx proxy](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#whep-with-nginx-proxy)
-- [Using the WebRTC Camera in Home Assistant](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-webrtc-camera-in-home-assistant)
+- [Configuration](docs/CONFIGURATION.md) — every flag, the YAML config file
+- [Camera and Encoding](docs/CAMERA_AND_ENCODING.md) — camera backends, hardware and software encoding
+- [Signaling](docs/SIGNALING.md) — MQTT, WHEP, and SFU
+- [Recording](docs/RECORDING.md) — files on disk, rotation, on-demand capture
+- [Architecture](docs/ARCHITECTURE.md) — how the pieces fit together
+- [Building](docs/BUILD.md) — building from source
+
+## Advanced Usage
+
+- [Broadcasting a Live Stream to 1,000+ Viewers via SFU](docs/ADVANCED.md#broadcasting-a-live-stream-to-1000-viewers-via-sfu)
+- [Using the Legacy V4L2 Driver](docs/ADVANCED.md#using-the-legacy-v4l2-driver)
+- [Running as a Linux Service](docs/ADVANCED.md#running-as-a-linux-service)
+- [Two-way Audio Communication](docs/ADVANCED.md#two-way-audio-communication)
+- [Two-way DataChannel Messaging](docs/ADVANCED.md#two-way-datachannel-messaging)
+- [Stream AI or Any Custom Feed to a Virtual Camera](docs/ADVANCED.md#stream-ai-or-any-custom-feed-to-a-virtual-camera)
+- [WHEP with Nginx Proxy](docs/ADVANCED.md#whep-with-nginx-proxy)
+- [Using the WebRTC Camera in Home Assistant](docs/ADVANCED.md#using-the-webrtc-camera-in-home-assistant)
