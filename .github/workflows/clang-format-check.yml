@@ -3,14 +3,14 @@ name: clang-format Check
 on:
   push:
     paths-ignore:
-      - "doc/**"
+      - "docs/**"
       - "example/**"
       - ".github/**"
       - ".vscode/**"
       - "*.md"
   pull_request:
     paths-ignore:
-      - "doc/**"
+      - "docs/**"
       - "example/**"
       - ".github/**"
       - ".vscode/**"

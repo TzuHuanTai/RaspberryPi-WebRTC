@@ -14,7 +14,7 @@ Makefile
 build
 proto
 
-!/doc/*.jpg
+!/docs/*.jpg
 
 # local config files
 config/*.local.yml
