@@ -1,5 +1,5 @@
 <p align=center>
-    <img src="doc/pi_5_latency_demo.gif" alt="Pi 4b latency demo">
+    <img src="docs/pi_5_latency_demo.gif" alt="Pi 4b latency demo">
 </p>
 
 <h1 align="center">
@@ -71,7 +71,7 @@ tar -xzf pi-webrtc_raspios-trixie-arm64.tar.gz
 
 ### 4. MQTT Signaling
 
-Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [self-hosted](doc/SETUP_MOSQUITTO.md) broker.
+Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [self-hosted](docs/SETUP_MOSQUITTO.md) broker.
 
 > [!TIP]
 > **MQTT** lets your Pi camera and client exchange WebRTC connection info.
