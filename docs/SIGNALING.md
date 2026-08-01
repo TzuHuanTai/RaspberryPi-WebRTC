@@ -130,16 +130,17 @@ for a worked example.
     --height=1080 \
     --uid=your-display-name \
     --use-websocket \
-    --use-tls \
-    --ws-host=your-sfu-host.example.com \
+    --ws-url=wss://your-sfu-host.example.com \
     --ws-key=your-api-key \
     --ws-room=the-room-name
 ```
 
 The device opens a WebSocket to `/rtc` on the SFU, passing `--ws-key`, `--ws-room`, and
-`--uid` as the API key, room, and publisher identity. `--ws-port` defaults to `443` when
-`--use-tls` is set and `80` otherwise. The SFU replies with the ICE servers to use, and the
-usual offer/answer follows over that socket, including renegotiation when tracks change.
+`--uid` as the API key, room, and publisher identity. The `--ws-url` scheme selects TLS
+(`wss://` or `ws://`), and the port defaults to `443` for `wss` and `80` otherwise unless the
+URL spells one out, e.g. `ws://127.0.0.1:7880`. The SFU replies with the ICE servers to use,
+and the usual offer/answer follows over that socket, including renegotiation when tracks
+change.
 
 Everyone who joins the same room sees the stream. With `--enable-ipc`, DataChannel messages
 are broadcast to every participant in the room rather than to a single peer.

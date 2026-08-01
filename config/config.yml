@@ -28,8 +28,7 @@ mqtt-password: your-mqtt-password
 
 # ── WebSocket signaling ──────────────────────────────────────────────────────
 use-websocket: true
-use-tls: true
-ws-host: your-sfu-host.example.com
+ws-url: wss://your-sfu-host.example.com
 ws-key: your-api-key
 ws-room: your-room-name
 

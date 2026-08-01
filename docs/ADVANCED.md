@@ -20,9 +20,9 @@ viewers** while only ever encoding and uploading one stream. See
 
 ### Free Testing Server
 
-| Host | API Key |
+| URL | API Key |
 | --- | --- |
-| `api.picamera.live` | `APIcNTrpq9JwSsf` |
+| `wss://api.picamera.live` | `APIWnQTs4tmUZvA` |
 
 ⚠️ The testing server allows up to 100 concurrent connections, with a monthly limit of 5,000
 minutes and 50 GB of transfer shared across all users. For a dedicated environment, contact
@@ -37,9 +37,8 @@ minutes and 50 GB of transfer shared across all users. For a dedicated environme
     --height=1080 \
     --uid=your-display-name \
     --use-websocket \
-    --use-tls \
-    --ws-host=api.picamera.live \
-    --ws-key=APIcNTrpq9JwSsf \
+    --ws-url=wss://api.picamera.live \
+    --ws-key=APIWnQTs4tmUZvA \
     --ws-room=the-room-name
 ```
 
