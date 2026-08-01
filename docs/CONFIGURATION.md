@@ -156,15 +156,15 @@ At least one signaling transport must be enabled or the process exits. See
 | `--use-whep` | `false` | Serve WHEP (WebRTC-HTTP Egress Protocol) for SDP and ICE exchange. |
 | `--http-port` | `8080` | Local HTTP port handling WHEP signaling. |
 
-### WebSocket
+### LiveKit
 
 | Option | Default | Description |
 |---|---|---|
-| `--use-websocket` | `false` | Connect to an SFU server over WebSocket. |
-| `--ws-url` | | SFU server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. The scheme selects TLS; the port defaults to `443` for `wss` and `80` otherwise. **Required** with `--use-websocket`. |
-| `--ws-room` | | Room name to join. **Required** with `--use-websocket`. |
-| `--ws-key` | | API key used to authenticate with the SFU server. |
-| `--ws-secret` <sup>[\*](COMMERCIAL.md#licensing)</sup> | | LiveKit API secret paired with `--ws-key`. Signs access tokens on-device. |
+| `--use-livekit` | `false` | Connect to a LiveKit SFU server over WebSocket. |
+| `--livekit-url` | | SFU server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. The scheme selects TLS; the port defaults to `443` for `wss` and `80` otherwise. **Required** with `--use-livekit`. |
+| `--livekit-room` | | Room name to join. **Required** with `--use-livekit`. |
+| `--livekit-key` | | API key used to authenticate with the SFU server. |
+| `--livekit-secret` <sup>[\*](COMMERCIAL.md#licensing)</sup> | | LiveKit API secret paired with `--livekit-key`. Signs access tokens on-device. |
 | `--token-url` <sup>[\*](COMMERCIAL.md#licensing)</sup> | | URL of the token service issuing LiveKit access tokens. |
 | `--token-ttl` <sup>[\*](COMMERCIAL.md#licensing)</sup> | `600` | Requested access-token lifetime, in seconds. |
 

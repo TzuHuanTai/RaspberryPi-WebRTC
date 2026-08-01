@@ -26,11 +26,11 @@ mqtt-port: 8883
 mqtt-username: your-mqtt-username
 mqtt-password: your-mqtt-password
 
-# ── WebSocket signaling ──────────────────────────────────────────────────────
-use-websocket: true
-ws-url: wss://your-sfu-host.example.com
-ws-key: your-api-key
-ws-room: your-room-name
+# ── LiveKit signaling ────────────────────────────────────────────────────────
+use-livekit: true
+livekit-url: wss://your-sfu-host.example.com
+livekit-key: your-api-key
+livekit-room: your-room-name
 
 # ── IPC ──────────────────────────────────────────────────────────────────────
 enable-ipc: true

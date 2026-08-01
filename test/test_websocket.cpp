@@ -1,14 +1,14 @@
 #include "signaling/websocket_service.h"
 
 int main() {
-    // The service reads the fields derived from --ws-url, so set them directly rather than
-    // linking the whole parser in just to expand a URL. Designated initializers must follow
-    // the declaration order in args.h.
+    // The service reads the fields derived from --livekit-url, so set them directly rather
+    // than linking the whole parser in just to expand a URL. Designated initializers must
+    // follow the declaration order in args.h.
     Args args{
         .uid = "test_device",
-        .ws_host = "localhost",
-        .ws_room = "",
-        .ws_key = "",
+        .livekit_host = "localhost",
+        .livekit_room = "",
+        .livekit_key = "",
     };
 
     net::io_context ioc;

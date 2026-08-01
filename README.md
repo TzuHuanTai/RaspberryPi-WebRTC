@@ -36,7 +36,7 @@ Turn Raspberry Pi or NVIDIA Jetson into a low-latency<b> ~200ms </b> WebRTC stre
     * [Home Assistant WebRTC Camera](https://github.com/AlexxIT/WebRTC)
     * [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player)
 
-  **WebSocket**
+  **LiveKit**
     * [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#watch-videos-via-the-sfu-server)  - SFU signaling & broadcast
 
 ## Requirements

@@ -163,15 +163,15 @@ struct Args {
     bool use_whep = false;
     uint16_t http_port = 8080;
 
-    // websocket signaling
-    bool use_websocket = false;
-    std::string ws_url = ""; // e.g. ws://127.0.0.1:7880, wss://your-sfu-host.example.com
-    // derived from --ws-url, not CLI options
-    bool use_tls = false;
-    uint16_t ws_port = 0;
-    std::string ws_host = "";
-    std::string ws_room = "";
-    std::string ws_key = "";
+    // LiveKit signaling
+    bool use_livekit = false;
+    std::string livekit_url = ""; // e.g. ws://127.0.0.1:7880, wss://your-sfu-host.example.com
+    // derived from --livekit-url, not CLI options
+    bool livekit_use_tls = false;
+    uint16_t livekit_port = 0;
+    std::string livekit_host = "";
+    std::string livekit_room = "";
+    std::string livekit_key = "";
 };
 
 #endif // ARGS_H_

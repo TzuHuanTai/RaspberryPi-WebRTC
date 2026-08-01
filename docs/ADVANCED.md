@@ -16,7 +16,7 @@
 
 A WebSocket connection to an SFU server lets the device broadcast to **1,000+ concurrent
 viewers** while only ever encoding and uploading one stream. See
-[Signaling](SIGNALING.md#websocket) for how the connection works.
+[Signaling](SIGNALING.md#livekit) for how the connection works.
 
 ### Free Testing Server
 
@@ -36,14 +36,14 @@ minutes and 50 GB of transfer shared across all users. For a dedicated environme
     --width=1920 \
     --height=1080 \
     --uid=your-display-name \
-    --use-websocket \
-    --ws-url=wss://api.picamera.live \
-    --ws-key=APIWnQTs4tmUZvA \
-    --ws-room=the-room-name
+    --use-livekit \
+    --livekit-url=wss://api.picamera.live \
+    --livekit-key=APIWnQTs4tmUZvA \
+    --livekit-room=the-room-name
 ```
 
 > `--uid` is the publisher's identity, e.g. `camera123`.
-> `--ws-room` is the room name shared by the publisher and its viewers.
+> `--livekit-room` is the room name shared by the publisher and its viewers.
 
 ### 2. Join the room
 
@@ -177,11 +177,11 @@ follow the links below.
 # Two-way DataChannel Messaging
 
 Carries AI event notifications, sensor readings, or remote control commands between the
-browser and the device. Works with both `--use-mqtt` and `--use-websocket`, and
+browser and the device. Works with both `--use-mqtt` and `--use-livekit`, and
 [`--ipc-channel`](CONFIGURATION.md#ipc) chooses `lossy` or `reliable` delivery.
 
 > [!NOTE]
-> Over `--use-websocket`, messages are broadcast to every participant in the room.
+> Over `--use-livekit`, messages are broadcast to every participant in the room.
 > ![image](https://github.com/user-attachments/assets/cf88cd29-3717-4178-9e6b-f2f3ce9a0270)
 
 - Start `pi-webrtc` with `--enable-ipc`:

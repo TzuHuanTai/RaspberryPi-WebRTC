@@ -43,13 +43,13 @@ out of WebRTC or recording entirely.
 
 The open-source build expects a LiveKit access token to be supplied for it. The commercial
 build can obtain one itself, either by calling a token service over HTTP (`--token-url`) or
-by signing tokens locally from an API key/secret pair (`--ws-secret`), with automatic renewal
+by signing tokens locally from an API key/secret pair (`--livekit-secret`), with automatic renewal
 before expiry.
 
 | Flag | Description |
 |---|---|
 | `--token-url` | URL of the token service issuing LiveKit access tokens. |
-| `--ws-secret` | LiveKit API secret, paired with `--ws-key`. Signs tokens on-device; `--token-url` is then unused. |
+| `--livekit-secret` | LiveKit API secret, paired with `--livekit-key`. Signs tokens on-device; `--token-url` is then unused. |
 | `--token-ttl` | Requested token lifetime in seconds. |
 
 ## Hardware Requirements

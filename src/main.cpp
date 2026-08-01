@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
         services.push_back(HttpService::Create(args, conductor, ioc));
     }
 
-    if (args.use_websocket) {
+    if (args.use_livekit) {
         services.push_back(WebsocketService::Create(args, conductor, ioc));
     }
 
