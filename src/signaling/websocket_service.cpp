@@ -48,6 +48,7 @@ WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conduct
                                    net::io_context &ioc)
     : SignalingService(conductor),
       args_(args),
+      ssl_ctx_(ssl::context::tls_client),
       ws_(InitWebSocket(ioc)),
       resolver_(net::make_strand(ioc)),
       ping_timer_(ioc) {}
@@ -63,11 +64,12 @@ WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
         // Ensure that only compatible OpenSSL APIs are used when BoringSSL is present.
         DEBUG_PRINT("Using TLS WebSocket, SSL version: %s", OpenSSL_version(OPENSSL_VERSION));
 
-        ssl::context ctx(ssl::context::tls);
-        ctx.set_default_verify_paths();
-        ctx.set_verify_mode(ssl::verify_peer);
+        // Has to happen before the stream is created: SSL_new copies the verify settings out
+        // of the context, so configuring it afterwards would not reach the stream.
+        ssl_ctx_.set_default_verify_paths();
+        ssl_ctx_.set_verify_mode(ssl::verify_peer);
 
-        return websocket::stream<ssl::stream<tcp::socket>>(net::make_strand(ioc), ctx);
+        return websocket::stream<ssl::stream<tcp::socket>>(net::make_strand(ioc), ssl_ctx_);
     } else {
         return websocket::stream<tcp::socket>(net::make_strand(ioc));
     }
@@ -145,10 +147,17 @@ void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
 }
 
 void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
+    // Servers that route by SNI reject the handshake outright when it is missing.
+    if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), args_.livekit_host.c_str())) {
+        ERROR_PRINT("Failed to set the SNI hostname: %s", args_.livekit_host.c_str());
+        return;
+    }
+
     ws.next_layer().async_handshake(
         ssl::stream_base::client, [this, &ws](boost::system::error_code ec) {
             if (ec) {
                 ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
+                return;
             }
             std::string target =
                 BuildWebSocketTarget("/rtc", {{"apiKey", args_.livekit_key},

@@ -38,6 +38,7 @@ class WebsocketService : public SignalingService {
 
   private:
     Args args_;
+    ssl::context ssl_ctx_; // declared before ws_, which is constructed from it
     WebSocketVariant ws_;
     tcp::resolver resolver_;
     beast::flat_buffer buffer_;
