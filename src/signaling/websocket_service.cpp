@@ -55,7 +55,7 @@ WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conduct
 WebsocketService::~WebsocketService() { Disconnect(); }
 
 WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
-    if (args_.use_tls) {
+    if (args_.livekit_use_tls) {
         // The SSL context created via boost::asio::ssl::context uses the underlying BoringSSL
         // implementation (when linked with WebRTC or other BoringSSL-based libraries). BoringSSL is
         // not a drop-in replacement for OpenSSL and does not implement all OpenSSL APIs. As a
@@ -74,11 +74,11 @@ WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
 }
 
 void WebsocketService::Connect() {
-    auto port = args_.ws_port != 0 ? args_.ws_port : (args_.use_tls ? 443 : 80);
-    INFO_PRINT("Connect to WebSocket %s:%d", args_.ws_host.c_str(), port);
+    auto port = args_.livekit_port != 0 ? args_.livekit_port : (args_.livekit_use_tls ? 443 : 80);
+    INFO_PRINT("Connect to WebSocket %s:%d", args_.livekit_host.c_str(), port);
 
     resolver_.async_resolve(
-        args_.ws_host, std::to_string(port),
+        args_.livekit_host, std::to_string(port),
         [this](boost::system::error_code ec, tcp::resolver::results_type results) {
             OnResolve(ec, results);
         });
@@ -135,11 +135,11 @@ void WebsocketService::OnConnect(beast::error_code ec) {
 
 void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
     std::string target =
-        BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
-                                      {"roomId", args_.ws_room},
+        BuildWebSocketTarget("/rtc", {{"apiKey", args_.livekit_key},
+                                      {"roomId", args_.livekit_room},
                                       {"userId", args_.uid},
                                       {"canSubscribe", args_.enable_ipc ? "1" : "0"}});
-    ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+    ws.async_handshake(args_.livekit_host, target, [this](boost::system::error_code ec) {
         OnHandshake(ec);
     });
 }
@@ -151,11 +151,11 @@ void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &
                 ERROR_PRINT("Failed to tls handshake: %s", ec.message().c_str());
             }
             std::string target =
-                BuildWebSocketTarget("/rtc", {{"apiKey", args_.ws_key},
-                                              {"roomId", args_.ws_room},
+                BuildWebSocketTarget("/rtc", {{"apiKey", args_.livekit_key},
+                                              {"roomId", args_.livekit_room},
                                               {"userId", args_.uid},
                                               {"canSubscribe", args_.enable_ipc ? "1" : "0"}});
-            ws.async_handshake(args_.ws_host, target, [this](boost::system::error_code ec) {
+            ws.async_handshake(args_.livekit_host, target, [this](boost::system::error_code ec) {
                 OnHandshake(ec);
             });
         });

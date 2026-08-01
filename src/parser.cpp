@@ -217,15 +217,15 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Use WHEP (WebRTC-HTTP Egress Protocol) to exchange SDP and ICE candidates.")
         ("http-port", bpo::value<uint16_t>(&args.http_port)->default_value(args.http_port),
             "Local HTTP server port to handle signaling when using WHEP.")
-        ("use-websocket", bpo::bool_switch(&args.use_websocket)->default_value(args.use_websocket),
-            "Enables the WebSocket client to connect to the SFU server.")
-        ("ws-url", bpo::value<std::string>(&args.ws_url)->default_value(args.ws_url),
-            "The SFU server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. "
+        ("use-livekit", bpo::bool_switch(&args.use_livekit)->default_value(args.use_livekit),
+            "Enables the LiveKit client to connect to a LiveKit SFU server.")
+        ("livekit-url", bpo::value<std::string>(&args.livekit_url)->default_value(args.livekit_url),
+            "The LiveKit server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. "
             "The scheme selects TLS. The port defaults to 443 for `wss` and 80 otherwise.")
-        ("ws-room", bpo::value<std::string>(&args.ws_room)->default_value(args.ws_room),
-            "The room name to join on the SFU server.")
-        ("ws-key", bpo::value<std::string>(&args.ws_key)->default_value(args.ws_key),
-            "The API key used to authenticate with the SFU server.")
+        ("livekit-room", bpo::value<std::string>(&args.livekit_room)->default_value(args.livekit_room),
+            "The LiveKit room name to join.")
+        ("livekit-key", bpo::value<std::string>(&args.livekit_key)->default_value(args.livekit_key),
+            "The LiveKit API key used to authenticate with the server.")
         ("config", bpo::value<std::string>()->default_value(""),
             "Path to a YAML configuration file. All CLI options can be specified as YAML keys. "
             "Command-line arguments take priority over values in the config file.");
@@ -302,15 +302,15 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     }
 
-    if (args.use_websocket) {
-        if (args.ws_url.empty()) {
-            std::cerr << "Error: --ws-url is required when --use-websocket is specified."
+    if (args.use_livekit) {
+        if (args.livekit_url.empty()) {
+            std::cerr << "Error: --livekit-url is required when --use-livekit is specified."
                       << std::endl;
             exit(1);
         }
         ParseWsUrl(args);
-        if (args.ws_room.empty()) {
-            std::cerr << "Error: --ws-room is required when --use-websocket is specified."
+        if (args.livekit_room.empty()) {
+            std::cerr << "Error: --livekit-room is required when --use-livekit is specified."
                       << std::endl;
             exit(1);
         }
@@ -396,26 +396,27 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
 void Parser::ParseWsUrl(Args &args) {
     auto invalid = [&args](const std::string &reason) {
-        std::cerr << "Error: invalid --ws-url \"" << args.ws_url << "\": " << reason << std::endl;
+        std::cerr << "Error: invalid --livekit-url \"" << args.livekit_url << "\": " << reason
+                  << std::endl;
         exit(1);
     };
 
-    auto scheme_end = args.ws_url.find("://");
+    auto scheme_end = args.livekit_url.find("://");
     if (scheme_end == std::string::npos) {
         invalid("missing scheme, expected ws://, wss://, http:// or https://");
     }
 
-    std::string scheme = args.ws_url.substr(0, scheme_end);
+    std::string scheme = args.livekit_url.substr(0, scheme_end);
     std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
     if (scheme == "ws" || scheme == "http") {
-        args.use_tls = false;
+        args.livekit_use_tls = false;
     } else if (scheme == "wss" || scheme == "https") {
-        args.use_tls = true;
+        args.livekit_use_tls = true;
     } else {
         invalid("unsupported scheme \"" + scheme + "\", expected ws, wss, http or https");
     }
 
-    std::string rest = args.ws_url.substr(scheme_end + 3);
+    std::string rest = args.livekit_url.substr(scheme_end + 3);
     auto path_start = rest.find('/');
     std::string authority = rest.substr(0, path_start);
     if (path_start != std::string::npos && rest.substr(path_start) != "/") {
@@ -428,7 +429,7 @@ void Parser::ParseWsUrl(Args &args) {
         if (bracket_end == std::string::npos) {
             invalid("unterminated IPv6 literal, expected a closing \"]\"");
         }
-        args.ws_host = authority.substr(1, bracket_end - 1);
+        args.livekit_host = authority.substr(1, bracket_end - 1);
         if (bracket_end + 1 < authority.size()) {
             if (authority[bracket_end + 1] != ':') {
                 invalid("unexpected characters after the IPv6 literal");
@@ -437,19 +438,19 @@ void Parser::ParseWsUrl(Args &args) {
         }
     } else {
         auto colon = authority.find(':');
-        args.ws_host = authority.substr(0, colon);
+        args.livekit_host = authority.substr(0, colon);
         if (colon != std::string::npos) {
             port_str = authority.substr(colon + 1);
         }
     }
 
-    if (args.ws_host.empty()) {
+    if (args.livekit_host.empty()) {
         invalid("the host is empty");
     }
 
     // Left at 0 when the URL omits the port, so the signaling client applies its own
     // scheme-based default.
-    args.ws_port = 0;
+    args.livekit_port = 0;
     if (!port_str.empty()) {
         if (port_str.find_first_not_of("0123456789") != std::string::npos) {
             invalid("\"" + port_str + "\" is not a valid port number");
@@ -459,7 +460,7 @@ void Parser::ParseWsUrl(Args &args) {
         if (port == 0 || port > 65535) {
             invalid("port " + port_str + " is out of range (1-65535)");
         }
-        args.ws_port = static_cast<uint16_t>(port);
+        args.livekit_port = static_cast<uint16_t>(port);
     }
 }
 

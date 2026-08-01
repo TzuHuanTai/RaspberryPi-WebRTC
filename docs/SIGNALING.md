@@ -8,7 +8,7 @@ enabled at a time. If none is enabled the process exits — there would be no wa
 |---|---|---|
 | [MQTT](#mqtt) | An MQTT broker | Peer-to-peer viewing from anywhere, no public hostname |
 | [WHEP](#whep) | A public hostname with TLS | Playing a URL in a standard WebRTC player |
-| [WebSocket](#websocket) | An SFU server | Many simultaneous viewers |
+| [LiveKit](#livekit) | An SFU server | Many simultaneous viewers |
 
 All three are configured in [Configuration](CONFIGURATION.md#signaling).
 
@@ -113,7 +113,7 @@ Clients:
 [the setup guide](ADVANCED.md#using-the-webrtc-camera-in-home-assistant)) ·
 [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player)
 
-## WebSocket
+## LiveKit
 
 ![rpi-sfu](https://github.com/user-attachments/assets/2329c736-8d98-4148-af01-1966bce9af41)
 
@@ -129,14 +129,14 @@ for a worked example.
     --width=1920 \
     --height=1080 \
     --uid=your-display-name \
-    --use-websocket \
-    --ws-url=wss://your-sfu-host.example.com \
-    --ws-key=your-api-key \
-    --ws-room=the-room-name
+    --use-livekit \
+    --livekit-url=wss://your-sfu-host.example.com \
+    --livekit-key=your-api-key \
+    --livekit-room=the-room-name
 ```
 
-The device opens a WebSocket to `/rtc` on the SFU, passing `--ws-key`, `--ws-room`, and
-`--uid` as the API key, room, and publisher identity. The `--ws-url` scheme selects TLS
+The device opens a WebSocket to `/rtc` on the SFU, passing `--livekit-key`, `--livekit-room`, and
+`--uid` as the API key, room, and publisher identity. The `--livekit-url` scheme selects TLS
 (`wss://` or `ws://`), and the port defaults to `443` for `wss` and `80` otherwise unless the
 URL spells one out, e.g. `ws://127.0.0.1:7880`. The SFU replies with the ICE servers to use,
 and the usual offer/answer follows over that socket, including renegotiation when tracks
@@ -151,7 +151,7 @@ Client: [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-fi
 
 The [commercial version](COMMERCIAL.md#licensing) connects to LiveKit directly and obtains
 its own access tokens, either from a token service (`--token-url`) or by signing them
-on-device from an API key/secret pair (`--ws-secret`), renewing them before they expire.
+on-device from an API key/secret pair (`--livekit-secret`), renewing them before they expire.
 
 ---
 
