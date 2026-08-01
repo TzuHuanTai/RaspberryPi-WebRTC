@@ -54,7 +54,7 @@ One capturer runs per camera, chosen by the `--camera` backend prefix — `Libca
 `AlsaCapturer` (`--force-alsa`).
 
 When `--sub-width` and `--sub-height` are set, the camera produces a second, smaller stream
-alongside the main one. `--live-stream` and `--record-stream` then decide which consumer gets
+alongside the main one. `--webrtc-source` and `--record-source` then decide which consumer gets
 which, so you can record at full resolution while streaming a downscaled copy, or vice versa.
 See [Sub-stream](CONFIGURATION.md#sub-stream).
 

@@ -80,7 +80,10 @@ struct Args {
     int sub_width = 0;
     int sub_height = 0;
 
-    // stream usage, 0: main stream, 1: sub stream
+    // which capture stream each consumer reads from: "main" or "sub"
+    std::string record_source = "main";
+    std::string webrtc_source = "main";
+    // derived from --record-source / --webrtc-source, 0: main stream, 1: sub stream
     int record_stream_idx = 0; // recording stream index
     int live_stream_idx = 0;   // webrtc live stream index
 
