@@ -10,7 +10,14 @@
 
 int main(int argc, char *argv[]) {
     Args args;
-    Parser::ParseArgs(argc, argv, args);
+    try {
+        Parser::ParseArgs(argc, argv, args);
+    } catch (const std::exception &e) {
+        // ParseEnum and ParseDevice throw on a bad value; without this the process aborts
+        // with "terminate called after throwing" and dumps core instead of naming the problem.
+        ERROR_PRINT("%s", e.what());
+        return 1;
+    }
 
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);
     std::unique_ptr<RecorderManager> bg_recorder_mgr;
