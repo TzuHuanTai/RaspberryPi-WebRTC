@@ -29,7 +29,7 @@ graph LR
     end
 
     subgraph Signaling
-        SIG[MQTT / WHEP / WebSocket]
+        SIG[MQTT / WHEP / LiveKit]
     end
 
     CAM --> MAIN
@@ -84,7 +84,7 @@ See [Recording](RECORDING.md).
 
 ## Signaling
 
-`MqttService`, `HttpService` (WHEP), and `WebsocketService` (SFU) all implement the same
+`MqttService`, `HttpService` (WHEP), and `LiveKitService` (SFU) all implement the same
 `SignalingService` interface, and any combination can run at once on a shared
 `boost::asio::io_context`. They only carry the SDP and ICE exchange — once a peer connects,
 media and DataChannel traffic flow directly.

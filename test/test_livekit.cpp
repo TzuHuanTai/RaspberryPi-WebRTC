@@ -1,4 +1,4 @@
-#include "signaling/websocket_service.h"
+#include "signaling/livekit_service.h"
 
 int main() {
     // The service reads the fields derived from --livekit-url, so set them directly rather
@@ -21,7 +21,7 @@ int main() {
         }
     });
 
-    auto ws_service = WebsocketService::Create(args, nullptr, ioc);
+    auto ws_service = LiveKitService::Create(args, nullptr, ioc);
     ws_service->Start();
 
     ioc.run();

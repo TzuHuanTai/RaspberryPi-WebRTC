@@ -1,5 +1,5 @@
-#ifndef WEBSOCKET_SERVICE_H_
-#define WEBSOCKET_SERVICE_H_
+#ifndef LIVEKIT_SERVICE_H_
+#define LIVEKIT_SERVICE_H_
 
 #include "signaling/signaling_service.h"
 
@@ -21,16 +21,16 @@ using WebSocketVariant = std::variant<websocket::stream<tcp::socket>, // non-TLS
                                       websocket::stream<ssl::stream<tcp::socket>> // TLS WebSocket
                                       >;
 
-class WebsocketService : public SignalingService {
+class LiveKitService : public SignalingService {
   public:
-    static std::shared_ptr<WebsocketService> Create(Args args, std::shared_ptr<Conductor> conductor,
-                                                    boost::asio::io_context &ioc);
+    static std::shared_ptr<LiveKitService> Create(Args args, std::shared_ptr<Conductor> conductor,
+                                                  boost::asio::io_context &ioc);
     static std::string UrlEncode(const std::string &value);
     static std::string BuildWebSocketTarget(const std::string &basePath,
                                             const std::map<std::string, std::string> &params);
 
-    WebsocketService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
-    ~WebsocketService();
+    LiveKitService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
+    ~LiveKitService();
 
   protected:
     void Connect() override;

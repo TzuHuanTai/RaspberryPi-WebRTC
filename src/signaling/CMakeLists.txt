@@ -8,7 +8,7 @@ endif()
 add_library(${PROJECT_NAME}
     mqtt_service.cpp
     http_service.cpp
-    websocket_service.cpp
+    livekit_service.cpp
 )
 
 # Use boringssl in libwebrtc.a
