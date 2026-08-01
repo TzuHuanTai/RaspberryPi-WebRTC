@@ -105,7 +105,7 @@ void RotateFiles(const std::string &folder_path) {
             }
         }
     } catch (const fs::filesystem_error &e) {
-        std::cerr << "Error while deleting: " << e.what() << std::endl;
+        ERROR_PRINT("Error while deleting: %s", e.what());
     }
 }
 
