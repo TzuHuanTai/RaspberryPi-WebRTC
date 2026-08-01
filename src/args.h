@@ -165,6 +165,8 @@ struct Args {
 
     // websocket signaling
     bool use_websocket = false;
+    std::string ws_url = ""; // e.g. ws://127.0.0.1:7880, wss://your-sfu-host.example.com
+    // derived from --ws-url, not CLI options
     bool use_tls = false;
     uint16_t ws_port = 0;
     std::string ws_host = "";

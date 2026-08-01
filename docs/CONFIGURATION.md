@@ -161,9 +161,7 @@ At least one signaling transport must be enabled or the process exits. See
 | Option | Default | Description |
 |---|---|---|
 | `--use-websocket` | `false` | Connect to an SFU server over WebSocket. |
-| `--use-tls` | `false` | Use TLS. Set this when the URL is `wss://`. |
-| `--ws-host` | | SFU host address. **Required** with `--use-websocket`. |
-| `--ws-port` | `0` | SFU port. `0` resolves to `443` with `--use-tls`, otherwise `80`. |
+| `--ws-url` | | SFU server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. The scheme selects TLS; the port defaults to `443` for `wss` and `80` otherwise. **Required** with `--use-websocket`. |
 | `--ws-room` | | Room name to join. **Required** with `--use-websocket`. |
 | `--ws-key` | | API key used to authenticate with the SFU server. |
 | `--ws-secret` <sup>[\*](COMMERCIAL.md#licensing)</sup> | | LiveKit API secret paired with `--ws-key`. Signs access tokens on-device. |

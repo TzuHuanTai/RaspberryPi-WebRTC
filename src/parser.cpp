@@ -219,12 +219,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Local HTTP server port to handle signaling when using WHEP.")
         ("use-websocket", bpo::bool_switch(&args.use_websocket)->default_value(args.use_websocket),
             "Enables the WebSocket client to connect to the SFU server.")
-        ("use-tls", bpo::bool_switch(&args.use_tls)->default_value(args.use_tls),
-            "Use TLS for the WebSocket connection. Use it when connecting to a `wss://` URL.")
-        ("ws-host", bpo::value<std::string>(&args.ws_host)->default_value(args.ws_host),
-            "The WebSocket host address of the SFU server.")
-        ("ws-port", bpo::value<uint16_t>(&args.ws_port)->default_value(args.ws_port),
-            "The WebSocket port of the SFU server. Defaults to 443 if --use-tls is set, otherwise 80.")
+        ("ws-url", bpo::value<std::string>(&args.ws_url)->default_value(args.ws_url),
+            "The SFU server URL, e.g. `ws://127.0.0.1:7880` or `wss://your-sfu-host.example.com`. "
+            "The scheme selects TLS. The port defaults to 443 for `wss` and 80 otherwise.")
         ("ws-room", bpo::value<std::string>(&args.ws_room)->default_value(args.ws_room),
             "The room name to join on the SFU server.")
         ("ws-key", bpo::value<std::string>(&args.ws_key)->default_value(args.ws_key),
@@ -306,11 +303,12 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     if (args.use_websocket) {
-        if (args.ws_host.empty()) {
-            std::cerr << "Error: --ws-host is required when --use-websocket is specified."
+        if (args.ws_url.empty()) {
+            std::cerr << "Error: --ws-url is required when --use-websocket is specified."
                       << std::endl;
             exit(1);
         }
+        ParseWsUrl(args);
         if (args.ws_room.empty()) {
             std::cerr << "Error: --ws-room is required when --use-websocket is specified."
                       << std::endl;
@@ -394,6 +392,75 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 
     ParseDevice(args);
+}
+
+void Parser::ParseWsUrl(Args &args) {
+    auto invalid = [&args](const std::string &reason) {
+        std::cerr << "Error: invalid --ws-url \"" << args.ws_url << "\": " << reason << std::endl;
+        exit(1);
+    };
+
+    auto scheme_end = args.ws_url.find("://");
+    if (scheme_end == std::string::npos) {
+        invalid("missing scheme, expected ws://, wss://, http:// or https://");
+    }
+
+    std::string scheme = args.ws_url.substr(0, scheme_end);
+    std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
+    if (scheme == "ws" || scheme == "http") {
+        args.use_tls = false;
+    } else if (scheme == "wss" || scheme == "https") {
+        args.use_tls = true;
+    } else {
+        invalid("unsupported scheme \"" + scheme + "\", expected ws, wss, http or https");
+    }
+
+    std::string rest = args.ws_url.substr(scheme_end + 3);
+    auto path_start = rest.find('/');
+    std::string authority = rest.substr(0, path_start);
+    if (path_start != std::string::npos && rest.substr(path_start) != "/") {
+        invalid("a path is not supported, drop \"" + rest.substr(path_start) + "\"");
+    }
+
+    std::string port_str;
+    if (!authority.empty() && authority.front() == '[') { // IPv6 literal
+        auto bracket_end = authority.find(']');
+        if (bracket_end == std::string::npos) {
+            invalid("unterminated IPv6 literal, expected a closing \"]\"");
+        }
+        args.ws_host = authority.substr(1, bracket_end - 1);
+        if (bracket_end + 1 < authority.size()) {
+            if (authority[bracket_end + 1] != ':') {
+                invalid("unexpected characters after the IPv6 literal");
+            }
+            port_str = authority.substr(bracket_end + 2);
+        }
+    } else {
+        auto colon = authority.find(':');
+        args.ws_host = authority.substr(0, colon);
+        if (colon != std::string::npos) {
+            port_str = authority.substr(colon + 1);
+        }
+    }
+
+    if (args.ws_host.empty()) {
+        invalid("the host is empty");
+    }
+
+    // Left at 0 when the URL omits the port, so the signaling client applies its own
+    // scheme-based default.
+    args.ws_port = 0;
+    if (!port_str.empty()) {
+        if (port_str.find_first_not_of("0123456789") != std::string::npos) {
+            invalid("\"" + port_str + "\" is not a valid port number");
+        }
+        // Bound the length first so std::stoul cannot throw on an overlong digit string.
+        unsigned long port = port_str.size() > 5 ? 0 : std::stoul(port_str);
+        if (port == 0 || port > 65535) {
+            invalid("port " + port_str + " is out of range (1-65535)");
+        }
+        args.ws_port = static_cast<uint16_t>(port);
+    }
 }
 
 void Parser::ParseDevice(Args &args) {
