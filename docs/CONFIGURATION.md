@@ -46,12 +46,13 @@ exceeds the main stream's dimensions it is clamped to the main stream.
 |---|---|---|
 | `--sub-width` | `0` | Sub-stream frame width. `0` disables the sub-stream. |
 | `--sub-height` | `0` | Sub-stream frame height. `0` disables the sub-stream. |
-| `--record-stream` | `0` | Which stream the recorder consumes. `0` = main, `1` = sub. |
-| `--live-stream` | `0` | Which stream WebRTC publishes. `0` = main, `1` = sub. |
+| `--record-source` | `main` | Which capture stream the recorder consumes: `main` or `sub`. |
+| `--webrtc-source` | `main` | Which capture stream WebRTC publishes: `main` or `sub`. |
 
 > [!NOTE]
-> `--record-stream` and `--live-stream` are forced back to `0` when no sub-stream is
-> configured.
+> `--record-source` and `--webrtc-source` fall back to `main` when no sub-stream is
+> configured. They select which stream a consumer reads from, not whether it runs — use
+> the per-camera `record` and `webrtc` flags to turn a consumer off.
 
 ## Audio
 
@@ -247,8 +248,8 @@ cameras:
     height: 1080
     sub-width: 720
     sub-height: 480
-    record-stream: 0
-    live-stream: 0
+    record-source: main
+    webrtc-source: sub
     webrtc: true
     record: true
   - camera: libargus:1

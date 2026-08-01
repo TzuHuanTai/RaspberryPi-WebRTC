@@ -35,6 +35,11 @@ static const std::unordered_map<std::string, int> record_mode_table = {
     {"on-demand", RecordMode::OnDemand},
 };
 
+static const std::unordered_map<std::string, int> stream_source_table = {
+    {"main", 0},
+    {"sub", 1},
+};
+
 static const std::unordered_map<std::string, int> ipc_mode_table = {
     {"both", -1},
     {"lossy", ChannelMode::Lossy},
@@ -119,10 +124,12 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Set sub stream frame width for AI processing, default is 0 (disabled).")
         ("sub-height", bpo::value<int>(&args.sub_height)->default_value(args.sub_height),
             "Set sub stream frame height for AI processing, default is 0 (disabled).")
-        ("record-stream", bpo::value<int>(&args.record_stream_idx)->default_value(args.record_stream_idx),
-            "Recording stream index, 0: main stream, 1: sub stream")
-        ("live-stream", bpo::value<int>(&args.live_stream_idx)->default_value(args.live_stream_idx),
-            "Live stream index, 0: main stream, 1: sub stream")
+        ("record-source", bpo::value<std::string>(&args.record_source)->default_value(args.record_source),
+            "Which capture stream the recorder consumes: 'main' or 'sub'. "
+            "'sub' needs --sub-width and --sub-height.")
+        ("webrtc-source", bpo::value<std::string>(&args.webrtc_source)->default_value(args.webrtc_source),
+            "Which capture stream WebRTC publishes: 'main' or 'sub'. "
+            "'sub' needs --sub-width and --sub-height.")
         ("sample-rate", bpo::value<int>(&args.sample_rate)->default_value(args.sample_rate),
             "Set the audio sample rate (in Hz).")
         ("no-audio", bpo::bool_switch(&args.no_audio)->default_value(args.no_audio), "Runs without audio source.")
@@ -284,7 +291,16 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                        args.sub_width, args.sub_height);
         }
         args.num_streams += 1;
+        args.record_stream_idx = ParseEnum(stream_source_table, args.record_source);
+        args.live_stream_idx = ParseEnum(stream_source_table, args.webrtc_source);
     } else {
+        // Validate the values even though there is nothing to select between, so a typo is
+        // still reported rather than silently falling back to the main stream.
+        ParseEnum(stream_source_table, args.record_source);
+        ParseEnum(stream_source_table, args.webrtc_source);
+        if (args.record_source != "main" || args.webrtc_source != "main") {
+            INFO_PRINT("No sub-stream configured, reading both consumers from the main stream.");
+        }
         args.record_stream_idx = 0;
         args.live_stream_idx = 0;
     }
