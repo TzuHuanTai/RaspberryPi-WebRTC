@@ -5,8 +5,8 @@
 #include "recorder/recorder_manager.h"
 #include "rtc/conductor.h"
 #include "signaling/http_service.h"
+#include "signaling/livekit_service.h"
 #include "signaling/mqtt_service.h"
-#include "signaling/websocket_service.h"
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (args.use_livekit) {
-        services.push_back(WebsocketService::Create(args, conductor, ioc));
+        services.push_back(LiveKitService::Create(args, conductor, ioc));
     }
 
     if (args.use_mqtt) {

@@ -1,15 +1,15 @@
-#include "signaling/websocket_service.h"
+#include "signaling/livekit_service.h"
 
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-std::shared_ptr<WebsocketService>
-WebsocketService::Create(Args args, std::shared_ptr<Conductor> conductor, net::io_context &ioc) {
-    return std::make_shared<WebsocketService>(args, conductor, ioc);
+std::shared_ptr<LiveKitService>
+LiveKitService::Create(Args args, std::shared_ptr<Conductor> conductor, net::io_context &ioc) {
+    return std::make_shared<LiveKitService>(args, conductor, ioc);
 }
 
-std::string WebsocketService::UrlEncode(const std::string &value) {
+std::string LiveKitService::UrlEncode(const std::string &value) {
     std::ostringstream escaped;
     escaped.fill('0');
     escaped << std::hex;
@@ -25,9 +25,8 @@ std::string WebsocketService::UrlEncode(const std::string &value) {
     return escaped.str();
 }
 
-std::string
-WebsocketService::BuildWebSocketTarget(const std::string &basePath,
-                                       const std::map<std::string, std::string> &params) {
+std::string LiveKitService::BuildWebSocketTarget(const std::string &basePath,
+                                                 const std::map<std::string, std::string> &params) {
     std::ostringstream target;
     target << basePath;
 
@@ -44,8 +43,8 @@ WebsocketService::BuildWebSocketTarget(const std::string &basePath,
     return target.str();
 }
 
-WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conductor,
-                                   net::io_context &ioc)
+LiveKitService::LiveKitService(Args args, std::shared_ptr<Conductor> conductor,
+                               net::io_context &ioc)
     : SignalingService(conductor),
       args_(args),
       ssl_ctx_(ssl::context::tls_client),
@@ -53,9 +52,9 @@ WebsocketService::WebsocketService(Args args, std::shared_ptr<Conductor> conduct
       resolver_(net::make_strand(ioc)),
       ping_timer_(ioc) {}
 
-WebsocketService::~WebsocketService() { Disconnect(); }
+LiveKitService::~LiveKitService() { Disconnect(); }
 
-WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
+WebSocketVariant LiveKitService::InitWebSocket(net::io_context &ioc) {
     if (args_.livekit_use_tls) {
         // The SSL context created via boost::asio::ssl::context uses the underlying BoringSSL
         // implementation (when linked with WebRTC or other BoringSSL-based libraries). BoringSSL is
@@ -75,7 +74,7 @@ WebSocketVariant WebsocketService::InitWebSocket(net::io_context &ioc) {
     }
 }
 
-void WebsocketService::Connect() {
+void LiveKitService::Connect() {
     auto port = args_.livekit_port != 0 ? args_.livekit_port : (args_.livekit_use_tls ? 443 : 80);
     INFO_PRINT("Connect to WebSocket %s:%d", args_.livekit_host.c_str(), port);
 
@@ -86,7 +85,7 @@ void WebsocketService::Connect() {
         });
 }
 
-void WebsocketService::Disconnect() {
+void LiveKitService::Disconnect() {
     ping_timer_.cancel();
 
     std::visit(
@@ -106,7 +105,7 @@ void WebsocketService::Disconnect() {
         ws_);
 }
 
-void WebsocketService::OnResolve(beast::error_code ec, tcp::resolver::results_type results) {
+void LiveKitService::OnResolve(beast::error_code ec, tcp::resolver::results_type results) {
     if (ec) {
         ERROR_PRINT("Failed to resolve: %s", ec.message().c_str());
         return;
@@ -122,7 +121,7 @@ void WebsocketService::OnResolve(beast::error_code ec, tcp::resolver::results_ty
         ws_);
 }
 
-void WebsocketService::OnConnect(beast::error_code ec) {
+void LiveKitService::OnConnect(beast::error_code ec) {
     if (ec) {
         ERROR_PRINT("Failed to connect: %s", ec.message().c_str());
         return;
@@ -135,7 +134,7 @@ void WebsocketService::OnConnect(beast::error_code ec) {
         ws_);
 }
 
-void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
+void LiveKitService::OnHandshake(websocket::stream<tcp::socket> &ws) {
     std::string target =
         BuildWebSocketTarget("/rtc", {{"apiKey", args_.livekit_key},
                                       {"roomId", args_.livekit_room},
@@ -146,7 +145,7 @@ void WebsocketService::OnHandshake(websocket::stream<tcp::socket> &ws) {
     });
 }
 
-void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
+void LiveKitService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &ws) {
     // Servers that route by SNI reject the handshake outright when it is missing.
     if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), args_.livekit_host.c_str())) {
         ERROR_PRINT("Failed to set the SNI hostname: %s", args_.livekit_host.c_str());
@@ -170,7 +169,7 @@ void WebsocketService::OnHandshake(websocket::stream<ssl::stream<tcp::socket>> &
         });
 }
 
-void WebsocketService::OnHandshake(beast::error_code ec) {
+void LiveKitService::OnHandshake(beast::error_code ec) {
     if (ec) {
         ERROR_PRINT("Failed to handshake: %s", ec.message().c_str());
         return;
@@ -180,7 +179,7 @@ void WebsocketService::OnHandshake(beast::error_code ec) {
     ScheduleNextPing();
 }
 
-void WebsocketService::Read() {
+void LiveKitService::Read() {
     std::visit(
         [this](auto &ws) {
             if (!ws.is_open()) {
@@ -203,7 +202,7 @@ void WebsocketService::Read() {
         ws_);
 }
 
-void WebsocketService::OnMessage(const std::string &req) {
+void LiveKitService::OnMessage(const std::string &req) {
     DEBUG_PRINT("Received message: %s", req.c_str());
     json jsonObj;
     try {
@@ -270,7 +269,7 @@ void WebsocketService::OnMessage(const std::string &req) {
     }
 }
 
-void WebsocketService::OnRemoteIce(const std::string &message) {
+void LiveKitService::OnRemoteIce(const std::string &message) {
     nlohmann::json res = nlohmann::json::parse(message);
     std::string target = res["target"];
     std::string canditateInit = res["candidateInit"];
@@ -289,7 +288,7 @@ void WebsocketService::OnRemoteIce(const std::string &message) {
     }
 }
 
-void WebsocketService::ScheduleNextPing() {
+void LiveKitService::ScheduleNextPing() {
     ping_timer_.expires_after(std::chrono::seconds(15));
     ping_timer_.async_wait([this](const boost::system::error_code &ec) {
         if (ec) {
@@ -304,7 +303,7 @@ void WebsocketService::ScheduleNextPing() {
     });
 }
 
-void WebsocketService::Write(const std::string &action, const std::string &message) {
+void LiveKitService::Write(const std::string &action, const std::string &message) {
     nlohmann::json request_json;
     request_json["action"] = action;
     request_json["message"] = message;
@@ -319,7 +318,7 @@ void WebsocketService::Write(const std::string &action, const std::string &messa
     }
 }
 
-void WebsocketService::DoWrite() {
+void LiveKitService::DoWrite() {
     if (write_queue_.empty())
         return;
 

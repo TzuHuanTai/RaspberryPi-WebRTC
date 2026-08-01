@@ -138,9 +138,9 @@ elseif(BUILD_TEST STREQUAL "mqtt")
     target_link_libraries(test-mqtt
         signaling
     )
-elseif(BUILD_TEST STREQUAL "websocket")
-    add_executable(test-websocket test/test_websocket.cpp)
-    target_link_libraries(test-websocket
+elseif(BUILD_TEST STREQUAL "livekit")
+    add_executable(test-livekit test/test_livekit.cpp)
+    target_link_libraries(test-livekit
         signaling
     )
 elseif(BUILD_TEST STREQUAL "openh264")
