@@ -48,7 +48,7 @@ void V4L2Capturer::Initialize() {
     std::string devicePath = "/dev/video" + std::to_string(camera_id_);
     fd_ = v4l2_util::OpenDevice(devicePath.c_str());
     if (fd_ < 0) {
-        INFO_PRINT("Unable to open device: %s", devicePath.c_str());
+        ERROR_PRINT("Unable to open camera device: %s", devicePath.c_str());
         exit(EXIT_FAILURE);
     }
 

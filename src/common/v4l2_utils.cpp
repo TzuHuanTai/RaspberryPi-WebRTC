@@ -110,7 +110,8 @@ bool MMap(int fd, V4L2BufferGroup *gbuffer) {
 int OpenDevice(const char *file) {
     int fd = open(file, O_RDWR);
     if (fd < 0) {
-        throw std::runtime_error(std::string("Failed to open v4l2 device: ") + file);
+        ERROR_PRINT("Failed to open v4l2 device %s: %s", file, strerror(errno));
+        return -1;
     }
     DEBUG_PRINT("Successfully opened file %s (fd: %d)", file, fd);
     return fd;
