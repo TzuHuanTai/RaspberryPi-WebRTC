@@ -101,6 +101,11 @@ you should use [software encoding](#software-encoding). The Pi codec device node
 
 On **Jetson**, `--hw-accel` uses NVENC instead, with the equivalent GPU scaler.
 
+Recording follows the same choice. An `h264` camera source is written into the MP4 as-is;
+anything else is encoded by a second hardware encoder instance owned by the recorder. Only when
+`--hw-accel` is off, or the binary was built for a platform with no hardware encoder, does
+recording fall back to `OpenH264`.
+
 #### `h264` camera source
 
 ```bash
@@ -128,10 +133,11 @@ camera's `h264` packets are copied into the MP4 directly, without re-encoding.
 ```mermaid
 graph LR
 A(camera) -- mjpeg --> B(hw decoder) -- yuv420 --> C(hw scaler) --yuv420--> D(hw encoder) --h264-->E(webrtc client)
-B --yuv420--> F(openh264) -- h264--> G(mp4)
+B --yuv420--> F(hw encoder) -- h264--> G(mp4)
 ```
 
-Same as above, except recording goes through the `OpenH264` software encoder.
+Same as above, except that there are no `h264` packets to copy, so the recorder runs its own
+hardware encoder instance on the decoded frames.
 
 #### `i420` camera source
 
@@ -149,13 +155,13 @@ Same as above, except recording goes through the `OpenH264` software encoder.
 ```mermaid
 graph LR
 A(camera) -- yuv420 --> C(hw scaler) --yuv420--> D(hw encoder) --h264-->E(webrtc client)
-A --yuv420--> F(openh264) -- h264--> G(mp4)
+A --yuv420--> F(hw encoder) -- h264--> G(mp4)
 ```
 
 The camera delivers uncompressed `yuv420`, so check the [bandwidth tables](#libcamera) before
 asking for high resolution and frame rate together. This path is useful on a Pi Zero, or when
-CPU is already spoken for by other services. Recording uses `OpenH264`, though a system chosen
-for this path usually has the recorder switched off anyway.
+CPU is already spoken for by other services. Recording runs its own hardware encoder instance
+on the same frames.
 
 ### Software Encoding
 

@@ -120,7 +120,7 @@ Clients:
 MQTT and WHEP both give every viewer their own peer connection with the device, which the
 device's uplink and encoder can only stretch so far. A **SFU** (Selective Forwarding Unit)
 takes a single stream from the device and fans it out, so viewer count stops being the
-device's problem. See [Broadcasting to 1,000+ viewers](ADVANCED.md#broadcasting-a-live-stream-to-1000-viewers-via-sfu)
+device's problem. See [Broadcasting to many viewers](ADVANCED.md#broadcasting-a-live-stream-to-many-viewers-via-sfu)
 for a worked example.
 
 ```bash
