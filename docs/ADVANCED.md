@@ -1,6 +1,6 @@
 # Advanced Usage
 
-- [Broadcasting a Live Stream to 1,000+ Viewers via SFU](#broadcasting-a-live-stream-to-1000-viewers-via-sfu)
+- [Broadcasting a Live Stream to Many Viewers via SFU](#broadcasting-a-live-stream-to-many-viewers-via-sfu)
 - [Using the Legacy V4L2 Driver](#using-the-legacy-v4l2-driver)
 - [Running as a Linux Service](#running-as-a-linux-service)
 - [Two-way Audio Communication](#two-way-audio-communication)
@@ -10,13 +10,13 @@
 - [Using the WebRTC Camera in Home Assistant](#using-the-webrtc-camera-in-home-assistant)
 - [Useful Commands](#useful-commands)
 
-# Broadcasting a Live Stream to 1,000+ Viewers via SFU
+# Broadcasting a Live Stream to Many Viewers via SFU
 
 ![SFU Cloud Service](https://github.com/user-attachments/assets/e41bcd7b-7c84-4837-88c2-820b20c094d4)
 
-A WebSocket connection to an SFU server lets the device broadcast to **1,000+ concurrent
-viewers** while only ever encoding and uploading one stream. See
-[Signaling](SIGNALING.md#livekit) for how the connection works.
+A WebSocket connection to an SFU server lets the device serve **any number of viewers while
+only ever encoding and uploading one stream** — fanning out to the audience is the SFU's job,
+not the device's. See [Signaling](SIGNALING.md#livekit) for how the connection works.
 
 ### Free Testing Server
 
@@ -52,9 +52,13 @@ minutes and 50 GB of transfer shared across all users. For a dedicated environme
 
 # Using the Legacy V4L2 Driver
 
-Most USB cameras are already V4L2 devices with no configuration at all — see
-[Camera and Encoding](CAMERA_AND_ENCODING.md#v4l2). This section is only for driving a CSI
-camera through the legacy driver instead of libcamera.
+**You probably do not need this.** On Raspberry Pi OS Trixie and later, leaving the default
+`camera_auto_detect=1` in place is enough for a USB camera to show up as a V4L2 device, so
+`--camera=v4l2:0` works with no configuration at all — see
+[Camera and Encoding](CAMERA_AND_ENCODING.md#v4l2).
+
+The steps below are only for driving a **CSI** camera through the legacy driver instead of
+libcamera, and they turn that auto-detection off.
 
 1. Edit `/boot/firmware/config.txt`:
 

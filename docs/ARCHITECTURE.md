@@ -25,6 +25,7 @@ graph LR
 
     subgraph Recorder
         REC[RecorderManager<br/>background + on-demand]
+        RENC[Encoder<br/>V4L2 M2M / NVENC / OpenH264<br/>or raw H264 passthrough]
         MP4[(MP4 + JPEG)]
     end
 
@@ -41,7 +42,7 @@ graph LR
     MIC --> PEER
     MIC --> REC
     TRACK --> ENC --> PEER
-    REC --> MP4
+    REC --> RENC --> MP4
     SIG <--> PEER
     PEER <--> CLIENT[Clients]
     SIG <--> CLIENT
@@ -76,7 +77,7 @@ application messages bridged to a local Unix socket.
 unaffected by WebRTC's adaptive scaling. Up to two managers run at once: a background one
 writing continuously to `--record-path`, and an on-demand one that clients start and stop over
 the DataChannel. The concrete recorder depends on the source format and platform —
-`RawH264Recorder` copies camera H264 straight into the container, while `V4l2H264Recorder`,
+`RawH264Recorder` copies camera H264 straight into the container, while `V4L2H264Recorder`,
 `JetsonRecorder`, and `OpenH264Recorder` encode. Audio is encoded to AAC by `AudioRecorder`
 and muxed into the same MP4.
 
