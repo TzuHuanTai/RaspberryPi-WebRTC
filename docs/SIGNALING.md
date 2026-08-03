@@ -70,7 +70,6 @@ client ->pi-webrtc: connected
 
 Clients:
 [picamera.js](https://www.npmjs.com/package/picamera.js) ·
-[picamera-react-native](https://www.npmjs.com/package/picamera-react-native) ·
 [picamera-web](https://app.picamera.live) ·
 [picamera-app](https://github.com/TzuHuanTai/picamera-app) (Android)
 

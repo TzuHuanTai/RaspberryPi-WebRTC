@@ -1,8 +1,7 @@
 <h1 align="center">pi-webrtc</h1>
 
 <p align="center">
-Open-source WebRTC camera SDK for Raspberry Pi and NVIDIA Jetson.<br>
-Hardware-encoded video from the board straight to any browser or SFU.
+Ultra-low latency WebRTC streaming for Raspberry Pi and NVIDIA Jetson over WiFi, LTE, or 5G.
 </p>
 
 <p align="center">
@@ -20,7 +19,11 @@ Hardware-encoded video from the board straight to any browser or SFU.
 ## Features
 
 - **Hardware encoding on-device** — V4L2 M2M on Raspberry Pi, NVENC on Jetson.
-- **~200 ms glass-to-glass**, ~100 ms on Jetson.
+- **~200 ms glass-to-glass**, [~100](https://youtu.be/JgWeKSw_lkM) ms on Jetson.
+- **Control travels back** — DataChannels carry messages the other way, and the IPC bridge relays
+  them to any process on the device.
+- **Runs on cellular** — NAT traversal, congestion control and packet-loss recovery come with
+  WebRTC, so the same build works over LTE or 5G.
 - **Two platforms, three camera backends** — libcamera, libargus, V4L2.
 - **Pluggable signaling** — MQTT, WHEP and LiveKit share one interface.
 
@@ -28,10 +31,10 @@ Hardware-encoded video from the board straight to any browser or SFU.
 
 | Board | CSI backend | Hardware encode | Status |
 | --- | --- | --- | --- |
-| Pi Zero 2 W / 3B / 4 | libcamera | V4L2 M2M (zero-copy DMABUF) | ✅ Tested |
+| Pi Zero 2 W / 3B / 4 | libcamera | V4L2 M2M — H.264 (zero-copy DMABUF) | ✅ Tested |
 | Pi 5 | libcamera | — (software OpenH264) | ✅ Tested |
-| Jetson Orin NX | libargus | NVENC | ✅ Tested |
-| Jetson Nano / NX / Orin | libargus | NVENC | Supported |
+| Jetson Orin NX | libargus | NVENC — H.264 + AV1 | ✅ Tested |
+| Jetson Nano / NX / Orin | libargus | NVENC — H.264 | Supported |
 
 USB cameras are supported through V4L2 on both platforms.
 
