@@ -101,5 +101,5 @@ compiles in the matching capture and codec backends:
 |---|---|---|
 | CSI capture | libcamera | libargus (EGL) |
 | USB / legacy capture | V4L2 | V4L2 |
-| Hardware codec | V4L2 M2M (`/dev/video10-12`) | NVENC |
+| Hardware codec | V4L2 M2M (`/dev/video10-12`), H264 | NVENC, H264 + AV1 |
 | Software codec | OpenH264 + libyuv | OpenH264 + libyuv |

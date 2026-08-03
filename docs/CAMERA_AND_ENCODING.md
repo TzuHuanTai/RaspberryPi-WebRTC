@@ -85,7 +85,9 @@ format, since that decides which of the pipelines below you end up on.
 
 ### Hardware Encoding
 
-With `--hw-accel`, `pi-webrtc` advertises only `H264` in the SDP.
+With `--hw-accel`, what `pi-webrtc` advertises in the SDP depends on the platform: only `H264`
+on the Raspberry Pi, and both `H264` and `AV1` on Jetson. Either way the client's SDP picks the
+winner, so a client that cannot decode `AV1` simply negotiates `H264`.
 
 On the **Raspberry Pi**, this uses the V4L2 M2M codecs, available on the Pi 3, 4, and Zero 2.
 **The Pi 5 has no hardware encoder** — leave `--hw-accel` off there. Other single-board
@@ -99,7 +101,9 @@ you should use [software encoding](#software-encoding). The Pi codec device node
 | encoder | `/dev/video11` |
 | scaler | `/dev/video12` |
 
-On **Jetson**, `--hw-accel` uses NVENC instead, with the equivalent GPU scaler.
+On **Jetson**, `--hw-accel` uses NVENC instead, with the equivalent GPU scaler. NVENC encodes
+both `H264` and `AV1`, so whichever the client negotiates still runs in hardware. `AV1` encode
+needs an Orin-generation module; earlier Jetsons only encode `H264`.
 
 Recording follows the same choice. An `h264` camera source is written into the MP4 as-is;
 anything else is encoded by a second hardware encoder instance owned by the recorder. Only when
