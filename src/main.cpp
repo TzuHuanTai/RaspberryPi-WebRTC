@@ -4,9 +4,9 @@
 #include "parser.h"
 #include "recorder/recorder_manager.h"
 #include "rtc/conductor.h"
-#include "signaling/http_service.h"
 #include "signaling/livekit_service.h"
 #include "signaling/mqtt_service.h"
+#include "signaling/whep_service.h"
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::shared_ptr<SignalingService>> services;
 
     if (args.use_whep) {
-        services.push_back(HttpService::Create(args, conductor, ioc));
+        services.push_back(WhepService::Create(args, conductor, ioc));
     }
 
     if (args.use_livekit) {

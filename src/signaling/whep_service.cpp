@@ -1,4 +1,4 @@
-#include "signaling/http_service.h"
+#include "signaling/whep_service.h"
 
 #include <iostream>
 #include <regex>
@@ -6,26 +6,26 @@
 
 #include "common/logging.h"
 
-std::shared_ptr<HttpService> HttpService::Create(Args args, std::shared_ptr<Conductor> conductor,
+std::shared_ptr<WhepService> WhepService::Create(Args args, std::shared_ptr<Conductor> conductor,
                                                  boost::asio::io_context &ioc) {
-    return std::make_shared<HttpService>(args, conductor, ioc);
+    return std::make_shared<WhepService>(args, conductor, ioc);
 }
 
-HttpService::HttpService(Args args, std::shared_ptr<Conductor> conductor,
+WhepService::WhepService(Args args, std::shared_ptr<Conductor> conductor,
                          boost::asio::io_context &ioc)
     : conductor_(conductor),
       port_(args.http_port),
       acceptor_({ioc, {boost::asio::ip::address_v6::any(), port_}}) {}
 
-HttpService::~HttpService() { Disconnect(); }
+WhepService::~WhepService() { Disconnect(); }
 
-void HttpService::Connect() {
+void WhepService::Connect() {
     INFO_PRINT("Http server is running on http://*:%d", port_);
     peer_registry_.Start();
     AcceptConnection();
 }
 
-void HttpService::Disconnect() {
+void WhepService::Disconnect() {
     // Stops accepting first, so no new session can register a peer while the ones below are
     // being torn down.
     beast::error_code ec;
@@ -37,7 +37,7 @@ void HttpService::Disconnect() {
     peer_registry_.Stop();
 }
 
-webrtc::scoped_refptr<RtcPeer> HttpService::CreatePeer(PeerConfig config) {
+webrtc::scoped_refptr<RtcPeer> WhepService::CreatePeer(PeerConfig config) {
     if (!conductor_) {
         ERROR_PRINT("Conductor is not initialized.");
         return nullptr;
@@ -48,13 +48,13 @@ webrtc::scoped_refptr<RtcPeer> HttpService::CreatePeer(PeerConfig config) {
     return peer;
 }
 
-webrtc::scoped_refptr<RtcPeer> HttpService::GetPeer(const std::string &peer_id) {
+webrtc::scoped_refptr<RtcPeer> WhepService::GetPeer(const std::string &peer_id) {
     return peer_registry_.Get(peer_id);
 }
 
-void HttpService::RemovePeer(const std::string &peer_id) { peer_registry_.Remove(peer_id); }
+void WhepService::RemovePeer(const std::string &peer_id) { peer_registry_.Remove(peer_id); }
 
-void HttpService::AcceptConnection() {
+void WhepService::AcceptConnection() {
     acceptor_.async_accept([this](beast::error_code ec, tcp::socket socket) {
         if (!ec) {
             auto session = HttpSession::Create(std::move(socket), shared_from_this());
@@ -70,8 +70,8 @@ void HttpService::AcceptConnection() {
 }
 
 std::shared_ptr<HttpSession> HttpSession::Create(tcp::socket socket,
-                                                 std::shared_ptr<HttpService> http_service) {
-    return std::make_shared<HttpSession>(std::move(socket), http_service);
+                                                 std::shared_ptr<WhepService> whep_service) {
+    return std::make_shared<HttpSession>(std::move(socket), whep_service);
 }
 
 HttpSession::~HttpSession() {}
@@ -141,7 +141,7 @@ void HttpSession::HandlePostRequest() {
     if (content_type_ == "application/sdp") {
         PeerConfig config;
         config.has_candidates_in_sdp = true;
-        auto peer = http_service_->CreatePeer(config);
+        auto peer = whep_service_->CreatePeer(config);
         if (!peer) {
             ResponseUnprocessableEntity("Failed to create the peer connection.");
             return;
@@ -185,7 +185,7 @@ void HttpSession::HandlePatchRequest() {
     auto if_match = std::string(req_["If-Match"].data(), req_["If-Match"].size());
 
     auto peer_id = routes[1];
-    auto peer = http_service_->GetPeer(peer_id);
+    auto peer = whep_service_->GetPeer(peer_id);
     if (!peer) {
         ResponseUnprocessableEntity("The peer does not exist.");
         return;
@@ -240,13 +240,13 @@ void HttpSession::HandleDeleteRequest() {
     }
 
     auto peer_id = routes[1];
-    auto peer = http_service_->GetPeer(peer_id);
+    auto peer = whep_service_->GetPeer(peer_id);
     if (!peer) {
         ResponseUnprocessableEntity("The peer does not exist.");
         return;
     }
 
-    http_service_->RemovePeer(peer_id); // terminates the peer
+    whep_service_->RemovePeer(peer_id); // terminates the peer
     DEBUG_PRINT("Close peer (%s)!", peer_id.c_str());
 
     res_ =

@@ -1,5 +1,5 @@
-#ifndef HTTP_SERVICE_H_
-#define HTTP_SERVICE_H_
+#ifndef WHEP_SERVICE_H_
+#define WHEP_SERVICE_H_
 
 #include <memory>
 
@@ -23,14 +23,14 @@ struct IceCandidates {
     std::vector<std::string> candidates;
 };
 
-class HttpService : public SignalingService,
-                    public std::enable_shared_from_this<HttpService> {
+class WhepService : public SignalingService,
+                    public std::enable_shared_from_this<WhepService> {
   public:
-    static std::shared_ptr<HttpService> Create(Args args, std::shared_ptr<Conductor> conductor,
+    static std::shared_ptr<WhepService> Create(Args args, std::shared_ptr<Conductor> conductor,
                                                boost::asio::io_context &ioc);
 
-    HttpService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
-    ~HttpService() override;
+    WhepService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
+    ~WhepService() override;
 
     void Connect() override;
     void Disconnect() override;
@@ -51,17 +51,17 @@ class HttpService : public SignalingService,
 class HttpSession : public std::enable_shared_from_this<HttpSession> {
   public:
     static std::shared_ptr<HttpSession> Create(tcp::socket socket,
-                                               std::shared_ptr<HttpService> http_service);
+                                               std::shared_ptr<WhepService> whep_service);
 
-    HttpSession(tcp::socket socket, std::shared_ptr<HttpService> http_service)
+    HttpSession(tcp::socket socket, std::shared_ptr<WhepService> whep_service)
         : stream_(std::move(socket)),
-          http_service_(http_service) {}
+          whep_service_(whep_service) {}
     ~HttpSession();
 
     void Start() { ReadRequest(); }
 
   private:
-    std::shared_ptr<HttpService> http_service_;
+    std::shared_ptr<WhepService> whep_service_;
 
     beast::tcp_stream stream_;
     beast::flat_buffer buffer_;

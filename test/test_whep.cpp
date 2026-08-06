@@ -1,4 +1,4 @@
-#include "signaling/http_service.h"
+#include "signaling/whep_service.h"
 
 int main() {
     Args args;
@@ -13,8 +13,8 @@ int main() {
         }
     });
 
-    auto http_service = HttpService::Create(args, nullptr, ioc);
-    http_service->Connect();
+    auto whep_service = WhepService::Create(args, nullptr, ioc);
+    whep_service->Connect();
 
     ioc.run();
     return 0;

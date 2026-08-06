@@ -115,9 +115,9 @@ add_subdirectory(src/ipc)
 add_subdirectory(src/signaling)
 add_subdirectory(src/track)
 
-if(BUILD_TEST STREQUAL "http_server")
-    add_executable(test-http-server test/test_http_server.cpp)
-    target_link_libraries(test-http-server
+if(BUILD_TEST STREQUAL "whep")
+    add_executable(test-whep test/test_whep.cpp)
+    target_link_libraries(test-whep
         signaling
     )
 elseif(BUILD_TEST STREQUAL "pulseaudio")

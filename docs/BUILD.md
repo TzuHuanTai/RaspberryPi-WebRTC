@@ -47,7 +47,7 @@
 | <div style="width:200px">Command line</div> | Default     | Options      |
 | --------------------------------------------| ----------- | ------------ |
 | -DPLATFORM         | raspberrypi            | jetson, raspberrypi        |
-| -DBUILD_TEST       |                        | http_server, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler, unix-socket, libcamera, libargus |
+| -DBUILD_TEST       |                        | whep, recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler, unix-socket, libcamera, libargus |
 | -DCMAKE_BUILD_TYPE | Debug                  | Debug, Release             |
 
 Build on raspberry pi and it'll output a `pi-webrtc` file in `/build`.
