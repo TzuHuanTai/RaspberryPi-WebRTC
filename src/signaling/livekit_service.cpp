@@ -45,7 +45,7 @@ std::string LiveKitService::BuildWebSocketTarget(const std::string &basePath,
 
 LiveKitService::LiveKitService(Args args, std::shared_ptr<Conductor> conductor,
                                net::io_context &ioc)
-    : SignalingService(conductor),
+    : conductor_(conductor),
       args_(args),
       ssl_ctx_(ssl::context::tls_client),
       ws_(InitWebSocket(ioc)),
@@ -216,6 +216,11 @@ void LiveKitService::OnMessage(const std::string &req) {
     std::string message = jsonObj["message"];
 
     if (action == "join") {
+        if (!conductor_) {
+            ERROR_PRINT("Conductor is not initialized.");
+            return;
+        }
+
         PeerConfig config;
         config.is_sfu_peer = true;
 
@@ -226,7 +231,9 @@ void LiveKitService::OnMessage(const std::string &req) {
         ice_server.password = messageJson["credential"];
         config.servers.push_back(ice_server);
 
-        pub_peer_ = CreatePeer(config);
+        // SFU peers are a fixed publisher/subscriber pair held by this service directly, so
+        // they are not registered anywhere.
+        pub_peer_ = conductor_->CreatePeerConnection(config);
         if (pub_peer_) {
             pub_peer_->OnLocalSdp([this](const std::string &peer_id, const std::string &sdp,
                                          const std::string &type) {
@@ -239,7 +246,7 @@ void LiveKitService::OnMessage(const std::string &req) {
         }
 
         config.is_publisher = false;
-        sub_peer_ = CreatePeer(config);
+        sub_peer_ = conductor_->CreatePeerConnection(config);
         if (sub_peer_) {
             sub_peer_->OnLocalSdp([this](const std::string &peer_id, const std::string &sdp,
                                          const std::string &type) {

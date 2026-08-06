@@ -9,6 +9,8 @@
 #include <boost/beast/version.hpp>
 
 #include "args.h"
+#include "rtc/conductor.h"
+#include "signaling/peer_registry.h"
 #include "signaling/signaling_service.h"
 
 namespace beast = boost::beast;
@@ -28,15 +30,20 @@ class HttpService : public SignalingService,
                                                boost::asio::io_context &ioc);
 
     HttpService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
-    ~HttpService();
+    ~HttpService() override;
 
-  protected:
     void Connect() override;
     void Disconnect() override;
 
+    webrtc::scoped_refptr<RtcPeer> CreatePeer(PeerConfig config = PeerConfig{});
+    webrtc::scoped_refptr<RtcPeer> GetPeer(const std::string &peer_id);
+    void RemovePeer(const std::string &peer_id);
+
   private:
+    std::shared_ptr<Conductor> conductor_;
     uint16_t port_;
     tcp::acceptor acceptor_;
+    PeerRegistry peer_registry_;
 
     void AcceptConnection();
 };

@@ -14,7 +14,7 @@ int main() {
     });
 
     auto http_service = HttpService::Create(args, nullptr, ioc);
-    http_service->Start();
+    http_service->Connect();
 
     ioc.run();
     return 0;

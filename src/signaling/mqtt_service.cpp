@@ -16,15 +16,49 @@ std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Cond
 }
 
 MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
-    : SignalingService(conductor),
+    : conductor_(conductor),
       port_(args.mqtt_port),
       uid_(args.uid),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
       password_(args.mqtt_password),
-      connection_(nullptr) {}
+      connection_(nullptr) {
+    peer_registry_.OnExpired([this](const std::string &peer_id) {
+        OnPeerExpired(peer_id);
+    });
+}
 
 MqttService::~MqttService() { Disconnect(); }
+
+webrtc::scoped_refptr<RtcPeer> MqttService::CreatePeer(PeerConfig config) {
+    if (!conductor_) {
+        ERROR_PRINT("Conductor is not initialized.");
+        return nullptr;
+    }
+
+    auto peer = conductor_->CreatePeerConnection(config);
+    peer_registry_.Add(peer);
+    return peer;
+}
+
+// Called from the cleaner thread once the expired peer is already out of the registry.
+void MqttService::OnPeerExpired(const std::string &peer_id) {
+    std::lock_guard<std::mutex> lock(client_mutex_);
+
+    auto it_c = peer_id_to_client_id_.find(peer_id);
+    if (it_c == peer_id_to_client_id_.end()) {
+        return;
+    }
+
+    auto it_p = client_id_to_peer_id_.find(it_c->second);
+    if (it_p != client_id_to_peer_id_.end() && it_p->second == peer_id) {
+        client_id_to_peer_id_.erase(it_p);
+    }
+
+    peer_id_to_client_id_.erase(it_c);
+
+    DEBUG_PRINT("Peer %s expired, removed from registry and client mapping.", peer_id.c_str());
+}
 
 void MqttService::OnRemoteSdp(const std::string &peer_id, const std::string &message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
@@ -32,7 +66,7 @@ void MqttService::OnRemoteSdp(const std::string &peer_id, const std::string &mes
     std::string type = jsonObj["type"];
     DEBUG_PRINT("Received remote [%s] SDP: %s", type.c_str(), sdp.c_str());
 
-    auto peer = GetPeer(peer_id);
+    auto peer = peer_registry_.Get(peer_id);
     if (peer) {
         peer->SetRemoteSdp(sdp, type);
     }
@@ -46,7 +80,7 @@ void MqttService::OnRemoteIce(const std::string &peer_id, const std::string &mes
     DEBUG_PRINT("Received remote ICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index,
                 candidate.c_str());
 
-    auto peer = GetPeer(peer_id);
+    auto peer = peer_registry_.Get(peer_id);
     if (peer) {
         peer->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
@@ -61,13 +95,15 @@ void MqttService::OnLocalSdp(const std::string &peer_id, const std::string &sdp,
     std::string jsonString = jsonData.dump();
 
     std::string client_id;
-
-    auto it = peer_id_to_client_id_.find(peer_id);
-    if (it == peer_id_to_client_id_.end()) {
-        ERROR_PRINT("No client mapping for peer %s, cannot send SDP", peer_id.c_str());
-        return;
+    {
+        std::lock_guard<std::mutex> lock(client_mutex_);
+        auto it = peer_id_to_client_id_.find(peer_id);
+        if (it == peer_id_to_client_id_.end()) {
+            ERROR_PRINT("No client mapping for peer %s, cannot send SDP", peer_id.c_str());
+            return;
+        }
+        client_id = it->second;
     }
-    client_id = it->second;
 
     if (type == "offer") {
         Publish(GetTopic(TopicType::Offer, client_id), jsonString);
@@ -86,13 +122,15 @@ void MqttService::OnLocalIce(const std::string &peer_id, const std::string &sdp_
     std::string jsonString = jsonData.dump();
 
     std::string client_id;
-
-    auto it = peer_id_to_client_id_.find(peer_id);
-    if (it == peer_id_to_client_id_.end()) {
-        ERROR_PRINT("No client mapping for peer %s, cannot send ICE", peer_id.c_str());
-        return;
+    {
+        std::lock_guard<std::mutex> lock(client_mutex_);
+        auto it = peer_id_to_client_id_.find(peer_id);
+        if (it == peer_id_to_client_id_.end()) {
+            ERROR_PRINT("No client mapping for peer %s, cannot send ICE", peer_id.c_str());
+            return;
+        }
+        client_id = it->second;
     }
-    client_id = it->second;
 
     Publish(GetTopic(TopicType::Ice, client_id), jsonString);
 }
@@ -100,6 +138,7 @@ void MqttService::OnLocalIce(const std::string &peer_id, const std::string &sdp_
 void MqttService::Disconnect() {
     if (!connection_) {
         DEBUG_PRINT("MQTT service already released.");
+        peer_registry_.Stop();
         mosquitto_lib_cleanup();
         return;
     }
@@ -116,6 +155,13 @@ void MqttService::Disconnect() {
 
     mosquitto_destroy(connection_);
     connection_ = nullptr;
+
+    peer_registry_.Stop();
+    {
+        std::lock_guard<std::mutex> lock(client_mutex_);
+        client_id_to_peer_id_.clear();
+        peer_id_to_client_id_.clear();
+    }
 
     mosquitto_lib_cleanup();
     DEBUG_PRINT("MQTT service is released.");
@@ -179,10 +225,19 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
         return;
     }
 
-    webrtc::scoped_refptr<RtcPeer> peer;
+    std::string mapped_peer_id;
+    {
+        std::lock_guard<std::mutex> lock(client_mutex_);
+        auto it = client_id_to_peer_id_.find(client_id);
+        if (it != client_id_to_peer_id_.end()) {
+            mapped_peer_id = it->second;
+        }
+    }
 
-    auto it = client_id_to_peer_id_.find(client_id);
-    peer = (it != client_id_to_peer_id_.end()) ? GetPeer(it->second) : nullptr;
+    webrtc::scoped_refptr<RtcPeer> peer;
+    if (!mapped_peer_id.empty()) {
+        peer = peer_registry_.Get(mapped_peer_id);
+    }
 
     if (!peer) {
         PeerConfig config;
@@ -202,8 +257,11 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
             OnLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
         });
 
-        client_id_to_peer_id_[client_id] = peer->id();
-        peer_id_to_client_id_[peer->id()] = client_id;
+        {
+            std::lock_guard<std::mutex> lock(client_mutex_);
+            client_id_to_peer_id_[client_id] = peer->id();
+            peer_id_to_client_id_[peer->id()] = client_id;
+        }
 
         DEBUG_PRINT("Created peer %s for client: %s", peer->id().c_str(), client_id.c_str());
     }
@@ -212,7 +270,7 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
         bool has_media = (payload.find("m=video") != std::string::npos ||
                           payload.find("m=audio") != std::string::npos);
         if (has_media) {
-            conductor->EnsureTracksAdded(peer);
+            conductor_->EnsureTracksAdded(peer);
         }
         OnRemoteSdp(peer->id(), payload);
     } else if (topic_type == TopicType::Answer) {
@@ -248,44 +306,8 @@ std::string MqttService::FindClientId(const std::string &topic) const {
     return topic.substr(start_pos, end_pos - start_pos);
 }
 
-void MqttService::RefreshPeerMap() {
-    auto &map = GetPeerMap();
-    auto pm_it = map.begin();
-    while (pm_it != map.end()) {
-        const auto &peer_id = pm_it->first;
-        auto peer = GetPeer(peer_id);
-
-        if (!peer) {
-            DEBUG_PRINT("Peer %s exists in map but GetPeer returned nullptr!", peer_id.c_str());
-            pm_it = map.erase(pm_it);
-            continue;
-        }
-
-        const char *status =
-            peer->isExpired() ? "expired" : (peer->isConnected() ? "connected" : "reconnecting");
-        DEBUG_PRINT("Found peer_id key: %s, status: %s", peer_id.c_str(), status);
-
-        if (peer->isExpired()) {
-            auto it_c = peer_id_to_client_id_.find(peer_id);
-            if (it_c != peer_id_to_client_id_.end()) {
-                std::string client_id = it_c->second;
-
-                auto it_p = client_id_to_peer_id_.find(client_id);
-                if (it_p != client_id_to_peer_id_.end() && it_p->second == peer_id) {
-                    client_id_to_peer_id_.erase(it_p);
-                }
-
-                peer_id_to_client_id_.erase(it_c);
-            }
-            DEBUG_PRINT("(%s) was erased.", peer_id.c_str());
-            pm_it = map.erase(pm_it);
-        } else {
-            ++pm_it;
-        }
-    }
-}
-
 void MqttService::Connect() {
+    peer_registry_.Start();
     mosquitto_lib_init();
 
     connection_ = mosquitto_new(NULL, true, this);

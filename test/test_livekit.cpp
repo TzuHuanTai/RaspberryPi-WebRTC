@@ -22,7 +22,7 @@ int main() {
     });
 
     auto ws_service = LiveKitService::Create(args, nullptr, ioc);
-    ws_service->Start();
+    ws_service->Connect();
 
     ioc.run();
     return 0;

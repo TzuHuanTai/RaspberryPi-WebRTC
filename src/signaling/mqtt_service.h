@@ -5,15 +5,20 @@
 
 #include <memory>
 #include <mosquitto.h>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 
 #include "args.h"
+#include "rtc/conductor.h"
+#include "signaling/peer_registry.h"
 
 class MqttService : public SignalingService {
   public:
     static std::shared_ptr<MqttService> Create(Args args, std::shared_ptr<Conductor> conductor);
 
     MqttService(Args args, std::shared_ptr<Conductor> conductor);
-    ~MqttService();
+    ~MqttService() override;
 
     enum class TopicType {
         Offer,
@@ -22,12 +27,11 @@ class MqttService : public SignalingService {
         Unknown
     };
 
-  protected:
     void Connect() override;
     void Disconnect() override;
-    void RefreshPeerMap() override;
 
   private:
+    std::shared_ptr<Conductor> conductor_;
     int port_;
     std::string uid_;
     std::string hostname_;
@@ -35,8 +39,14 @@ class MqttService : public SignalingService {
     std::string password_;
     struct mosquitto *connection_;
 
+    std::mutex client_mutex_;
     std::unordered_map<std::string, std::string> client_id_to_peer_id_;
     std::unordered_map<std::string, std::string> peer_id_to_client_id_;
+
+    PeerRegistry peer_registry_;
+
+    webrtc::scoped_refptr<RtcPeer> CreatePeer(PeerConfig config);
+    void OnPeerExpired(const std::string &peer_id);
 
     void OnRemoteSdp(const std::string &peer_id, const std::string &message);
     void OnRemoteIce(const std::string &peer_id, const std::string &message);

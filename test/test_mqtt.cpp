@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     Args args{.mqtt_username = "hakunamatata", .mqtt_password = "wonderful"};
 
     auto mqtt_service = MqttService::Create(args, nullptr);
-    mqtt_service->Start();
+    mqtt_service->Connect();
 
     return 0;
 }

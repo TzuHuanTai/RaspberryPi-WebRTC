@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     }
 
     for (auto &service : services) {
-        service->Start();
+        service->Connect();
     }
 
     ioc.run();

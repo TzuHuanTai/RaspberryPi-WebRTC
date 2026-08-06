@@ -13,18 +13,46 @@ std::shared_ptr<HttpService> HttpService::Create(Args args, std::shared_ptr<Cond
 
 HttpService::HttpService(Args args, std::shared_ptr<Conductor> conductor,
                          boost::asio::io_context &ioc)
-    : SignalingService(conductor),
+    : conductor_(conductor),
       port_(args.http_port),
       acceptor_({ioc, {boost::asio::ip::address_v6::any(), port_}}) {}
 
-HttpService::~HttpService() {}
+HttpService::~HttpService() { Disconnect(); }
 
 void HttpService::Connect() {
     INFO_PRINT("Http server is running on http://*:%d", port_);
+    peer_registry_.Start();
     AcceptConnection();
 }
 
-void HttpService::Disconnect() {}
+void HttpService::Disconnect() {
+    // Stops accepting first, so no new session can register a peer while the ones below are
+    // being torn down.
+    beast::error_code ec;
+    acceptor_.close(ec);
+    if (ec) {
+        ERROR_PRINT("Acceptor close error: %s", ec.message().c_str());
+    }
+
+    peer_registry_.Stop();
+}
+
+webrtc::scoped_refptr<RtcPeer> HttpService::CreatePeer(PeerConfig config) {
+    if (!conductor_) {
+        ERROR_PRINT("Conductor is not initialized.");
+        return nullptr;
+    }
+
+    auto peer = conductor_->CreatePeerConnection(config);
+    peer_registry_.Add(peer);
+    return peer;
+}
+
+webrtc::scoped_refptr<RtcPeer> HttpService::GetPeer(const std::string &peer_id) {
+    return peer_registry_.Get(peer_id);
+}
+
+void HttpService::RemovePeer(const std::string &peer_id) { peer_registry_.Remove(peer_id); }
 
 void HttpService::AcceptConnection() {
     acceptor_.async_accept([this](beast::error_code ec, tcp::socket socket) {
@@ -33,6 +61,9 @@ void HttpService::AcceptConnection() {
             session->Start();
         } else {
             std::cerr << "Accept error: " << ec.message() << "\n";
+            if (!acceptor_.is_open()) {
+                return; // Disconnect() closed the acceptor, so stop re-arming.
+            }
         }
         AcceptConnection();
     });
@@ -111,6 +142,11 @@ void HttpSession::HandlePostRequest() {
         PeerConfig config;
         config.has_candidates_in_sdp = true;
         auto peer = http_service_->CreatePeer(config);
+        if (!peer) {
+            ResponseUnprocessableEntity("Failed to create the peer connection.");
+            return;
+        }
+
         peer->OnLocalSdp([self = shared_from_this()](const std::string &peer_id,
                                                      const std::string &sdp,
                                                      const std::string &type) {
@@ -210,8 +246,7 @@ void HttpSession::HandleDeleteRequest() {
         return;
     }
 
-    peer->Terminate();
-    http_service_->RemovePeerFromMap(peer_id);
+    http_service_->RemovePeer(peer_id); // terminates the peer
     DEBUG_PRINT("Close peer (%s)!", peer_id.c_str());
 
     res_ =

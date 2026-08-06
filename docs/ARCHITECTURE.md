@@ -86,9 +86,15 @@ See [Recording](RECORDING.md).
 ## Signaling
 
 `MqttService`, `HttpService` (WHEP), and `LiveKitService` (SFU) all implement the same
-`SignalingService` interface, and any combination can run at once on a shared
-`boost::asio::io_context`. They only carry the SDP and ICE exchange — once a peer connects,
-media and DataChannel traffic flow directly.
+`SignalingService` interface — `Connect()` and `Disconnect()` — and any combination can run at
+once on a shared `boost::asio::io_context`. They only carry the SDP and ICE exchange — once a
+peer connects, media and DataChannel traffic flow directly.
+
+Peer bookkeeping belongs to each service rather than the interface. `MqttService` and
+`HttpService` serve many independent clients, so they each hold a `PeerRegistry` that keys
+peers by id and sweeps the expired ones; `LiveKitService` keeps the fixed publisher/subscriber
+pair an SFU needs and no registry at all. Every service reconnects on its own, so there is no
+lifecycle beyond connecting and tearing down on destruction.
 
 See [Signaling](SIGNALING.md).
 

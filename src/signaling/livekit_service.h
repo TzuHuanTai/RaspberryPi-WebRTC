@@ -3,6 +3,8 @@
 
 #include "signaling/signaling_service.h"
 
+#include "rtc/conductor.h"
+
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
@@ -30,13 +32,13 @@ class LiveKitService : public SignalingService {
                                             const std::map<std::string, std::string> &params);
 
     LiveKitService(Args args, std::shared_ptr<Conductor> conductor, boost::asio::io_context &ioc);
-    ~LiveKitService();
+    ~LiveKitService() override;
 
-  protected:
     void Connect() override;
     void Disconnect() override;
 
   private:
+    std::shared_ptr<Conductor> conductor_;
     Args args_;
     ssl::context ssl_ctx_; // declared before ws_, which is constructed from it
     WebSocketVariant ws_;
