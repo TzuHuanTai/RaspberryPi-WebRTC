@@ -25,6 +25,7 @@ RtcPeer::~RtcPeer() {
 
 void RtcPeer::CreateOffer() {
     if (signaling_state_ == webrtc::PeerConnectionInterface::SignalingState::kHaveLocalOffer) {
+        DEBUG_PRINT("CreateOffer ignored: a local offer is already pending (%s).", id_.c_str());
         return;
     }
 
