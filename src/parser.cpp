@@ -233,6 +233,13 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "The LiveKit room name to join.")
         ("livekit-key", bpo::value<std::string>(&args.livekit_key)->default_value(args.livekit_key),
             "The LiveKit API key used to authenticate with the server.")
+        ("use-cloudflare", bpo::bool_switch(&args.use_cloudflare)->default_value(args.use_cloudflare),
+            "Enables publishing to a Cloudflare Realtime SFU through the device API. Requires "
+            "--api-url and --api-key; the Realtime credentials stay on the API side.")
+        ("api-url", bpo::value<std::string>(&args.api_url)->default_value(args.api_url),
+            "Base URL of the picamera device API, e.g. https://api.picamera.live.")
+        ("api-key", bpo::value<std::string>(&args.api_key)->default_value(args.api_key),
+            "Bearer token authenticating this device against --api-url.")
         ("config", bpo::value<std::string>()->default_value(""),
             "Path to a YAML configuration file. All CLI options can be specified as YAML keys. "
             "Command-line arguments take priority over values in the config file.");
@@ -307,6 +314,34 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (args.uid.empty()) {
         std::cerr << "Error: --uid is required." << std::endl;
+        exit(1);
+    }
+
+    // Normalized once here so every consumer can just concatenate a path.
+    while (!args.api_url.empty() && args.api_url.back() == '/') {
+        args.api_url.pop_back();
+    }
+
+    if (args.api_url.empty()) {
+        if (!args.api_key.empty()) {
+            std::cerr << "Error: --api-key needs --api-url." << std::endl;
+            exit(1);
+        }
+    } else {
+        if (args.api_url.rfind("https://", 0) != 0 && args.api_url.rfind("http://", 0) != 0) {
+            std::cerr << "Error: --api-url must be a full url, e.g. https://api.picamera.live."
+                      << std::endl;
+            exit(1);
+        }
+        if (args.api_key.empty()) {
+            std::cerr << "Error: --api-key is required when --api-url is specified." << std::endl;
+            exit(1);
+        }
+    }
+
+    if (args.use_cloudflare && args.api_url.empty()) {
+        std::cerr << "Error: --api-url is required when --use-cloudflare is specified."
+                  << std::endl;
         exit(1);
     }
 
