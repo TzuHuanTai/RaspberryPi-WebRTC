@@ -39,6 +39,8 @@ struct PeerConfig : public webrtc::PeerConnectionInterface::RTCConfiguration {
     bool is_sfu_peer = false;
     bool has_candidates_in_sdp = false;
     bool data_channel_only = false;
+    // For SFUs whose data channels are not plain SCTP streams negotiated in the SDP.
+    bool no_data_channels = false;
 };
 
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {

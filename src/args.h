@@ -175,6 +175,13 @@ struct Args {
     std::string livekit_host = "";
     std::string livekit_room = "";
     std::string livekit_key = "";
+
+    // Cloudflare Realtime SFU signaling
+    bool use_cloudflare = false;
+
+    // picamera device API
+    std::string api_url = "";
+    std::string api_key = ""; // bearer token for api_url
 };
 
 #endif // ARGS_H_

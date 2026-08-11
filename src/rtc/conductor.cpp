@@ -176,7 +176,9 @@ webrtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config
 
     peer->SetPeer(result.MoveValue());
 
-    InitializeDataChannels(peer);
+    if (!config.no_data_channels) {
+        InitializeDataChannels(peer);
+    }
 
     if (!config.data_channel_only) {
         AddTracks(peer->GetPeer());

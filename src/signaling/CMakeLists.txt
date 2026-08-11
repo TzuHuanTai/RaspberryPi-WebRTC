@@ -8,6 +8,8 @@ endif()
 add_library(${PROJECT_NAME}
     peer_registry.cpp
     mqtt_service.cpp
+    http_client.cpp
+    cloudflare_service.cpp
     whep_service.cpp
     livekit_service.cpp
 )
