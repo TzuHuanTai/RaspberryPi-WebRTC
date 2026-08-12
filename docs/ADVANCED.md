@@ -14,9 +14,16 @@
 
 ![SFU Cloud Service](https://github.com/user-attachments/assets/e41bcd7b-7c84-4837-88c2-820b20c094d4)
 
-A WebSocket connection to an SFU server lets the device serve **any number of viewers while
-only ever encoding and uploading one stream** — fanning out to the audience is the SFU's job,
-not the device's. See [Signaling](SIGNALING.md#livekit) for how the connection works.
+Publishing to an SFU lets the device serve **any number of viewers while only ever encoding and
+uploading one stream** — fanning out to the audience is the SFU's job, not the device's.
+
+Two backends are supported. [LiveKit](#livekit) is an SFU server, self-hosted or hosted.
+[Cloudflare Realtime](#cloudflare-realtime) has no server at all — the fan-out runs on
+Cloudflare's edge. Both have a free endpoint below to try without setting anything up.
+
+## LiveKit
+
+See [Signaling](SIGNALING.md#livekit) for how the connection works.
 
 ### Free Testing Server
 
@@ -47,8 +54,48 @@ minutes and 50 GB of transfer shared across all users. For a dedicated environme
 
 ### 2. Join the room
 
-- [`picamera.js`](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#watch-videos-via-the-sfu-server)
+- [`picamera.js`](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#examples)
 - Web demo: [https://app.picamera.live/room](https://app.picamera.live/room)
+
+## Cloudflare Realtime
+
+There is no SFU to host and no Cloudflare account to create: the device API relays the
+handshake, holding the Realtime credentials on its side. See
+[Signaling](SIGNALING.md#cloudflare-realtime) for the exchange.
+
+Cloudflare assigns the session id and changes it on every reconnect, so the device publishes it
+under its `--uid`. A viewer only ever needs the uid.
+
+### Free Testing Server
+
+| URL | Device API Key | Viewer API Key |
+| --- | --- | --- |
+| `https://api.picamera.live` | `81f899b8fab5692b0faa76c3372b7ae6` | `ec0478c67e729b6f429eda1e97829af0` |
+
+⚠️ Shared across all users and capped at the Cloudflare free tier, so it stops serving once the
+monthly allowance is used up. Everyone shares these keys and the registry is keyed by `--uid`,
+so pick a distinctive one — a common name can be overwritten by another tester. For a dedicated
+environment, contact `tzu.huan.tai@gmail.com`.
+
+### 1. Run on the device
+
+```bash
+/path/to/pi-webrtc --camera=libcamera:0 \
+    --fps=30 \
+    --width=1920 \
+    --height=1080 \
+    --uid=your-display-name \
+    --use-cloudflare \
+    --api-url=https://api.picamera.live \
+    --api-key=81f899b8fab5692b0faa76c3372b7ae6
+```
+
+> `--uid` is what a viewer looks the stream up by, e.g. `camera123`.
+
+### 2. Watch
+
+Web demo: [https://app.picamera.live/cloudflare](https://app.picamera.live/cloudflare). Put the
+URL and the **viewer** key into *Settings → Network*, then pick the device from the selector.
 
 # Using the Legacy V4L2 Driver
 
@@ -201,8 +248,8 @@ browser and the device. Works with both `--use-mqtt` and `--use-livekit`, and
     "**ping from client**" over the Unix socket. The socket path is `--socket-path`.
 
 - On the client side, picamera.js exposes `onMessage()` and `sendMessage()`. See
-  [Send message for IPC via DataChannel](https://www.npmjs.com/package/picamera.js#send-message-for-ipc-via-datachannel),
-  or try it on [picamera-web](http://app.picamera.live/).
+  [the picamera.js examples](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#examples),
+  or try it on the [picamera-web](http://app.picamera.live/interaction) interaction page.
 
 # Stream AI or Any Custom Feed to a Virtual Camera
 

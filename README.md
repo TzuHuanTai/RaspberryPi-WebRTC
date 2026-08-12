@@ -25,7 +25,7 @@ Ultra-low latency WebRTC streaming for Raspberry Pi and NVIDIA Jetson over WiFi,
 - **Runs on cellular** — NAT traversal, congestion control and packet-loss recovery come with
   WebRTC, so the same build works over LTE or 5G.
 - **Two platforms, three camera backends** — libcamera, libargus, V4L2.
-- **Pluggable signaling** — MQTT, WHEP and LiveKit share one interface.
+- **Pluggable signaling** — MQTT, WHEP, LiveKit and Cloudflare Realtime share one interface.
 
 ## Hardware Support
 
@@ -71,6 +71,7 @@ Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [sel
 > **MQTT** lets your Pi camera and client exchange WebRTC connection info.
 **WHEP** doesn’t need a broker but requires a public hostname.
 **LiveKit** needs an SFU server, and serves many viewers from one uplink.
+**Cloudflare Realtime** serves just as many with no server of your own — the fan-out runs on Cloudflare's edge.
 
 ## Run the App
 
@@ -103,7 +104,8 @@ Use [HiveMQ](https://www.hivemq.com), [EMQX](https://www.emqx.com/en), or a [sel
 | --- | --- | --- |
 | **MQTT** | Peer-to-peer, no public hostname needed | [picamera.js](https://www.npmjs.com/package/picamera.js) (Web + React Native) · [picamera-app](https://github.com/TzuHuanTai/picamera-app) (Android) |
 | **[WHEP](https://www.ietf.org/archive/id/draft-ietf-wish-whep-02.html)** | Playing a URL in any standard WebRTC player | [Home Assistant WebRTC Camera](https://github.com/AlexxIT/WebRTC) · [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player) |
-| **[LiveKit](https://livekit.io)** | Many simultaneous viewers from one uplink | [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#watch-videos-via-the-sfu-server) |
+| **[LiveKit](https://livekit.io)** | Many simultaneous viewers from one uplink | [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#examples) |
+| **[Cloudflare Realtime](https://developers.cloudflare.com/realtime/sfu/)** | Many simultaneous viewers with nothing to host | [picamera.js](https://github.com/TzuHuanTai/picamera.js?tab=readme-ov-file#examples) |
 
 Signaling is pluggable — each transport implements the same interface in `src/signaling/`, and
 more than one can be enabled at a time.
