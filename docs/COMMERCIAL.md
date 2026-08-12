@@ -39,18 +39,45 @@ Drive several cameras from a single `pi-webrtc` process. Each camera is declared
 settings, and can override its own resolution, sub-stream, and recording directory — or opt
 out of WebRTC or recording entirely.
 
-### LiveKit Token Service
+### Direct LiveKit Connection
 
-The open-source build expects a LiveKit access token to be supplied for it. The commercial
-build can obtain one itself, either by calling a token service over HTTP (`--token-url`) or
-by signing tokens locally from an API key/secret pair (`--livekit-secret`), with automatic renewal
-before expiry.
+The open-source build reaches a LiveKit server through the signaling endpoint it is pointed at.
+The commercial build can also connect to one directly, signing its own access token from an API
+key/secret pair (`--livekit-secret`) each time it connects — which is what lets a fleet publish
+into a LiveKit deployment you run yourself.
 
 | Flag | Description |
 |---|---|
-| `--token-url` | URL of the token service issuing LiveKit access tokens. |
-| `--livekit-secret` | LiveKit API secret, paired with `--livekit-key`. Signs tokens on-device; `--token-url` is then unused. |
-| `--token-ttl` | Requested token lifetime in seconds. |
+| `--livekit-key` | LiveKit API key, paired with `--livekit-secret` to sign a token. |
+| `--livekit-secret` | LiveKit API secret, paired with `--livekit-key`. Signs tokens on-device. |
+
+### Cloudflare Realtime SFU
+
+Both builds publish into a [Cloudflare Realtime](https://developers.cloudflare.com/realtime/sfu/)
+app, so the fan-out runs on Cloudflare's edge and there is no SFU to host. The open-source build
+relays the handshake through the device API, which holds the Realtime credentials. The
+commercial build carries the handshake itself: given an App ID and App Secret it drives
+Cloudflare's HTTPS API directly — creating the session, offering its tracks, and minting a fresh
+session to recover whenever the link drops — so a fleet depends on nothing but Cloudflare. See
+[Signaling](SIGNALING.md#cloudflare-realtime) for both flows.
+
+| Flag | Description |
+|---|---|
+| `--cloudflare-app-id` | Realtime App ID to publish into. |
+| `--cloudflare-app-secret` | Realtime App Secret, sent as the bearer token. |
+| `--cloudflare-url` | Base URL of the Realtime API. Defaults to `https://rtc.live.cloudflare.com/v1`. |
+
+## Device API
+
+Not a licensed feature. It relays the Cloudflare Realtime handshake and holds the session a
+viewer has to pull, so a device needs neither a Cloudflare account nor the handshake logic.
+[api.picamera.live](https://api.picamera.live) is open for anyone to try — see
+[Broadcasting to many viewers](ADVANCED.md#cloudflare-realtime).
+
+| Flag | Description |
+|---|---|
+| `--api-url` | Base URL of the device API, e.g. `https://api.picamera.live`. |
+| `--api-key` | Bearer token authenticating this device against it. |
 
 ## Hardware Requirements
 
@@ -59,7 +86,8 @@ before expiry.
 | Object detection | NVIDIA Jetson with TensorRT and CUDA |
 | Object tracking | NVIDIA Jetson with DeepStream (`libnvds_nvmultiobjecttracker.so`) |
 | Multi-camera | Any supported platform |
-| LiveKit token service | Any supported platform |
+| Direct LiveKit connection | Any supported platform |
+| Cloudflare Realtime SFU | Any supported platform |
 
 Detection and tracking are built against TensorRT, CUDA, and DeepStream, so they are
 Jetson-only. They are not available on Raspberry Pi.
