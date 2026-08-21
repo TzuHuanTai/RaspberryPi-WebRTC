@@ -1,4 +1,5 @@
 #include "codecs/v4l2/v4l2_codec.h"
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include <cstring>
 #include <sys/ioctl.h>
@@ -127,6 +128,9 @@ void V4L2Codec::EmplaceBuffer(V4L2FrameBufferRef buffer,
                               std::function<void(V4L2FrameBufferRef)> on_capture) {
     auto item = output_buffer_index_.pop();
     if (!item) {
+        if (latency::Enabled()) {
+            latency::Count(latency::Counter::kV4L2NoBuffer);
+        }
         return;
     }
     auto index = item.value();
@@ -144,6 +148,16 @@ void V4L2Codec::EmplaceBuffer(V4L2FrameBufferRef buffer,
         ERROR_PRINT("QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d", fd_,
                     index);
         output_buffer_index_.push(index);
+        return;
+    }
+
+    if (latency::Enabled()) {
+        const int64_t queued_us = latency::NowUs();
+        const latency::Stage stage = dwell_stage_;
+        capturing_tasks_.push([on_capture, queued_us, stage](V4L2FrameBufferRef encoded_buffer) {
+            latency::RecordSince(stage, queued_us);
+            on_capture(encoded_buffer);
+        });
         return;
     }
 

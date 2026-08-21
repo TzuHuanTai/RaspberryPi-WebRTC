@@ -13,6 +13,7 @@
 #include <Argus/Ext/DolWdrSensorMode.h>
 #include <Argus/Ext/PwlWdrSensorMode.h>
 #include <Argus/Stream.h>
+#include <EGLStream/ArgusCaptureMetadata.h>
 #include <EGLStream/EGLStream.h>
 #include <EGLStream/NV/ImageNativeBuffer.h>
 #include <nvbufsurface.h>

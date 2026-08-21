@@ -15,6 +15,7 @@ class JetsonScaler : public IFrameProcessor {
     struct CaptureTask {
         int dst_dma_fd;
         std::function<void()> callback;
+        int64_t queued_us = 0; // only set while latency tracing is on
     };
 
     static std::unique_ptr<JetsonScaler> Create(ScalerConfig config);

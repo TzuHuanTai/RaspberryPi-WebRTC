@@ -196,6 +196,11 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("no-adaptive", bpo::bool_switch(&args.no_adaptive)->default_value(args.no_adaptive),
             "Disable WebRTC's adaptive resolution scaling. When enabled, "
             "the output resolution will remain fixed regardless of network or device conditions.")
+        ("latency-trace", bpo::bool_switch(&args.latency_trace)->default_value(args.latency_trace),
+            "Measure per-frame latency from the sensor timestamp through capture, scaling, "
+            "encoding and the handoff to WebRTC, and print p50/p95/max for each stage.")
+        ("latency-trace-interval", bpo::value<int>(&args.latency_trace_interval)->default_value(args.latency_trace_interval),
+            "How often (in seconds) --latency-trace prints its summary.")
         ("enable-ipc", bpo::bool_switch(&args.enable_ipc)->default_value(args.enable_ipc),
             "Enable IPC relay using a WebRTC DataChannel, lossy (UDP-like) or reliable (TCP-like) based on client preference.")
         ("ipc-channel",  bpo::value<std::string>(&args.ipc_channel)->default_value(args.ipc_channel),
@@ -428,6 +433,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 #endif
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
+    args.latency_trace_interval = std::clamp(args.latency_trace_interval, 1, 3600);
 
     args.record_type = ParseEnum(record_type_table, args.record_type_str);
     args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);

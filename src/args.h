@@ -149,6 +149,8 @@ struct Args {
     int peer_timeout = 60;
     bool hw_accel = false;
     bool no_adaptive = false;
+    bool latency_trace = false;
+    int latency_trace_interval = 5;
     std::string uid = "";
     std::string stun_url = "stun:stun.l.google.com:19302";
     std::string turn_url = "";

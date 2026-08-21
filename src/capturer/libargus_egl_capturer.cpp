@@ -5,6 +5,8 @@
 #include <string>
 #include <sys/mman.h>
 
+#include "common/latency_tracer.h"
+
 static constexpr uint64_t kAcquireFrameTimeoutNs = 3'000'000'000;
 
 namespace {
@@ -277,6 +279,11 @@ void LibargusEglCapturer::InitStreams() {
     if (!iegl_stream_settings) {
         throw std::runtime_error("Failed to get IEGLOutputStreamSettings");
     }
+
+    if (latency::Enabled()) {
+        iegl_stream_settings->setMetadataEnable(true);
+    }
+
     for (size_t i = 0; i < num_streams_; i++) {
         iegl_stream_settings->setEGLDisplay(EGL_NO_DISPLAY);
         iegl_stream_settings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
@@ -297,7 +304,7 @@ void LibargusEglCapturer::InitStreams() {
         if (!irequest_stream_settings_) {
             throw std::runtime_error("Failed to get IStreamSettings");
         }
-        irequest_stream_settings_->setPostProcessingEnable(false);
+        irequest_stream_settings_->setPostProcessingEnable(true);
     }
 
     auto isource_settings = interface_cast<Argus::ISourceSettings>(irequest_->getSourceSettings());
@@ -344,6 +351,21 @@ void StreamHandler::CaptureImage() {
     auto image = iFrame->getImage();
     auto timestamp = ToTimeval(iFrame->getTime());
 
+    const bool traced = latency::Enabled();
+    if (traced) {
+        uint64_t sensor_ns = 0;
+        if (auto *argus_metadata = interface_cast<EGLStream::IArgusCaptureMetadata>(frame.get())) {
+            if (auto *capture_metadata =
+                    interface_cast<Argus::ICaptureMetadata>(argus_metadata->getMetadata())) {
+                sensor_ns = capture_metadata->getSensorTimestamp();
+            }
+        }
+        if (sensor_ns) {
+            timestamp = ToTimeval(sensor_ns);
+        }
+        latency::RecordCapture(latency::SensorUs(timestamp), latency::NowUs());
+    }
+
     auto native_buffer = interface_cast<EGLStream::NV::IImageNativeBuffer>(image);
     if (!native_buffer) {
         return;
@@ -356,9 +378,13 @@ void StreamHandler::CaptureImage() {
         }
     }
 
+    const int64_t copy_start_us = traced ? latency::NowUs() : 0;
     if (native_buffer->copyToNvBuffer(dma_fd_) != Argus::STATUS_OK) {
         DestroyNvBufferFromFd();
         return;
+    }
+    if (traced) {
+        latency::RecordSince(latency::Stage::kArgusCopy, copy_start_us);
     }
 
     frame_buffer_->SetDmaFd(dma_fd_);

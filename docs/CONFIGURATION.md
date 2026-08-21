@@ -114,6 +114,8 @@ DataChannel commands that drive on-demand capture.
 | `--peer-timeout` | `60` | Connection timeout in seconds after receiving a remote offer. |
 | `--hw-accel` | `false` | Share DMA buffers between decoder, scaler, and encoder to cut CPU usage. See [Camera and Encoding](CAMERA_AND_ENCODING.md#hardware-encoding). |
 | `--no-adaptive` | `false` | Disable adaptive resolution scaling, keeping the output resolution fixed regardless of network or device conditions. |
+| `--latency-trace` | `false` | Measure per-frame latency from the sensor timestamp through capture, scaling, encoding and the handoff to WebRTC, then print p50/p95/max per stage. Works in release builds. |
+| `--latency-trace-interval` | `5` | Seconds between `--latency-trace` summaries. |
 | `--stun-url` | `stun:stun.l.google.com:19302` | STUN server URL. Must start with `stun:`. |
 | `--turn-url` | | TURN server URL, e.g. `turn:example.com:3478?transport=tcp`. Must start with `turn:`. |
 | `--turn-username` | | TURN username. |

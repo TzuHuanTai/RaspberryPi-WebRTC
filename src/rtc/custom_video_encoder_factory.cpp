@@ -1,5 +1,8 @@
 #include "rtc/custom_video_encoder_factory.h"
 
+#include "common/latency_tracer.h"
+#include "rtc/tracing_video_encoder.h"
+
 #if defined(USE_RPI_HW_ENCODER)
 #include "codecs/v4l2/v4l2_h264_encoder.h"
 #elif defined(USE_JETSON_HW_ENCODER)
@@ -71,6 +74,17 @@ std::vector<webrtc::SdpVideoFormat> CustomVideoEncoderFactory::GetSupportedForma
 std::unique_ptr<webrtc::VideoEncoder>
 CustomVideoEncoderFactory::Create(const webrtc::Environment &env,
                                   const webrtc::SdpVideoFormat &format) {
+    auto encoder = CreateEncoder(env, format);
+
+    if (latency::Enabled()) {
+        return CreateTracingVideoEncoder(std::move(encoder));
+    }
+    return encoder;
+}
+
+std::unique_ptr<webrtc::VideoEncoder>
+CustomVideoEncoderFactory::CreateEncoder(const webrtc::Environment &env,
+                                         const webrtc::SdpVideoFormat &format) {
 #if defined(USE_JETSON_HW_ENCODER)
     if (args_.hw_accel) {
         return JetsonVideoEncoder::Create(args_);
