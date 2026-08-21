@@ -8,6 +8,7 @@
 - [Stream AI or Any Custom Feed to a Virtual Camera](#stream-ai-or-any-custom-feed-to-a-virtual-camera)
 - [WHEP with Nginx Proxy](#whep-with-nginx-proxy)
 - [Using the WebRTC Camera in Home Assistant](#using-the-webrtc-camera-in-home-assistant)
+- [Jetson: Unthrottling the VIC and NVENC Clocks](#jetson-unthrottling-the-vic-and-nvenc-clocks)
 - [Useful Commands](#useful-commands)
 
 # Broadcasting a Live Stream to Many Viewers via SFU
@@ -414,6 +415,81 @@ url: webrtc:http://192.168.4.35:8080
 
 ![Screenshot 2025-02-03 043600](https://github.com/user-attachments/assets/87d61efc-7107-41a0-bcb9-12378a904021)
 
+# Jetson: Unthrottling the VIC and NVENC Clocks
+
+On Jetson, the VIC (the 2D engine behind every `NvBufSurfTransform` and Argus buffer copy) and
+NVENC run under the kernel's **devfreq** governor, independently of the CPU and GPU. The stock
+governor is `tegra_wmark`, which scales on job-queue depth. A camera pipeline submits one short
+job per frame and then goes idle, so the queue never builds, the watermark never trips, and both
+engines sit at their **115.2 MHz floor** — against ceilings of 729.6 MHz (VIC) and 793.6 MHz
+(NVENC).
+
+`jetson_clocks` does **not** fix this. It walks `/sys/class/devfreq/*` only to locate the iGPU
+and skips every other node, so it covers CPU, GPU, EMC, DLA and PVA but leaves the multimedia
+engines alone. `nvpmodel MAXN` only raises the ceiling; it does not raise the operating point.
+
+Measured on an Orin NX at 1080p60 with `--latency-trace`, one viewer:
+
+| Stage | `tegra_wmark` | `performance` |
+|---|---|---|
+| `argus_copy` (`copyToNvBuffer`, VIC) | 7.00 ms | **2.50 ms** |
+| `hw_encode_dwell` (NVENC) | 11.50 ms | **3.00 ms** |
+| `sensor->sent` (whole device side) | 36.50 ms | **24.00 ms** |
+
+Per-frame variance drops even more sharply than the median — `hw_encode_dwell` went from a
+5.51–14.25 ms spread to 2.86–3.17 ms. That matters twice over, because the receiver sizes its
+jitter buffer from arrival variation, so steadier frames shorten the playout delay as well.
+
+Check the current state:
+
+```bash
+for d in /sys/class/devfreq/*vic* /sys/class/devfreq/*nvenc*; do
+    echo "$d: $(cat $d/governor) $(cat $d/cur_freq) / $(cat $d/max_freq)"
+done
+```
+
+Apply it for the current boot:
+
+```bash
+echo performance | sudo tee /sys/class/devfreq/15340000.vic/governor
+echo performance | sudo tee /sys/class/devfreq/154c0000.nvenc/governor
+```
+
+## Making it persistent
+
+The governor resets on every boot. Create `/etc/systemd/system/tegra-mm-perf.service`:
+
+```ini
+[Unit]
+Description=Pin Tegra VIC/NVENC devfreq governors to performance
+After=nvargus-daemon.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for d in /sys/class/devfreq/*vic* /sys/class/devfreq/*nvenc*; do echo performance > "$d/governor"; done'
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tegra-mm-perf.service
+```
+
+The glob keeps the unit working across Jetson modules, whose device addresses differ (they are
+`15340000.vic` and `154c0000.nvenc` on Orin NX).
+
+> [!NOTE]
+> `performance` holds each engine at maximum whenever it is powered, which raises power draw and
+> heat. Both engines are still power-gated when idle, so the cost is modest on an always-streaming
+> device. For a middle ground, keep the stock governor and just raise the floor
+> (`echo 614400000 | sudo tee /sys/class/devfreq/15340000.vic/min_freq`), or try the
+> `nvhost_podgov` governor, which reacts to bursty per-frame work better than `tegra_wmark`.
+
 # Useful Commands
 
 | Command | Description |
@@ -422,6 +498,7 @@ url: webrtc:http://192.168.4.35:8080
 | `v4l2-ctl -d /dev/video0 --list-formats-ext` | Show supported formats — for cameras and codecs alike. |
 | `sudo fdisk -l` | List partition tables, to help set up a USB disk. |
 | `vcgencmd get_camera` | Check whether the camera is detected. |
+| `sudo tegrastats --interval 500` | Jetson: show per-engine utilisation and clocks, e.g. `VIC 36%@115`. |
 
 To install the latest Mosquitto packages, follow the official
 [Readme.txt](https://repo.mosquitto.org/debian/README.txt) for the Eclipse Mosquitto Debian

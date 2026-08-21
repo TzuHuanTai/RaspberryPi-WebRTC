@@ -21,7 +21,7 @@
 #if defined(USE_LIBCAMERA_CAPTURE)
 #include "capturer/libcamera_capturer.h"
 #elif defined(USE_LIBARGUS_CAPTURE)
-#include "capturer/libargus_egl_capturer.h"
+#include "capturer/libargus_capturer.h"
 #endif
 #include "capturer/alsa_capturer.h"
 #include "capturer/pa_capturer.h"
@@ -104,7 +104,7 @@ void Conductor::InitializeTracks() {
 #elif defined(USE_LIBARGUS_CAPTURE)
             else if (args.camera_source == CameraSource::LibArgus) {
                 INFO_PRINT("Camera: Use libargus capturer.");
-                return LibargusEglCapturer::Create(args);
+                return LibargusCapturer::Create(args);
             }
 #endif
             ERROR_PRINT("Capturer is undefined.");

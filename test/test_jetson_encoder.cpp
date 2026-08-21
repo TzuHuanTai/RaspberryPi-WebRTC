@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/libargus_egl_capturer.h"
+#include "capturer/libargus_capturer.h"
 #include "codecs/jetson/jetson_encoder.h"
 
 #include <chrono>
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
         .hw_accel = false, // hw will use dma fd
     };
 
-    auto capturer = LibargusEglCapturer::Create(args);
+    auto capturer = LibargusCapturer::Create(args);
     auto encoder = JetsonEncoder::Create(
         {.width = args.width, .height = args.height, .dst_pix_fmt = V4L2_PIX_FMT_H264});
 
