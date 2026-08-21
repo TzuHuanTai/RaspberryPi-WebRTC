@@ -147,6 +147,10 @@ struct Args {
     // webrtc
     int jpeg_quality = 30;
     int peer_timeout = 60;
+    // Video sender bitrate bounds in kbps; 0 leaves WebRTC's own default in place.
+    int min_bitrate = 0;
+    int start_bitrate = 0;
+    int max_bitrate = 0;
     bool hw_accel = false;
     bool no_adaptive = false;
     bool latency_trace = false;

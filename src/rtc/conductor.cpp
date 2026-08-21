@@ -8,6 +8,7 @@
 #include <api/environment/environment_factory.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/task_queue/default_task_queue_factory.h>
+#include <api/transport/bitrate_settings.h>
 #include <api/video_codecs/video_decoder_factory.h>
 #include <api/video_codecs/video_decoder_factory_template.h>
 #include <api/video_codecs/video_decoder_factory_template_dav1d_adapter.h>
@@ -124,6 +125,29 @@ void Conductor::InitializeTracks() {
     }
 }
 
+void Conductor::ApplyBitrateSettings(
+    webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
+    if (args.min_bitrate <= 0 && args.start_bitrate <= 0 && args.max_bitrate <= 0) {
+        return;
+    }
+
+    webrtc::BitrateSettings settings;
+    if (args.min_bitrate > 0) {
+        settings.min_bitrate_bps = args.min_bitrate * 1000;
+    }
+    if (args.start_bitrate > 0) {
+        settings.start_bitrate_bps = args.start_bitrate * 1000;
+    }
+    if (args.max_bitrate > 0) {
+        settings.max_bitrate_bps = args.max_bitrate * 1000;
+    }
+
+    auto result = peer_connection->SetBitrate(settings);
+    if (!result.ok()) {
+        ERROR_PRINT("Failed to set the bitrate range, %s", result.message());
+    }
+}
+
 void Conductor::AddTracks(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
     if (!peer_connection->GetSenders().empty()) {
         DEBUG_PRINT("Already add tracks.");
@@ -146,6 +170,10 @@ void Conductor::AddTracks(webrtc::scoped_refptr<webrtc::PeerConnectionInterface>
         auto video_sender_ = video_res.value();
         webrtc::RtpParameters parameters = video_sender_->GetParameters();
         parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
+
+        if (args.max_bitrate > 0 && !parameters.encodings.empty()) {
+            parameters.encodings[0].max_bitrate_bps = args.max_bitrate * 1000;
+        }
         video_sender_->SetParameters(parameters);
     }
 }
@@ -175,6 +203,7 @@ webrtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config
     }
 
     peer->SetPeer(result.MoveValue());
+    ApplyBitrateSettings(peer->GetPeer());
 
     if (!config.no_data_channels) {
         InitializeDataChannels(peer);

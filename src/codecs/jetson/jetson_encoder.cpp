@@ -165,9 +165,22 @@ void JetsonEncoder::SetFps(int adjusted_fps) {
 }
 
 void JetsonEncoder::SetBitrate(int adjusted_bitrate_bps) {
-    if (config_.bitrate != adjusted_bitrate_bps) {
-        config_.bitrate = adjusted_bitrate_bps;
-        encoder_->setBitrate(adjusted_bitrate_bps);
+    if (config_.bitrate == adjusted_bitrate_bps) {
+        return;
+    }
+    config_.bitrate = adjusted_bitrate_bps;
+
+    v4l2_ext_control control{};
+    control.id = V4L2_CID_MPEG_VIDEO_BITRATE;
+    control.value = adjusted_bitrate_bps;
+
+    v4l2_ext_controls ctrls{};
+    ctrls.count = 1;
+    ctrls.controls = &control;
+    ctrls.ctrl_class = V4L2_CTRL_CLASS_MPEG;
+
+    if (encoder_->setExtControls(ctrls) < 0) {
+        ERROR_PRINT("Could not set encoder bitrate to %d", adjusted_bitrate_bps);
     }
 }
 

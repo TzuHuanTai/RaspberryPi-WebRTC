@@ -5,6 +5,7 @@
 
 #include <modules/video_coding/include/video_codec_interface.h>
 #include <modules/video_coding/include/video_error_codes.h>
+#include <system_wrappers/include/clock.h>
 
 std::unique_ptr<webrtc::VideoEncoder> JetsonVideoEncoder::Create(Args args) {
     return std::make_unique<JetsonVideoEncoder>(args);
@@ -12,7 +13,7 @@ std::unique_ptr<webrtc::VideoEncoder> JetsonVideoEncoder::Create(Args args) {
 
 JetsonVideoEncoder::JetsonVideoEncoder(Args args)
     : fps_adjuster_(args.fps),
-      bitrate_adjuster_(.85, 1),
+      bitrate_adjuster_(webrtc::Clock::GetRealTimeClock(), .85, 1),
       callback_(nullptr) {}
 
 int32_t JetsonVideoEncoder::InitEncode(const webrtc::VideoCodec *codec_settings,
@@ -101,11 +102,14 @@ webrtc::VideoEncoder::EncoderInfo JetsonVideoEncoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
+    info.has_trusted_rate_controller = true;
     info.implementation_name = "Jetson Hardware Encoder";
     return info;
 }
 
 void JetsonVideoEncoder::SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer) {
+    bitrate_adjuster_.Update(encoded_buffer.length);
+
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 

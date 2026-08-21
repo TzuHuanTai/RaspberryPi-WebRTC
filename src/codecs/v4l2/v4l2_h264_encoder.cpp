@@ -5,6 +5,7 @@
 
 #include <modules/video_coding/include/video_codec_interface.h>
 #include <modules/video_coding/include/video_error_codes.h>
+#include <system_wrappers/include/clock.h>
 
 std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
     return std::make_unique<V4L2H264Encoder>(args);
@@ -12,7 +13,7 @@ std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
 
 V4L2H264Encoder::V4L2H264Encoder(Args args)
     : fps_adjuster_(args.fps),
-      bitrate_adjuster_(.85, 1),
+      bitrate_adjuster_(webrtc::Clock::GetRealTimeClock(), .85, 1),
       callback_(nullptr) {}
 
 int32_t V4L2H264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
@@ -106,11 +107,14 @@ webrtc::VideoEncoder::EncoderInfo V4L2H264Encoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
+    info.has_trusted_rate_controller = true;
     info.implementation_name = "Raspberry Pi V4L2 H264 Hardware Encoder";
     return info;
 }
 
 void V4L2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer) {
+    bitrate_adjuster_.Update(encoded_buffer.length);
+
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 
