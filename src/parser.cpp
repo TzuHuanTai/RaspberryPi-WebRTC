@@ -551,7 +551,7 @@ void Parser::ParseDevice(Args &args) {
     } else if (prefix == "libargus") {
 #if defined(USE_LIBARGUS_CAPTURE)
         args.camera_source = CameraSource::LibArgus;
-        args.format = V4L2_PIX_FMT_YUV420;
+        args.format = V4L2_PIX_FMT_NV12;
 #elif defined(RPI_PLATFORM)
         throw std::runtime_error("Raspberry Pi does not support libargus. Use v4l2:<id> instead.");
 #else

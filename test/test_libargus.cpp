@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/libargus_egl_capturer.h"
+#include "capturer/libargus_capturer.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -16,7 +16,7 @@ int main() {
     int record_sec = 5;
     Args args{.fps = 60, .width = 1280, .height = 720};
 
-    auto capturer = LibargusEglCapturer::Create(args);
+    auto capturer = LibargusCapturer::Create(args);
 
     auto start_time = std::chrono::steady_clock::now();
     auto record_start_time = start_time;

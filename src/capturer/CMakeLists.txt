@@ -15,7 +15,7 @@ if(USE_LIBARGUS_CAPTURE)
     set(TEGRA_LIB_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/tegra)
 
     list(APPEND CAPTURE_FILES
-        libargus_egl_capturer.cpp
+        libargus_capturer.cpp
 
         ${MULTIMEDIA_API_BASE}/samples/common/classes/NvBuffer.cpp
         ${MULTIMEDIA_API_BASE}/samples/common/classes/NvLogging.cpp

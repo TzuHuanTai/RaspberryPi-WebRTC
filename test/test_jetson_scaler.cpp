@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capturer/libargus_egl_capturer.h"
+#include "capturer/libargus_capturer.h"
 #include "codecs/jetson/jetson_encoder.h"
 #include "codecs/jetson/jetson_scaler.h"
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         .hw_accel = true, // hw will use dma fd
     };
 
-    auto capturer = LibargusEglCapturer::Create(args);
+    auto capturer = LibargusCapturer::Create(args);
     auto scaler = JetsonScaler::Create({args.width, args.height, adapted_width, adapted_height});
     auto encoder = JetsonEncoder::Create({.width = adapted_width,
                                           .height = adapted_height,

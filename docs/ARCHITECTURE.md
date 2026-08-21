@@ -51,7 +51,7 @@ graph LR
 ## Capture
 
 One capturer runs per camera, chosen by the `--camera` backend prefix — `LibcameraCapturer`,
-`LibargusEglCapturer`, or `V4l2Capturer`. Audio comes from `PaCapturer` (PulseAudio) or
+`LibargusCapturer`, or `V4l2Capturer`. Audio comes from `PaCapturer` (PulseAudio) or
 `AlsaCapturer` (`--force-alsa`).
 
 When `--sub-width` and `--sub-height` are set, the camera produces a second, smaller stream
