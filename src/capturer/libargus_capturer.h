@@ -47,11 +47,11 @@ class StreamHandler : public Subject<V4L2FrameBufferRef> {
         int dma_fd = -1;
         NvBufSurface *surface = nullptr;
         Argus::UniqueObj<Argus::Buffer> argus_buffer;
-        V4L2FrameBufferRef frame_buffer;
     };
 
     int stream_idx_;
     Argus::Size2D<uint32_t> size_;
+    uint32_t frame_size_ = 0;
     std::atomic<bool> running_;
 
     Argus::OutputStream *output_stream_ = nullptr;
@@ -64,6 +64,7 @@ class StreamHandler : public Subject<V4L2FrameBufferRef> {
 
     std::unique_ptr<Worker> worker_;
 
+    V4L2FrameBufferRef WrapBuffer(int dma_fd, timeval timestamp) const;
     void CaptureImage();
     void ReleaseBuffers();
 };
