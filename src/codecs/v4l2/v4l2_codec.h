@@ -2,6 +2,7 @@
 #define V4L2_CODEC_
 
 #include "codecs/frame_processor.h"
+#include "common/latency_tracer.h"
 #include "common/thread_safe_queue.h"
 #include "common/v4l2_utils.h"
 #include "common/worker.h"
@@ -25,6 +26,8 @@ class V4L2Codec : public IFrameProcessor {
     bool SubscribeEvent(uint32_t ev_type);
     void HandleEvent();
     void Start();
+
+    latency::Stage dwell_stage_ = latency::Stage::kHwEncodeDwell;
 
   private:
     int fd_;

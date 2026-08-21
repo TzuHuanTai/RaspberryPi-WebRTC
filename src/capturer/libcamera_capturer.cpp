@@ -2,6 +2,7 @@
 
 #include <sys/mman.h>
 
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include "common/v4l2_utils.h"
 #include <libcamera/geometry.h>
@@ -284,6 +285,9 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
         exit(1);
     }
 
+    const bool traced = latency::Enabled();
+    const int64_t callback_start_us = traced ? latency::NowUs() : 0;
+
     auto &buffers = request->buffers();
     auto *buffer = buffers.begin()->second;
 
@@ -296,6 +300,11 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
 
     auto v4l2_buffer = V4L2Buffer::FromLibcamera((uint8_t *)data, length, fd, tv, format_);
     frame_buffer_ = V4L2FrameBuffer::Create(width_, height_, v4l2_buffer);
+
+    if (traced) {
+        latency::RecordCapture(latency::SensorUs(tv), callback_start_us);
+    }
+
     stream_subject_.Next(frame_buffer_);
 
     request->reuse(libcamera::Request::ReuseBuffers);
@@ -307,6 +316,10 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
             request->controls().merge(controls_);
             is_controls_updated_ = false;
         }
+    }
+
+    if (traced) {
+        latency::RecordSince(latency::Stage::kCaptureCallback, callback_start_us);
     }
 
     camera_->queueRequest(request);

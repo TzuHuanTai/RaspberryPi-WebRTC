@@ -1,8 +1,7 @@
 #include "codecs/jetson/jetson_scaler.h"
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include "common/v4l2_utils.h"
-
-#include <chrono>
 
 std::unique_ptr<JetsonScaler> JetsonScaler::Create(ScalerConfig config) {
     auto scaler = std::make_unique<JetsonScaler>(config);
@@ -87,14 +86,23 @@ void JetsonScaler::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
         return;
     }
 
+    const bool traced = latency::Enabled();
+
     auto item = free_buffers_.pop();
     if (!item) {
+        if (traced) {
+            latency::Count(latency::Counter::kScalerNoBuffer);
+        }
         return;
     }
 
     int dst_dma_fd = item.value();
 
+    const int64_t transform_start_us = traced ? latency::NowUs() : 0;
     int ret = NvBufSurf::NvTransform(&transform_params_, frame_buffer->GetDmaFd(), dst_dma_fd);
+    if (traced) {
+        latency::RecordSince(latency::Stage::kNvTransform, transform_start_us);
+    }
     if (ret < 0) {
         ERROR_PRINT("NvTransform failed to tranform from fd(%d) to fd(%d)",
                     frame_buffer->GetDmaFd(), dst_dma_fd);
@@ -113,11 +121,23 @@ void JetsonScaler::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
         free_buffers_.push(dst_dma_fd);
     };
 
-    capturing_tasks_.push(std::move(task));
+    if (traced) {
+        task.queued_us = latency::NowUs();
+    }
+
+    if (!capturing_tasks_.push(std::move(task))) {
+        free_buffers_.push(dst_dma_fd);
+        if (traced) {
+            latency::Count(latency::Counter::kScalerQueueFull);
+        }
+    }
 }
 
 void JetsonScaler::CaptureBuffer() {
     if (auto task = capturing_tasks_.pop(1)) {
+        if (task->queued_us != 0) {
+            latency::RecordSince(latency::Stage::kScalerDwell, task->queued_us);
+        }
         task->callback();
     }
 }

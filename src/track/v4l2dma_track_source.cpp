@@ -5,6 +5,7 @@
 #elif defined(USE_JETSON_HW_ENCODER)
 #include "codecs/jetson/jetson_scaler.h"
 #endif
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 
 webrtc::scoped_refptr<V4L2DmaTrackSource>
@@ -35,7 +36,23 @@ void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
     const int64_t translated_timestamp_us =
         timestamp_aligner.TranslateTimestamp(timestamp_us, webrtc::TimeMicros());
 
+    const bool traced = latency::Enabled();
+    const int64_t sensor_us = traced ? latency::SensorUs(frame_buffer->timestamp()) : 0;
+    if (traced) {
+        latency::SetSourceResolution(width, height);
+    }
+    if (sensor_us != 0) {
+        latency::Record(latency::Stage::kSensorToTrackIn, timestamp_us - sensor_us);
+    }
+
     if (capturer->config().no_adaptive) {
+        if (traced) {
+            latency::SetSentResolution(width, height);
+            if (sensor_us != 0) {
+                latency::MarkCapture(translated_timestamp_us, sensor_us);
+                latency::Record(latency::Stage::kSensorToOnFrame, latency::NowUs() - sensor_us);
+            }
+        }
         OnFrame(webrtc::VideoFrame::Builder()
                     .set_video_frame_buffer(frame_buffer)
                     .set_rotation(webrtc::kVideoRotation_0)
@@ -45,7 +62,14 @@ void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
         int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
         if (!AdaptFrame(width, height, timestamp_us, &adapted_width, &adapted_height, &crop_width,
                         &crop_height, &crop_x, &crop_y)) {
+            if (traced) {
+                latency::Count(latency::Counter::kAdaptDrop);
+            }
             return;
+        }
+
+        if (traced) {
+            latency::SetSentResolution(adapted_width, adapted_height);
         }
 
         if (!scaler || adapted_width != config_width_ || adapted_height != config_height_) {
@@ -61,13 +85,17 @@ void V4L2DmaTrackSource::OnFrameCaptured(V4L2FrameBufferRef frame_buffer) {
                         config_height_);
         }
 
-        scaler->EmplaceBuffer(frame_buffer,
-                              [this, translated_timestamp_us](V4L2FrameBufferRef scaled_buffer) {
-                                  OnFrame(webrtc::VideoFrame::Builder()
-                                              .set_video_frame_buffer(scaled_buffer)
-                                              .set_rotation(webrtc::kVideoRotation_0)
-                                              .set_timestamp_us(translated_timestamp_us)
-                                              .build());
-                              });
+        scaler->EmplaceBuffer(frame_buffer, [this, translated_timestamp_us,
+                                             sensor_us](V4L2FrameBufferRef scaled_buffer) {
+            if (sensor_us != 0) {
+                latency::MarkCapture(translated_timestamp_us, sensor_us);
+                latency::Record(latency::Stage::kSensorToOnFrame, latency::NowUs() - sensor_us);
+            }
+            OnFrame(webrtc::VideoFrame::Builder()
+                        .set_video_frame_buffer(scaled_buffer)
+                        .set_rotation(webrtc::kVideoRotation_0)
+                        .set_timestamp_us(translated_timestamp_us)
+                        .build());
+        });
     }
 }

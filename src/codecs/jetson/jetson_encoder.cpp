@@ -1,4 +1,5 @@
 #include "codecs/jetson/jetson_encoder.h"
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include "common/v4l2_utils.h"
 #include <cstring>
@@ -229,6 +230,9 @@ void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
 
     if (encoder_->output_plane.getNumQueuedBuffers() == encoder_->output_plane.getNumBuffers()) {
         if (encoder_->output_plane.dqBuffer(v4l2_output_buf, &nv_buffer, NULL, 10) < 0) {
+            if (latency::Enabled()) {
+                latency::Count(latency::Counter::kEncoderDqTimeout);
+            }
             ERROR_PRINT("Failed to dqBuffer at encoder output_plane");
             return;
         }
@@ -247,6 +251,15 @@ void JetsonEncoder::EmplaceBuffer(V4L2FrameBufferRef frame_buffer,
 
     if (encoder_->output_plane.qBuffer(v4l2_output_buf, nullptr) < 0) {
         ERROR_PRINT("Failed to qBuffer at encoder output_plane");
+        return;
+    }
+
+    if (latency::Enabled()) {
+        const int64_t queued_us = latency::NowUs();
+        capturing_tasks_.push([on_capture, queued_us](V4L2FrameBufferRef encoded_buffer) {
+            latency::RecordSince(latency::Stage::kHwEncodeDwell, queued_us);
+            on_capture(encoded_buffer);
+        });
         return;
     }
 

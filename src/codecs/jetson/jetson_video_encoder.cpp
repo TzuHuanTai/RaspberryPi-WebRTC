@@ -1,4 +1,5 @@
 #include "codecs/jetson/jetson_video_encoder.h"
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include "common/v4l2_frame_buffer.h"
 
@@ -81,6 +82,13 @@ void JetsonVideoEncoder::SetRates(const RateControlParameters &parameters) {
     }
     bitrate_adjuster_.SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
     fps_adjuster_ = parameters.framerate_fps;
+
+    if (latency::Enabled()) {
+        latency::SetBitrateKbps(
+            parameters.bitrate.get_sum_bps() / 1000,
+            bitrate_adjuster_.GetAdjustedBitrateBps() / 1000,
+            static_cast<int>(bitrate_adjuster_.GetEstimatedBitrateBps().value_or(0) / 1000));
+    }
 
     if (!encoder_) {
         return;

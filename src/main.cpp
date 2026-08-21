@@ -1,4 +1,5 @@
 #include "args.h"
+#include "common/latency_tracer.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "parser.h"
@@ -18,6 +19,10 @@ int main(int argc, char *argv[]) {
         // with "terminate called after throwing" and dumps core instead of naming the problem.
         ERROR_PRINT("%s", e.what());
         return 1;
+    }
+
+    if (args.latency_trace) {
+        latency::Start(args.latency_trace_interval);
     }
 
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);

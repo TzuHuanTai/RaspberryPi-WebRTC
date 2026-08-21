@@ -15,7 +15,9 @@ std::unique_ptr<V4L2Scaler> V4L2Scaler::Create(ScalerConfig config) {
 
 V4L2Scaler::V4L2Scaler(ScalerConfig config)
     : V4L2Codec(),
-      config_(config) {}
+      config_(config) {
+    dwell_stage_ = latency::Stage::kScalerDwell;
+}
 
 bool V4L2Scaler::Initialize() {
     if (!Open(SCALER_FILE)) {
