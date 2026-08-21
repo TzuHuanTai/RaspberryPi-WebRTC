@@ -7,6 +7,8 @@
 #include <modules/video_coding/include/video_error_codes.h>
 #include <system_wrappers/include/clock.h>
 
+const int kKeyFrameIntervalFrames = 3000;
+
 std::unique_ptr<webrtc::VideoEncoder> JetsonVideoEncoder::Create(Args args) {
     return std::make_unique<JetsonVideoEncoder>(args);
 }
@@ -62,6 +64,8 @@ int32_t JetsonVideoEncoder::Encode(const webrtc::VideoFrame &frame,
         config.height = height_;
         config.dst_pix_fmt = codec_fmt;
         config.is_dma_src = frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative;
+        config.keyframe_interval = kKeyFrameIntervalFrames;
+        config.idr_interval = kKeyFrameIntervalFrames;
         encoder_ = JetsonEncoder::Create(config);
     }
 
