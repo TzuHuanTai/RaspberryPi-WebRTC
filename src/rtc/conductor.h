@@ -45,6 +45,8 @@ class Conductor {
     void BindIpcToDataChannelSender(std::shared_ptr<RtcChannel> channel);
     void BindDataChannelToIpcReceiver(std::shared_ptr<RtcChannel> channel);
 
+    void
+    ApplyBitrateSettings(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void AddTracks(webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void TakeSnapshot(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);
     void QueryFile(std::shared_ptr<RtcChannel> datachannel, const protocol::Packet &pkt);

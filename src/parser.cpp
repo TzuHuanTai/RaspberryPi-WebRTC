@@ -190,6 +190,14 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Set the quality of the snapshot and thumbnail images in range 0 to 100.")
         ("peer-timeout", bpo::value<int>(&args.peer_timeout)->default_value(args.peer_timeout),
             "The connection timeout (in seconds) after receiving a remote offer")
+        ("max-bitrate", bpo::value<int>(&args.max_bitrate)->default_value(args.max_bitrate),
+            "Ceiling (in kbps) the video sender may be allocated. 0 keeps WebRTC's own default, "
+            "which is derived from the resolution and is often well below what the link can carry.")
+        ("start-bitrate", bpo::value<int>(&args.start_bitrate)->default_value(args.start_bitrate),
+            "Initial bandwidth estimate (in kbps). 0 keeps WebRTC's default of 300, which the "
+            "estimator then has to ramp up from while every frame is squeezed to fit it.")
+        ("min-bitrate", bpo::value<int>(&args.min_bitrate)->default_value(args.min_bitrate),
+            "Floor (in kbps) for the bandwidth estimate. 0 keeps WebRTC's default.")
         ("hw-accel", bpo::bool_switch(&args.hw_accel)->default_value(args.hw_accel),
             "Enable hardware acceleration by sharing DMA buffers between the decoder, "
             "scaler, and encoder to reduce CPU usage.")
@@ -434,6 +442,16 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     args.jpeg_quality = std::clamp(args.jpeg_quality, 0, 100);
     args.latency_trace_interval = std::clamp(args.latency_trace_interval, 1, 3600);
+
+    // BitrateSettings is rejected outright unless 0 <= min <= start <= max, so an inconsistent
+    // pair is pulled into range rather than silently disabling every bound.
+    if (args.max_bitrate > 0) {
+        args.start_bitrate = std::min(args.start_bitrate, args.max_bitrate);
+        args.min_bitrate = std::min(args.min_bitrate, args.max_bitrate);
+    }
+    if (args.start_bitrate > 0) {
+        args.min_bitrate = std::min(args.min_bitrate, args.start_bitrate);
+    }
 
     args.record_type = ParseEnum(record_type_table, args.record_type_str);
     args.ipc_channel_mode = ParseEnum(ipc_mode_table, args.ipc_channel);
