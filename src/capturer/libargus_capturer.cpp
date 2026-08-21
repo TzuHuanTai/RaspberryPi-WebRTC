@@ -178,7 +178,7 @@ bool StreamHandler::PrepareBuffers() {
         return false;
     }
 
-    const int frame_size = size_.width() * size_.height() * 3 / 2;
+    frame_size_ = size_.width() * size_.height() * 3 / 2;
 
     for (int i = 0; i < kBufferCount; i++) {
         buffers_.push_back(std::make_unique<CaptureBuffer>());
@@ -227,10 +227,6 @@ bool StreamHandler::PrepareBuffers() {
         // The acquired Buffer is matched back to its dmabuf through this pointer.
         ibuffer->setClientData(&buffer);
 
-        buffer.frame_buffer =
-            V4L2FrameBuffer::Create(size_.width(), size_.height(), frame_size, V4L2_PIX_FMT_NV12);
-        buffer.frame_buffer->SetDmaFd(buffer.dma_fd);
-
         // Hand the buffer to Argus so it can be filled by the first capture.
         if (i_buffer_stream_->releaseBuffer(buffer.argus_buffer.get()) != Argus::STATUS_OK) {
             ERROR_PRINT("Failed to release a Buffer for capture use");
@@ -238,8 +234,15 @@ bool StreamHandler::PrepareBuffers() {
         }
     }
 
-    last_frame_buffer_ = buffers_[0]->frame_buffer;
+    last_frame_buffer_ = WrapBuffer(buffers_[0]->dma_fd, {0, 0});
     return true;
+}
+
+V4L2FrameBufferRef StreamHandler::WrapBuffer(int dma_fd, timeval timestamp) const {
+    auto v4l2_buffer =
+        V4L2Buffer::FromCapturedPlane(nullptr, frame_size_, dma_fd, 0, V4L2_PIX_FMT_NV12);
+    v4l2_buffer.timestamp = timestamp;
+    return V4L2FrameBuffer::Create(size_.width(), size_.height(), v4l2_buffer);
 }
 
 void StreamHandler::CaptureImage() {
@@ -269,14 +272,17 @@ void StreamHandler::CaptureImage() {
             const_cast<Argus::CaptureMetadata *>(ibuffer->getMetadata()))) {
         timestamp = ToTimeval(metadata->getSensorTimestamp());
     }
-    capture_buffer->frame_buffer->SetTimestamp(timestamp);
+    // A fresh handle per capture. It costs one small allocation and keeps consumers that are still
+    // holding the previous frame from seeing its timestamp rewritten when Argus hands the same pool
+    // slot back a few captures later.
+    auto frame_buffer = WrapBuffer(capture_buffer->dma_fd, timestamp);
 
     if (latency::Enabled()) {
         latency::RecordCapture(latency::SensorUs(timestamp), latency::NowUs());
     }
 
-    last_frame_buffer_ = capture_buffer->frame_buffer;
-    Next(capture_buffer->frame_buffer);
+    last_frame_buffer_ = frame_buffer;
+    Next(frame_buffer);
 
     i_buffer_stream_->releaseBuffer(buffer);
 }
@@ -302,7 +308,6 @@ void StreamHandler::StartCapture() {
 void StreamHandler::ReleaseBuffers() {
     for (auto &buffer : buffers_) {
         buffer->argus_buffer.reset();
-        buffer->frame_buffer = nullptr;
 
         if (buffer->surface) {
             NvBufSurfaceUnMapEglImage(buffer->surface, 0);

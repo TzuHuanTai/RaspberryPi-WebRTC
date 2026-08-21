@@ -176,6 +176,8 @@ V4L2Buffer V4L2FrameBuffer::GetRawBuffer() { return buffer_; }
 
 const void *V4L2FrameBuffer::Data() const { return data_ ? data_.get() : buffer_.start; }
 
+bool V4L2FrameBuffer::IsDmaOnly() const { return Data() == nullptr && buffer_.dmafd > 0; }
+
 uint8_t *V4L2FrameBuffer::MutableData() {
     if (!data_) {
         throw std::runtime_error(

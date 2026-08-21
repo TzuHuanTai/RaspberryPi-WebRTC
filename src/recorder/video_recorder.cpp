@@ -4,13 +4,19 @@
 
 #include "common/logging.h"
 
+namespace {
+
+constexpr size_t kFrameQueueDepth = 2;
+
+} // namespace
+
 VideoRecorder::VideoRecorder(int width, int height, int fps, AVCodecID encoder_id)
     : Recorder(),
       fps(fps),
       width(width),
       height(height),
       encoder_id(encoder_id),
-      frame_buffer_queue(fps),
+      frame_buffer_queue(kFrameQueueDepth),
       base_time_initialized(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
@@ -27,9 +33,15 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
 }
 
 void VideoRecorder::OnBuffer(V4L2FrameBufferRef frame_buffer) {
-    if (!frame_buffer_queue.push(frame_buffer->Clone())) {
+    if (frame_buffer_queue.full()) {
         DEBUG_PRINT("Skip a frame because the buffer is full.");
+        return;
     }
+
+    // A dma-only frame is passed on by reference: it lives in NVMM and every encoder on that path
+    // reads it through the dma fd, so there is nothing to copy. A mmap-backed one has to be copied
+    // out first, because the driver takes it back as soon as this callback returns.
+    frame_buffer_queue.push(frame_buffer->IsDmaOnly() ? frame_buffer : frame_buffer->Clone());
 }
 
 void VideoRecorder::OnStart() {
