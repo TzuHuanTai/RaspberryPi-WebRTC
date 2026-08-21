@@ -7,6 +7,8 @@
 #include <modules/video_coding/include/video_error_codes.h>
 #include <system_wrappers/include/clock.h>
 
+const int kKeyFrameIntervalFrames = 3000;
+
 std::unique_ptr<webrtc::VideoEncoder> V4L2H264Encoder::Create(Args args) {
     return std::make_unique<V4L2H264Encoder>(args);
 }
@@ -66,7 +68,8 @@ int32_t V4L2H264Encoder::Encode(const webrtc::VideoFrame &frame,
         config.height = height_;
         config.src_pix_fmt = V4L2_PIX_FMT_YUV420;
         config.is_dma_src = frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative;
-        config.keyframe_interval = 600;
+        config.keyframe_interval = kKeyFrameIntervalFrames;
+        config.idr_interval = kKeyFrameIntervalFrames;
         encoder_ = V4L2Encoder::Create(config);
     }
 
